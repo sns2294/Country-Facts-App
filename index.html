@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Country Facts</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-text">
+      <h1>Country Facts</h1>
+      <p class="app-subtitle">Explore countries, browse the map, and test what you know.</p>
+    </div>
+    <button id="dark-mode-toggle" type="button" aria-pressed="false" title="Toggle dark mode">
+      <span id="dark-mode-icon" aria-hidden="true">🌙</span>
+    </button>
+  </header>
+
+  <main>
+    <div class="section-nav" id="section-toggle" role="tablist" aria-label="App section">
+      <button type="button" id="section-toggle-explore" role="tab" aria-selected="true" data-section="explore">Explore</button>
+      <button type="button" id="section-toggle-quiz" role="tab" aria-selected="false" data-section="quiz">Quiz</button>
+    </div>
+
+    <section id="explore-section" class="explore-section">
+      <div class="segmented-control" id="explore-view-toggle" role="tablist" aria-label="Country selection method">
+        <button type="button" id="view-toggle-dropdown" role="tab" aria-selected="true" data-view="dropdown">Dropdown</button>
+        <button type="button" id="view-toggle-map" role="tab" aria-selected="false" data-view="map">Map</button>
+      </div>
+
+      <section class="search-section">
+        <label for="country-input" class="search-label">Pick a country</label>
+        <input
+          id="country-input"
+          type="text"
+          list="country-list"
+          placeholder="Start typing a country name…"
+          autocomplete="off"
+        />
+        <datalist id="country-list"></datalist>
+        <p id="search-status" class="status" role="status"></p>
+      </section>
+
+      <section id="map-section" class="map-section" hidden>
+        <div id="map-container" class="map-container">
+          <p id="map-loading" class="status">Loading map…</p>
+          <div id="map-tooltip" class="map-tooltip" hidden></div>
+          <div class="map-controls">
+            <button type="button" id="map-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+            <button type="button" id="map-zoom-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
+            <button type="button" id="map-zoom-reset" title="Reset view" aria-label="Reset view">⤾</button>
+          </div>
+        </div>
+        <p class="map-hint">Scroll or use the buttons to zoom, drag to pan.</p>
+      </section>
+
+      <section id="fact-card" class="fact-card" hidden aria-live="polite"></section>
+    </section>
+
+    <section id="quiz-section" class="quiz-section" hidden>
+      <div id="quiz-mode-select" class="quiz-mode-select">
+        <h2>Choose a quiz mode</h2>
+        <div class="quiz-mode-buttons">
+          <button type="button" class="quiz-mode-btn" data-mode="flag">
+            <span class="quiz-mode-title">Flag</span>
+            <span class="quiz-mode-desc">See a flag, pick the country</span>
+          </button>
+          <button type="button" class="quiz-mode-btn" data-mode="capital">
+            <span class="quiz-mode-title">Capital</span>
+            <span class="quiz-mode-desc">See a country, pick its capital</span>
+          </button>
+          <button type="button" class="quiz-mode-btn" data-mode="religion">
+            <span class="quiz-mode-title">Religion</span>
+            <span class="quiz-mode-desc">See a country, pick its predominant religion</span>
+          </button>
+          <button type="button" class="quiz-mode-btn" data-mode="language">
+            <span class="quiz-mode-title">Language</span>
+            <span class="quiz-mode-desc">See a country, pick its official language</span>
+          </button>
+        </div>
+        <p id="quiz-status" class="status" role="status"></p>
+      </div>
+
+      <div id="quiz-question" class="quiz-question" hidden aria-live="polite">
+        <div class="quiz-progress">
+          <span id="quiz-progress-text"></span>
+          <span id="quiz-score-text"></span>
+        </div>
+        <div id="quiz-prompt" class="quiz-prompt"></div>
+        <div id="quiz-options" class="quiz-options"></div>
+        <p id="quiz-feedback" class="quiz-feedback" hidden></p>
+        <button type="button" id="quiz-next-btn" class="quiz-btn-primary" hidden>Next Question</button>
+      </div>
+
+      <div id="quiz-score-screen" class="quiz-score-screen" hidden>
+        <p class="quiz-score-label">Your score</p>
+        <h2 id="quiz-final-score"></h2>
+        <button type="button" id="quiz-play-again-btn" class="quiz-btn-primary">Play Again</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

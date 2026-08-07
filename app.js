@@ -377,6 +377,83 @@
       mapContainer.classList.remove("dragging");
     });
 
+    function touchDistance(t0, t1) {
+      return Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+    }
+
+    function touchMidpoint(t0, t1) {
+      return { x: (t0.clientX + t1.clientX) / 2, y: (t0.clientY + t1.clientY) / 2 };
+    }
+
+    let pinchStartDist = 0;
+
+    mapContainer.addEventListener(
+      "touchstart",
+      (evt) => {
+        if (evt.touches.length === 1) {
+          isDragging = true;
+          dragged = false;
+          lastX = evt.touches[0].clientX;
+          lastY = evt.touches[0].clientY;
+        } else if (evt.touches.length === 2) {
+          isDragging = false;
+          dragged = true;
+          pinchStartDist = touchDistance(evt.touches[0], evt.touches[1]);
+        }
+      },
+      { passive: true }
+    );
+
+    mapContainer.addEventListener(
+      "touchmove",
+      (evt) => {
+        if (evt.touches.length === 2) {
+          evt.preventDefault();
+          const dist = touchDistance(evt.touches[0], evt.touches[1]);
+          if (pinchStartDist) {
+            const mid = touchMidpoint(evt.touches[0], evt.touches[1]);
+            zoomAt(mid.x, mid.y, pinchStartDist / dist);
+            mapContainer.classList.add("dragging");
+          }
+          pinchStartDist = dist;
+        } else if (evt.touches.length === 1 && isDragging) {
+          const touch = evt.touches[0];
+          const dx = touch.clientX - lastX;
+          const dy = touch.clientY - lastY;
+          if (!dragged && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+          evt.preventDefault();
+          dragged = true;
+          mapContainer.classList.add("dragging");
+
+          const rect = mapContainer.getBoundingClientRect();
+          const scaleX = currentViewBox.w / rect.width;
+          const scaleY = currentViewBox.h / rect.height;
+          applyViewBox(currentViewBox.x - dx * scaleX, currentViewBox.y - dy * scaleY, currentViewBox.w);
+          lastX = touch.clientX;
+          lastY = touch.clientY;
+        }
+      },
+      { passive: false }
+    );
+
+    function endTouch(evt) {
+      if (evt.touches.length === 0) {
+        if (dragged) suppressNextClick = true;
+        isDragging = false;
+        dragged = false;
+        pinchStartDist = 0;
+        mapContainer.classList.remove("dragging");
+      } else if (evt.touches.length === 1) {
+        isDragging = true;
+        lastX = evt.touches[0].clientX;
+        lastY = evt.touches[0].clientY;
+        pinchStartDist = 0;
+      }
+    }
+
+    mapContainer.addEventListener("touchend", endTouch);
+    mapContainer.addEventListener("touchcancel", endTouch);
+
     mapContainer.addEventListener(
       "click",
       (evt) => {

@@ -292,6 +292,63 @@ main {
   opacity: 0.85;
 }
 
+.map-container path.country.quiz-target {
+  fill: var(--accent);
+  stroke-width: 1.5;
+  animation: quiz-target-pulse 1.4s ease-in-out infinite;
+}
+
+.map-container circle.hit-target.quiz-target {
+  fill: var(--accent);
+  opacity: 1;
+  r: 1.6;
+  animation: quiz-target-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes quiz-target-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.quiz-target-marker {
+  pointer-events: none;
+}
+
+.quiz-target-marker-dot {
+  fill: var(--accent);
+  stroke: #ffffff;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.quiz-target-marker-ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.8;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: quiz-marker-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes quiz-marker-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  75%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
 .map-controls {
   position: absolute;
   top: 0.75rem;
@@ -542,7 +599,41 @@ main {
   margin-top: 1rem;
 }
 
+.quiz-region-select {
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+
+.quiz-region-select h2 {
+  margin: 0 0 1.25rem;
+  font-size: 1.1rem;
+}
+
+.quiz-region-select .quiz-mode-buttons {
+  margin-bottom: 1rem;
+}
+
+.quiz-region-btn {
+  align-items: center;
+  text-align: center;
+}
+
+.quiz-back-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.quiz-back-btn:hover {
+  text-decoration: underline;
+}
+
 .quiz-question,
+.quiz-map-question,
 .quiz-score-screen {
   width: 100%;
   max-width: 420px;
@@ -556,11 +647,24 @@ main {
   gap: 1.25rem;
 }
 
+/* Map quiz mode gets a wider card than the other quiz modes so small
+   island countries have more on-screen room to see and zoom into. */
+.quiz-map-question {
+  max-width: 760px;
+}
+
 .quiz-progress {
+  width: 100%;
+  max-width: 420px;
   display: flex;
   justify-content: space-between;
   font-size: 0.8rem;
   color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.quiz-progress--map {
+  max-width: 760px;
 }
 
 .quiz-prompt {
@@ -582,6 +686,56 @@ main {
 .quiz-prompt-text {
   margin: 0;
   font-size: 1.05rem;
+  color: var(--text);
+}
+
+.quiz-map-instruction {
+  margin: 0;
+  text-align: center;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.quiz-map-answer-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.quiz-map-answer-row label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.quiz-guess-input {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  font-size: 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.quiz-guess-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.quiz-guess-input:disabled {
+  opacity: 0.65;
+}
+
+.quiz-bonus-row {
+  padding: 0.9rem;
+  background: rgba(47, 111, 237, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.quiz-bonus-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
   color: var(--text);
 }
 

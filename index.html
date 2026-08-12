@@ -78,19 +78,86 @@
             <span class="quiz-mode-title">Language</span>
             <span class="quiz-mode-desc">See a country, pick its official language</span>
           </button>
+          <button type="button" class="quiz-mode-btn" data-mode="map">
+            <span class="quiz-mode-title">Map</span>
+            <span class="quiz-mode-desc">Find the highlighted country, then its capital</span>
+          </button>
         </div>
         <p id="quiz-status" class="status" role="status"></p>
       </div>
 
-      <div id="quiz-question" class="quiz-question" hidden aria-live="polite">
-        <div class="quiz-progress">
-          <span id="quiz-progress-text"></span>
-          <span id="quiz-score-text"></span>
+      <div id="quiz-region-select" class="quiz-region-select" hidden>
+        <h2>Choose a region</h2>
+        <div class="quiz-mode-buttons">
+          <button type="button" class="quiz-mode-btn quiz-region-btn" data-region="Europe">
+            <span class="quiz-mode-title">Europe</span>
+          </button>
+          <button type="button" class="quiz-mode-btn quiz-region-btn" data-region="Africa">
+            <span class="quiz-mode-title">Africa</span>
+          </button>
+          <button type="button" class="quiz-mode-btn quiz-region-btn" data-region="Asia">
+            <span class="quiz-mode-title">Asia</span>
+          </button>
+          <button type="button" class="quiz-mode-btn quiz-region-btn" data-region="Americas">
+            <span class="quiz-mode-title">Americas</span>
+          </button>
+          <button type="button" class="quiz-mode-btn quiz-region-btn" data-region="Oceania">
+            <span class="quiz-mode-title">Oceania</span>
+          </button>
         </div>
+        <button type="button" id="quiz-region-back-btn" class="quiz-back-btn">&larr; Back</button>
+        <p id="quiz-region-status" class="status" role="status"></p>
+      </div>
+
+      <div id="quiz-progress-bar" class="quiz-progress" hidden>
+        <span id="quiz-progress-text"></span>
+        <span id="quiz-score-text"></span>
+      </div>
+
+      <div id="quiz-question" class="quiz-question" hidden aria-live="polite">
         <div id="quiz-prompt" class="quiz-prompt"></div>
         <div id="quiz-options" class="quiz-options"></div>
         <p id="quiz-feedback" class="quiz-feedback" hidden></p>
         <button type="button" id="quiz-next-btn" class="quiz-btn-primary" hidden>Next Question</button>
+      </div>
+
+      <div id="quiz-map-question" class="quiz-map-question" hidden aria-live="polite">
+        <p class="quiz-map-instruction">Which country is highlighted?</p>
+        <div id="quiz-map-container" class="map-container quiz-map-container">
+          <p id="quiz-map-loading" class="status">Loading map&hellip;</p>
+          <div class="map-controls">
+            <button type="button" id="quiz-map-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+            <button type="button" id="quiz-map-zoom-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
+          </div>
+        </div>
+        <div class="quiz-map-answer-row">
+          <label for="quiz-country-guess">Country</label>
+          <input
+            id="quiz-country-guess"
+            type="text"
+            class="quiz-guess-input"
+            list="quiz-country-guess-list"
+            placeholder="Start typing a country name&hellip;"
+            autocomplete="off"
+          />
+          <datalist id="quiz-country-guess-list"></datalist>
+        </div>
+        <div id="quiz-bonus-row" class="quiz-map-answer-row quiz-bonus-row" hidden>
+          <p class="quiz-bonus-label">Bonus: pick the capital of <strong id="quiz-bonus-country-name"></strong></p>
+          <label for="quiz-capital-guess">Capital</label>
+          <input
+            id="quiz-capital-guess"
+            type="text"
+            class="quiz-guess-input"
+            list="quiz-capital-guess-list"
+            placeholder="Start typing a capital&hellip;"
+            autocomplete="off"
+          />
+          <datalist id="quiz-capital-guess-list"></datalist>
+        </div>
+        <p id="quiz-map-input-status" class="status" role="status"></p>
+        <p id="quiz-map-feedback" class="quiz-feedback" hidden></p>
+        <button type="button" id="quiz-map-next-btn" class="quiz-btn-primary" hidden>Next Question</button>
       </div>
 
       <div id="quiz-score-screen" class="quiz-score-screen" hidden>

@@ -292,63 +292,6 @@ main {
   opacity: 0.85;
 }
 
-.map-container path.country.quiz-target {
-  fill: var(--accent);
-  stroke-width: 1.5;
-  animation: quiz-target-pulse 1.4s ease-in-out infinite;
-}
-
-.map-container circle.hit-target.quiz-target {
-  fill: var(--accent);
-  opacity: 1;
-  r: 1.6;
-  animation: quiz-target-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes quiz-target-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.55;
-  }
-}
-
-.quiz-target-marker {
-  pointer-events: none;
-}
-
-.quiz-target-marker-dot {
-  fill: var(--accent);
-  stroke: #ffffff;
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-
-.quiz-target-marker-ring {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-  opacity: 0.8;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: quiz-marker-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-@keyframes quiz-marker-ping {
-  0% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-  75%,
-  100% {
-    transform: scale(2.4);
-    opacity: 0;
-  }
-}
-
 .map-controls {
   position: absolute;
   top: 0.75rem;
@@ -660,7 +603,7 @@ main {
 }
 
 .quiz-question,
-.quiz-map-question,
+.quiz-geo-question,
 .quiz-score-screen {
   width: 100%;
   max-width: 420px;
@@ -674,9 +617,9 @@ main {
   gap: 1.25rem;
 }
 
-/* Map quiz mode gets a wider card than the other quiz modes so small
+/* Geography quiz mode gets a wider card than the other quiz modes so small
    island countries have more on-screen room to see and zoom into. */
-.quiz-map-question {
+.quiz-geo-question {
   max-width: 760px;
 }
 
@@ -690,7 +633,7 @@ main {
   margin-bottom: 0.75rem;
 }
 
-.quiz-progress--map {
+.quiz-progress--geo {
   max-width: 760px;
 }
 
@@ -716,20 +659,20 @@ main {
   color: var(--text);
 }
 
-.quiz-map-instruction {
+.quiz-geo-instruction {
   margin: 0;
   text-align: center;
   font-size: 1.05rem;
   color: var(--text);
 }
 
-.quiz-map-answer-row {
+.quiz-geo-answer-row {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
 }
 
-.quiz-map-answer-row label {
+.quiz-geo-answer-row label {
   font-size: 0.85rem;
   color: var(--text-muted);
 }

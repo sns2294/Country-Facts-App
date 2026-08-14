@@ -47,38 +47,36 @@
   const quizFinalScore = document.getElementById("quiz-final-score");
   const quizPlayAgainBtn = document.getElementById("quiz-play-again-btn");
 
-  const quizMapQuestionEl = document.getElementById("quiz-map-question");
-  const quizMapContainer = document.getElementById("quiz-map-container");
-  const quizMapLoading = document.getElementById("quiz-map-loading");
-  const quizMapZoomInBtn = document.getElementById("quiz-map-zoom-in");
-  const quizMapZoomOutBtn = document.getElementById("quiz-map-zoom-out");
+  const quizGeoQuestionEl = document.getElementById("quiz-geo-question");
+  const quizGeoGlobeContainer = document.getElementById("quiz-geo-globe-container");
+  const quizGeoGlobeLoading = document.getElementById("quiz-geo-globe-loading");
+  const quizGeoZoomInBtn = document.getElementById("quiz-geo-zoom-in");
+  const quizGeoZoomOutBtn = document.getElementById("quiz-geo-zoom-out");
   const quizCountryGuessInput = document.getElementById("quiz-country-guess");
   const quizCountryGuessList = document.getElementById("quiz-country-guess-list");
   const quizBonusRow = document.getElementById("quiz-bonus-row");
   const quizBonusCountryName = document.getElementById("quiz-bonus-country-name");
   const quizCapitalGuessInput = document.getElementById("quiz-capital-guess");
   const quizCapitalGuessList = document.getElementById("quiz-capital-guess-list");
-  const quizMapInputStatus = document.getElementById("quiz-map-input-status");
-  const quizMapFeedback = document.getElementById("quiz-map-feedback");
-  const quizMapNextBtn = document.getElementById("quiz-map-next-btn");
+  const quizGeoInputStatus = document.getElementById("quiz-geo-input-status");
+  const quizGeoFeedback = document.getElementById("quiz-geo-feedback");
+  const quizGeoNextBtn = document.getElementById("quiz-geo-next-btn");
 
   const NATIVE_VIEW_BOX = { x: -180, y: -84, w: 360, h: 174 };
   const MIN_VIEW_WIDTH = 4;
   const MAX_VIEW_WIDTH = NATIVE_VIEW_BOX.w;
   const MIN_HIT_TARGET_PX = 9;
   const MAX_HIT_RADIUS_DEG = 1.0;
-  const MARKER_RADIUS_PX = 7;
-  const MAX_MARKER_RADIUS_DEG = 2.5;
   const WHEEL_ZOOM_FACTOR = 1.15;
   const BUTTON_ZOOM_FACTOR = 1.4;
   const DRAG_THRESHOLD_PX = 3;
   const QUIZ_QUESTION_COUNT = 10;
-  // Applied on top of the region fit for the Map quiz mode so the region fills
-  // more of the frame by default (still centered on the whole region, not the
-  // individual highlighted country) — makes small island nations easier to see.
-  const QUIZ_MAP_ZOOM_BOOST = 0.85;
+  // Applied on top of the region fit for the Geography quiz mode so the region
+  // fills more of the frame by default (still centered on the whole region,
+  // not the individual highlighted country) — makes small island nations
+  // easier to see.
+  const QUIZ_GEO_ZOOM_BOOST = 0.85;
   const REGIONS = ["Europe", "Africa", "Asia", "Americas", "Oceania"];
-  const SVG_NS = "http://www.w3.org/2000/svg";
 
   let countryNames = [];
 
@@ -291,6 +289,35 @@
     return Math.min(Math.max(value, min), max);
   }
 
+  // Longitude wraps at ±180°. Countries/regions that straddle that seam (Fiji,
+  // Kiribati, Russia...) need the smallest arc (on the circular 360°-wide
+  // longitude domain) containing every value in `xs` — a plain min/max would
+  // treat Fiji's ~+178 and Samoa's ~-172 as being on opposite sides of the
+  // world instead of ~10° apart. Shared by the flat map's SVG geometry and the
+  // globe's GeoJSON geometry, both of which use plain degrees of longitude.
+  function findEnclosingArc(xs) {
+    if (!xs.length) return null;
+    const normalized = Array.from(new Set(xs.map((x) => (((x % 360) + 360) % 360).toFixed(6))))
+      .map(Number)
+      .sort((a, b) => a - b);
+    if (normalized.length === 1) return { start: normalized[0], span: 0 };
+
+    let maxGap = -1;
+    let gapAfterIndex = 0;
+    for (let i = 0; i < normalized.length; i++) {
+      const curr = normalized[i];
+      const next = i === normalized.length - 1 ? normalized[0] + 360 : normalized[i + 1];
+      const gap = next - curr;
+      if (gap > maxGap) {
+        maxGap = gap;
+        gapAfterIndex = i;
+      }
+    }
+
+    const start = normalized[(gapAfterIndex + 1) % normalized.length];
+    return { start, span: 360 - maxGap };
+  }
+
   let mapMarkupPromise = null;
   function fetchMapMarkup() {
     if (!mapMarkupPromise) {
@@ -319,8 +346,6 @@
     let svg = null;
     let currentViewBox = { ...NATIVE_VIEW_BOX };
     let suppressNextClick = false;
-    let highlightedEl = null;
-    let markerEl = null;
 
     function showTooltip(name) {
       if (!tooltipEl || !name) return;
@@ -367,7 +392,6 @@
         svg.setAttribute("viewBox", `${clampedX} ${clampedY} ${width} ${height}`);
       }
       updateHitTargetSizes();
-      updateMarkerSize();
     }
 
     function zoomAt(clientX, clientY, factor) {
@@ -401,20 +425,6 @@
       // click target doesn't balloon large enough to swallow neighboring countries.
       const radius = Math.min(MIN_HIT_TARGET_PX / scale, MAX_HIT_RADIUS_DEG);
       svg.querySelectorAll("circle.hit-target").forEach((circle) => {
-        circle.setAttribute("r", radius);
-      });
-    }
-
-    function updateMarkerSize() {
-      if (!svg || !markerEl) return;
-      const rect = container.getBoundingClientRect();
-      if (!rect.width) return;
-      const scale = rect.width / currentViewBox.w;
-      // Kept to a constant screen size (rather than scaling with the country's
-      // own geometry) so tiny countries like Malta or Pacific island nations
-      // stay findable even when the map is zoomed out to a whole region.
-      const radius = Math.min(MARKER_RADIUS_PX / scale, MAX_MARKER_RADIUS_DEG);
-      markerEl.querySelectorAll("circle").forEach((circle) => {
         circle.setAttribute("r", radius);
       });
     }
@@ -622,197 +632,8 @@
       }
     }
 
-    function findCountryEl(code) {
-      if (!svg) return null;
-      return (
-        svg.querySelector(`path.country[id="${code}"]`) ||
-        svg.querySelector(`circle.hit-target[data-code="${code}"]`)
-      );
-    }
-
-    function getCentroid(el) {
-      if (el.tagName === "circle") {
-        const cx = parseFloat(el.getAttribute("cx"));
-        const cy = parseFloat(el.getAttribute("cy"));
-        if (!isNaN(cx) && !isNaN(cy)) return { x: cx, y: cy };
-      } else {
-        const cx = parseFloat(el.dataset.cx);
-        const cy = parseFloat(el.dataset.cy);
-        if (!isNaN(cx) && !isNaN(cy)) return { x: cx, y: cy };
-      }
-      const bbox = el.getBBox();
-      return { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
-    }
-
-    function createMarker(centroid) {
-      const g = document.createElementNS(SVG_NS, "g");
-      g.setAttribute("class", "quiz-target-marker");
-      g.setAttribute("transform", `translate(${centroid.x}, ${centroid.y})`);
-
-      const ring = document.createElementNS(SVG_NS, "circle");
-      ring.setAttribute("class", "quiz-target-marker-ring");
-      ring.setAttribute("cx", "0");
-      ring.setAttribute("cy", "0");
-
-      const dot = document.createElementNS(SVG_NS, "circle");
-      dot.setAttribute("class", "quiz-target-marker-dot");
-      dot.setAttribute("cx", "0");
-      dot.setAttribute("cy", "0");
-
-      g.appendChild(ring);
-      g.appendChild(dot);
-      return g;
-    }
-
-    function highlight(code) {
-      clearHighlight();
-      const el = findCountryEl(code);
-      if (!el) return;
-
-      el.classList.add("quiz-target");
-      highlightedEl = el;
-
-      markerEl = createMarker(getCentroid(el));
-      svg.appendChild(markerEl);
-      updateMarkerSize();
-    }
-
-    function clearHighlight() {
-      if (highlightedEl) {
-        highlightedEl.classList.remove("quiz-target");
-        highlightedEl = null;
-      }
-      if (markerEl) {
-        markerEl.remove();
-        markerEl = null;
-      }
-    }
-
-    // This map's longitude axis wraps at ±180°. Fiji, Kiribati, Russia, etc. are
-    // drawn as one <path> with sub-shapes on both sides of that seam, so their
-    // raw getBBox() reads as ~360° wide instead of their true (small) extent.
-    // Smallest arc (on the circular 360°-wide longitude domain) containing every
-    // value in `xs`. A plain min/max would treat Fiji's ~+178 and Samoa's ~-172
-    // as being on opposite sides of the world instead of ~10° apart.
-    function findEnclosingArc(xs) {
-      if (!xs.length) return null;
-      const normalized = Array.from(new Set(xs.map((x) => (((x % 360) + 360) % 360).toFixed(6))))
-        .map(Number)
-        .sort((a, b) => a - b);
-      if (normalized.length === 1) return { start: normalized[0], span: 0 };
-
-      let maxGap = -1;
-      let gapAfterIndex = 0;
-      for (let i = 0; i < normalized.length; i++) {
-        const curr = normalized[i];
-        const next = i === normalized.length - 1 ? normalized[0] + 360 : normalized[i + 1];
-        const gap = next - curr;
-        if (gap > maxGap) {
-          maxGap = gap;
-          gapAfterIndex = i;
-        }
-      }
-
-      const start = normalized[(gapAfterIndex + 1) % normalized.length];
-      return { start, span: 360 - maxGap };
-    }
-
-    // Splits a country's path into its individual sub-shapes (islands, enclaves)
-    // so an antimeridian-spanning country contributes several small, correctly
-    // placed boxes instead of one that spans the whole map.
-    function getMeasurementBoxes(el) {
-      if (el.tagName === "circle") {
-        const cx = parseFloat(el.getAttribute("cx"));
-        const cy = parseFloat(el.getAttribute("cy"));
-        return [{ x: cx, y: cy, width: 0, height: 0 }];
-      }
-
-      const d = el.getAttribute("d") || "";
-      const segments = d
-        .split(/[Zz]/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-      if (segments.length <= 1) return [el.getBBox()];
-
-      return segments.map((seg) => {
-        const temp = document.createElementNS(SVG_NS, "path");
-        temp.setAttribute("d", `${seg}Z`);
-        temp.setAttribute("visibility", "hidden");
-        svg.appendChild(temp);
-        const box = temp.getBBox();
-        temp.remove();
-        return box;
-      });
-    }
-
-    // Centers on the country's actual stored (always-in-bounds) longitude.
-    // The window is allowed to spill only as far past ±180 as the marker's
-    // own radius requires (see applyViewBox) — enough that the ring is never
-    // clipped, but not so much that a wide-region view ends up half blank
-    // with the country stranded at the map/void seam.
-    function centerHorizontallyOn(code) {
-      const el = findCountryEl(code);
-      if (!el) return;
-      const centroid = getCentroid(el);
-      applyViewBox(centroid.x - currentViewBox.w / 2, currentViewBox.y, currentViewBox.w, {
-        clampMargin: MAX_MARKER_RADIUS_DEG,
-      });
-    }
-
-    function getAvailableCodes() {
-      const codes = new Set();
-      if (!svg) return codes;
-      svg.querySelectorAll("path.country[id]").forEach((p) => codes.add(p.id));
-      svg.querySelectorAll("circle.hit-target").forEach((c) => codes.add(c.dataset.code));
-      return codes;
-    }
-
-    function fitToCodes(codes, paddingRatio = 0.15) {
-      if (!svg) return;
-      const xPoints = [];
-      let minY = Infinity;
-      let maxY = -Infinity;
-
-      codes.forEach((code) => {
-        const el = findCountryEl(code);
-        if (!el) return;
-        getMeasurementBoxes(el).forEach((box) => {
-          xPoints.push(box.x, box.x + box.width);
-          minY = Math.min(minY, box.y);
-          maxY = Math.max(maxY, box.y + box.height);
-        });
-      });
-      if (!xPoints.length || !isFinite(minY)) return;
-
-      const arc = findEnclosingArc(xPoints);
-      const boxW = arc.span;
-      const boxH = maxY - minY;
-      const targetAspect = NATIVE_VIEW_BOX.w / NATIVE_VIEW_BOX.h;
-      let viewW = boxW * (1 + paddingRatio * 2);
-      let viewH = boxH * (1 + paddingRatio * 2);
-      if (viewW / viewH < targetAspect) {
-        viewW = viewH * targetAspect;
-      } else {
-        viewH = viewW / targetAspect;
-      }
-      const midNormalized = arc.start + boxW / 2;
-      const cx = midNormalized > 180 ? midNormalized - 360 : midNormalized;
-      const cy = minY + boxH / 2;
-      applyViewBox(cx - viewW / 2, cy - viewH / 2, viewW);
-    }
-
     return {
       ensureLoaded,
-      applyViewBox,
-      zoomAtCenter,
-      highlight,
-      clearHighlight,
-      centerHorizontallyOn,
-      getAvailableCodes,
-      fitToCodes,
-      get loaded() {
-        return loaded;
-      },
     };
   }
 
@@ -827,31 +648,27 @@
     onCountryClick: (code) => selectCountryByCode(code),
   });
 
-  const quizMap = createMapController({
-    container: quizMapContainer,
-    loadingEl: quizMapLoading,
-    tooltipEl: null,
-    zoomInBtn: quizMapZoomInBtn,
-    zoomOutBtn: quizMapZoomOutBtn,
-    zoomResetBtn: null,
-    isVisible: () => !quizMapQuestionEl.hidden,
-    enableCountryInteraction: false,
-  });
-
   // --- 3D globe view (globe.gl, loaded via CDN) ---
+  // Country polygon data + the ISO numeric<->alpha2 lookup are fetched once
+  // and shared by every Globe() instance (Explore's and the quiz's) rather
+  // than being re-fetched per instance.
   const GLOBE_GEO_URL = "https://unpkg.com/world-atlas@2/countries-110m.json";
   const GLOBE_DEFAULT_POV = { lat: 15, lng: 10, altitude: 2.2 };
-  const GLOBE_MIN_ALTITUDE = 0.4;
+  const GLOBE_MIN_ALTITUDE = 0.32;
   const GLOBE_MAX_ALTITUDE = 4;
   const GLOBE_ZOOM_FACTOR = 1.4;
 
-  let globeInstance = null;
   let globeFeaturesPromise = null;
   let globeNumericToAlpha2Promise = null;
-  let globeHoverFeature = null;
 
   function getCssVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function hexToRgbTriplet(hex) {
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || "");
+    if (!m) return "47,111,237";
+    return [1, 2, 3].map((i) => parseInt(m[i], 16)).join(",");
   }
 
   function fetchGlobeFeatures() {
@@ -867,8 +684,8 @@
   }
 
   // world-atlas polygon ids are zero-padded ISO 3166-1 numeric codes, which
-  // line up with the numericCode field the country API returns — used here to
-  // resolve a clicked polygon back to the alpha2 code the rest of the app keys on.
+  // line up with the numericCode field the country API returns — used to
+  // resolve a polygon back to the alpha2 code the rest of the app keys on.
   function fetchNumericToAlpha2Map() {
     if (!globeNumericToAlpha2Promise) {
       globeNumericToAlpha2Promise = fetch(`${API_BASE}/countries?fields=alpha2Code,numericCode`)
@@ -887,88 +704,222 @@
     return globeNumericToAlpha2Promise;
   }
 
-  function refreshGlobePolygonStyles() {
-    if (!globeInstance) return;
-    const fillColor = getCssVar("--map-fill");
-    const hoverColor = getCssVar("--map-hover");
-    const strokeColor = getCssVar("--map-stroke");
-    globeInstance
-      .polygonCapColor((d) => (d === globeHoverFeature ? hoverColor : fillColor))
-      .polygonSideColor(() => fillColor)
-      .polygonStrokeColor(() => strokeColor)
-      .polygonAltitude((d) => (d === globeHoverFeature ? 0.02 : 0.006));
+  // Bounding box (in degrees) of one or more GeoJSON polygon/multipolygon
+  // features, using findEnclosingArc for longitude so antimeridian-straddling
+  // countries/regions (Fiji, Russia...) measure correctly.
+  function getFeatureSetBBox(features) {
+    const lngs = [];
+    let minLat = Infinity;
+    let maxLat = -Infinity;
+    features.forEach((feature) => {
+      const geom = feature?.geometry;
+      if (!geom) return;
+      const rings =
+        geom.type === "Polygon" ? geom.coordinates : geom.type === "MultiPolygon" ? geom.coordinates.flat() : [];
+      rings.forEach((ring) => {
+        ring.forEach(([lng, lat]) => {
+          lngs.push(lng);
+          if (lat < minLat) minLat = lat;
+          if (lat > maxLat) maxLat = lat;
+        });
+      });
+    });
+    if (!lngs.length || !isFinite(minLat)) return null;
+
+    const arc = findEnclosingArc(lngs);
+    const midNormalized = arc.start + arc.span / 2;
+    const centerLng = midNormalized > 180 ? midNormalized - 360 : midNormalized;
+    return { centerLat: (minLat + maxLat) / 2, centerLng, latSpan: maxLat - minLat, lngSpan: arc.span };
   }
 
-  function applyGlobeTheme() {
-    if (!globeInstance) return;
-    globeInstance.backgroundColor("rgba(0,0,0,0)");
-    globeInstance.globeMaterial().color.set(getCssVar("--surface") || "#ffffff");
-    globeInstance.atmosphereColor(getCssVar("--accent") || "#2f6fed");
-    refreshGlobePolygonStyles();
+  // Empirical mapping from a region's angular span (degrees) to a globe.gl
+  // camera altitude that frames it reasonably. globe.gl's perspective camera
+  // has no exact equivalent to the flat map's orthographic viewBox width, so
+  // this is tuned by feel (small country ≈ 0.35, large region ≈ 1.5+) rather
+  // than derived geometrically.
+  function altitudeForSpan(spanDeg) {
+    return clamp(0.22 + spanDeg / 55, GLOBE_MIN_ALTITUDE, GLOBE_MAX_ALTITUDE);
   }
 
-  function resizeGlobe() {
-    if (!globeInstance) return;
-    const rect = globeContainer.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    globeInstance.width(rect.width).height(rect.height);
-  }
+  // Shared pan/zoom/hover/highlight engine backing both the Explore globe and
+  // the Geography quiz's globe, each with its own WebGL canvas and click rules.
+  function createGlobeController({
+    container,
+    loadingEl,
+    zoomInBtn,
+    zoomOutBtn,
+    resetBtn,
+    isVisible,
+    enableCountryInteraction = true,
+    onCountryClick = null,
+  }) {
+    let globe = null;
+    let alpha2ToFeature = new Map();
+    let hoverFeature = null;
+    let targetFeature = null;
 
-  async function handleGlobeCountryClick(feature) {
-    const code = feature?.id;
-    if (!code) return;
-    const map = await fetchNumericToAlpha2Map();
-    const alpha2 = map.get(code);
-    if (!alpha2) return;
-    await selectCountryByCode(alpha2);
-  }
-
-  async function ensureGlobeLoaded() {
-    if (globeInstance) {
-      resizeGlobe();
-      return;
+    function refreshPolygonStyles() {
+      if (!globe) return;
+      const fillColor = getCssVar("--map-fill");
+      const hoverColor = getCssVar("--map-hover");
+      const strokeColor = getCssVar("--map-stroke");
+      const targetColor = getCssVar("--accent");
+      globe
+        .polygonCapColor((d) => (d === targetFeature ? targetColor : d === hoverFeature ? hoverColor : fillColor))
+        .polygonSideColor(() => fillColor)
+        .polygonStrokeColor(() => strokeColor)
+        .polygonAltitude((d) => (d === targetFeature ? 0.02 : d === hoverFeature ? 0.015 : 0.006));
     }
-    try {
-      const [features] = await Promise.all([fetchGlobeFeatures(), fetchNumericToAlpha2Map()]);
 
-      globeInstance = Globe()(globeContainer)
-        .showAtmosphere(true)
-        .atmosphereAltitude(0.15)
-        .polygonsData(features)
-        .polygonLabel(({ properties }) => (properties && properties.name) || "")
-        .polygonsTransitionDuration(200)
-        .onPolygonHover((feat) => {
-          globeHoverFeature = feat;
-          refreshGlobePolygonStyles();
-        })
-        .onPolygonClick(handleGlobeCountryClick);
-
-      globeInstance.pointOfView(GLOBE_DEFAULT_POV, 0);
-      applyGlobeTheme();
-      resizeGlobe();
-      globeLoading.hidden = true;
-    } catch (err) {
-      globeLoading.textContent = "Couldn't load the globe. Check your connection and try again.";
-      console.error("Failed to load globe:", err);
+    function applyTheme() {
+      if (!globe) return;
+      const accentHex = getCssVar("--accent") || "#2f6fed";
+      const accentRgb = hexToRgbTriplet(accentHex);
+      globe.backgroundColor("rgba(0,0,0,0)");
+      globe.globeMaterial().color.set(getCssVar("--surface") || "#ffffff");
+      globe
+        .atmosphereColor(accentHex)
+        .ringColor(() => (t) => `rgba(${accentRgb},${Math.sqrt(Math.max(0, 1 - t))})`);
+      refreshPolygonStyles();
     }
+
+    function resize() {
+      if (!globe) return;
+      const rect = container.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      globe.width(rect.width).height(rect.height);
+    }
+
+    async function handlePolygonClick(feature) {
+      if (!onCountryClick || !feature?.id) return;
+      const numericToAlpha2 = await fetchNumericToAlpha2Map();
+      const alpha2 = numericToAlpha2.get(feature.id);
+      if (alpha2) onCountryClick(alpha2);
+    }
+
+    async function ensureLoaded() {
+      if (globe) {
+        resize();
+        return;
+      }
+      try {
+        const [features, numericToAlpha2] = await Promise.all([fetchGlobeFeatures(), fetchNumericToAlpha2Map()]);
+        features.forEach((feature) => {
+          const alpha2 = feature.id && numericToAlpha2.get(feature.id);
+          if (alpha2) alpha2ToFeature.set(alpha2, feature);
+        });
+
+        globe = Globe()(container)
+          .showAtmosphere(true)
+          .atmosphereAltitude(0.15)
+          .polygonsData(features)
+          .polygonsTransitionDuration(200)
+          .ringsData([])
+          .ringAltitude(0.02)
+          .ringMaxRadius(3.5)
+          .ringPropagationSpeed(2.5)
+          .ringRepeatPeriod(1400);
+
+        if (enableCountryInteraction) {
+          globe
+            .polygonLabel(({ properties }) => (properties && properties.name) || "")
+            .onPolygonHover((feat) => {
+              hoverFeature = feat;
+              refreshPolygonStyles();
+            })
+            .onPolygonClick(handlePolygonClick);
+        }
+
+        globe.pointOfView(GLOBE_DEFAULT_POV, 0);
+        applyTheme();
+        resize();
+        if (loadingEl) loadingEl.hidden = true;
+      } catch (err) {
+        if (loadingEl) loadingEl.textContent = "Couldn't load the globe. Check your connection and try again.";
+        console.error("Failed to load globe:", err);
+        throw err;
+      }
+    }
+
+    function zoomAtCenter(factor) {
+      if (!globe) return;
+      const pov = globe.pointOfView();
+      const altitude = clamp(pov.altitude * factor, GLOBE_MIN_ALTITUDE, GLOBE_MAX_ALTITUDE);
+      globe.pointOfView({ lat: pov.lat, lng: pov.lng, altitude }, 250);
+    }
+
+    function reset() {
+      if (!globe) return;
+      globe.pointOfView(GLOBE_DEFAULT_POV, 600);
+    }
+
+    function getAvailableCodes() {
+      return new Set(alpha2ToFeature.keys());
+    }
+
+    // Frames the target country's own location, sizing the camera altitude to
+    // fit `contextCodes` (defaults to just the target) — mirrors the flat
+    // map's fitToCodes + centerHorizontallyOn pairing used by the old quiz map.
+    function highlight(code, { contextCodes = [code], boost = 1, transitionMs = 600 } = {}) {
+      if (!globe) return;
+      const feature = alpha2ToFeature.get(code);
+      if (!feature) return;
+      targetFeature = feature;
+      refreshPolygonStyles();
+
+      const targetBox = getFeatureSetBBox([feature]);
+      const contextFeatures = contextCodes.map((c) => alpha2ToFeature.get(c)).filter(Boolean);
+      const contextBox = getFeatureSetBBox(contextFeatures.length ? contextFeatures : [feature]) || targetBox;
+      if (!targetBox || !contextBox) return;
+
+      const span = Math.max(contextBox.lngSpan, contextBox.latSpan * 2);
+      const altitude = altitudeForSpan(span) * boost;
+      globe.pointOfView({ lat: targetBox.centerLat, lng: targetBox.centerLng, altitude }, transitionMs);
+      globe.ringsData([{ lat: targetBox.centerLat, lng: targetBox.centerLng }]);
+    }
+
+    function clearHighlight() {
+      targetFeature = null;
+      if (!globe) return;
+      globe.ringsData([]);
+      refreshPolygonStyles();
+    }
+
+    if (zoomInBtn) zoomInBtn.addEventListener("click", () => zoomAtCenter(1 / GLOBE_ZOOM_FACTOR));
+    if (zoomOutBtn) zoomOutBtn.addEventListener("click", () => zoomAtCenter(GLOBE_ZOOM_FACTOR));
+    if (resetBtn) resetBtn.addEventListener("click", reset);
+
+    window.addEventListener("resize", () => {
+      if (globe && (!isVisible || isVisible())) resize();
+    });
+
+    return {
+      ensureLoaded,
+      applyTheme,
+      highlight,
+      clearHighlight,
+      getAvailableCodes,
+    };
   }
 
-  function zoomGlobe(factor) {
-    if (!globeInstance) return;
-    const pov = globeInstance.pointOfView();
-    const altitude = clamp(pov.altitude * factor, GLOBE_MIN_ALTITUDE, GLOBE_MAX_ALTITUDE);
-    globeInstance.pointOfView({ lat: pov.lat, lng: pov.lng, altitude }, 250);
-  }
-
-  globeZoomInBtn.addEventListener("click", () => zoomGlobe(1 / GLOBE_ZOOM_FACTOR));
-  globeZoomOutBtn.addEventListener("click", () => zoomGlobe(GLOBE_ZOOM_FACTOR));
-  globeResetBtn.addEventListener("click", () => {
-    if (!globeInstance) return;
-    globeInstance.pointOfView(GLOBE_DEFAULT_POV, 600);
+  const exploreGlobe = createGlobeController({
+    container: globeContainer,
+    loadingEl: globeLoading,
+    zoomInBtn: globeZoomInBtn,
+    zoomOutBtn: globeZoomOutBtn,
+    resetBtn: globeResetBtn,
+    isVisible: () => !globeSection.hidden,
+    onCountryClick: (code) => selectCountryByCode(code),
   });
 
-  window.addEventListener("resize", () => {
-    if (globeInstance && !globeSection.hidden) resizeGlobe();
+  const quizGlobe = createGlobeController({
+    container: quizGeoGlobeContainer,
+    loadingEl: quizGeoGlobeLoading,
+    zoomInBtn: quizGeoZoomInBtn,
+    zoomOutBtn: quizGeoZoomOutBtn,
+    resetBtn: null,
+    isVisible: () => !quizGeoQuestionEl.hidden,
+    enableCountryInteraction: false,
   });
 
   function setView(view) {
@@ -983,7 +934,7 @@
       btn.setAttribute("aria-selected", String(active));
     });
     if (isMap) exploreMap.ensureLoaded();
-    if (isGlobe) ensureGlobeLoaded();
+    if (isGlobe) exploreGlobe.ensureLoaded();
   }
 
   viewToggleButtons.forEach((btn) => {
@@ -1026,34 +977,49 @@
     return copy;
   }
 
+  function buildOneMcqQuestion(item, pool, mode) {
+    const correctAnswer = mode.getAnswer(item);
+    const distractorPool = pool.filter((p) => p !== item && mode.getAnswer(p) !== correctAnswer);
+    const wrongAnswers = [];
+
+    shuffleArray(distractorPool).forEach((candidate) => {
+      const value = mode.getAnswer(candidate);
+      if (wrongAnswers.length < 3 && !wrongAnswers.includes(value)) wrongAnswers.push(value);
+    });
+    shuffleArray(distractorPool).forEach((candidate) => {
+      if (wrongAnswers.length < 3) wrongAnswers.push(mode.getAnswer(candidate));
+    });
+
+    return {
+      kind: "mcq",
+      promptType: mode.promptType,
+      promptLabel: mode.promptLabel,
+      prompt: mode.getPrompt(item),
+      correctAnswer,
+      options: shuffleArray([correctAnswer, ...wrongAnswers.slice(0, 3)]),
+    };
+  }
+
   function buildQuizQuestions(pool, mode) {
     const shuffledPool = shuffleArray(pool);
     const picks = [];
     for (let i = 0; i < QUIZ_QUESTION_COUNT; i++) {
       picks.push(shuffledPool[i % shuffledPool.length]);
     }
+    return picks.map((item) => buildOneMcqQuestion(item, pool, mode));
+  }
 
-    return picks.map((item) => {
-      const correctAnswer = mode.getAnswer(item);
-      const distractorPool = pool.filter((p) => p !== item && mode.getAnswer(p) !== correctAnswer);
-      const wrongAnswers = [];
+  function buildOneGeoQuestion(country) {
+    return { kind: "geography", country };
+  }
 
-      shuffleArray(distractorPool).forEach((candidate) => {
-        const value = mode.getAnswer(candidate);
-        if (wrongAnswers.length < 3 && !wrongAnswers.includes(value)) wrongAnswers.push(value);
-      });
-      shuffleArray(distractorPool).forEach((candidate) => {
-        if (wrongAnswers.length < 3) wrongAnswers.push(mode.getAnswer(candidate));
-      });
-
-      return {
-        promptType: mode.promptType,
-        promptLabel: mode.promptLabel,
-        prompt: mode.getPrompt(item),
-        correctAnswer,
-        options: shuffleArray([correctAnswer, ...wrongAnswers.slice(0, 3)]),
-      };
-    });
+  function buildGeoQuestions(pool) {
+    const shuffledPool = shuffleArray(pool);
+    const picks = [];
+    for (let i = 0; i < QUIZ_QUESTION_COUNT; i++) {
+      picks.push(shuffledPool[i % shuffledPool.length]);
+    }
+    return picks.map(buildOneGeoQuestion);
   }
 
   const QUIZ_MODES = {
@@ -1110,28 +1076,107 @@
   };
 
   function showQuizScreen(screen) {
-    const isMapMode = Boolean(quizState?.isMapMode);
     quizModeSelect.hidden = screen !== "mode";
     quizRegionSelect.hidden = screen !== "region";
     quizProgressBar.hidden = screen !== "question";
-    quizProgressBar.classList.toggle("quiz-progress--map", isMapMode);
-    quizQuestionEl.hidden = !(screen === "question" && !isMapMode);
-    quizMapQuestionEl.hidden = !(screen === "question" && isMapMode);
+    quizQuestionEl.hidden = true;
+    quizGeoQuestionEl.hidden = true;
     quizScoreScreen.hidden = screen !== "score";
   }
 
+  const MCQ_MODE_KEYS = Object.keys(QUIZ_MODES);
+
+  // Builds the pools every sub-type of the Mixed quiz draws from, tolerating
+  // any individual pool coming up short (e.g. religion data) rather than
+  // failing the whole round.
+  async function prepareMixedPools() {
+    const mcqPools = {};
+    await Promise.all(
+      MCQ_MODE_KEYS.map(async (key) => {
+        try {
+          const pool = await QUIZ_MODES[key].preparePool();
+          if (pool.length >= 4) mcqPools[key] = pool;
+        } catch (err) {
+          console.error(`Failed to prepare ${key} pool for mixed quiz:`, err);
+        }
+      })
+    );
+
+    let geoPool = [];
+    try {
+      await quizGlobe.ensureLoaded();
+      const countries = await ensureGeoCountries();
+      const availableCodes = quizGlobe.getAvailableCodes();
+      geoPool = countries.filter((c) => availableCodes.has(c.alpha2Code));
+    } catch (err) {
+      console.error("Failed to prepare geography pool for mixed quiz:", err);
+    }
+
+    return { mcqPools, geoPool };
+  }
+
+  function buildMixedQuestions(mcqPools, geoPool) {
+    const kinds = Object.keys(mcqPools);
+    if (geoPool.length >= 4) kinds.push("geography");
+
+    const questions = [];
+    for (let i = 0; i < QUIZ_QUESTION_COUNT; i++) {
+      const kind = kinds[Math.floor(Math.random() * kinds.length)];
+      if (kind === "geography") {
+        const country = geoPool[Math.floor(Math.random() * geoPool.length)];
+        questions.push(buildOneGeoQuestion(country));
+      } else {
+        const mode = QUIZ_MODES[kind];
+        const pool = mcqPools[kind];
+        const item = pool[Math.floor(Math.random() * pool.length)];
+        questions.push(buildOneMcqQuestion(item, pool, mode));
+      }
+    }
+    return questions;
+  }
+
   async function startQuiz(modeKey) {
-    const mode = QUIZ_MODES[modeKey];
     quizStatus.classList.remove("error");
     quizStatus.textContent = "Loading quiz…";
     try {
-      const pool = await mode.preparePool();
-      if (pool.length < 4) {
-        quizStatus.textContent = `Not enough data to run the ${mode.label} quiz right now. Try another mode.`;
-        quizStatus.classList.add("error");
-        return;
+      let questions;
+      let geoPool = null;
+
+      if (modeKey === "mixed") {
+        const pools = await prepareMixedPools();
+        if (!Object.keys(pools.mcqPools).length && pools.geoPool.length < 4) {
+          quizStatus.textContent = "Not enough data to run the Mixed quiz right now. Try again later.";
+          quizStatus.classList.add("error");
+          return;
+        }
+        geoPool = pools.geoPool;
+        questions = buildMixedQuestions(pools.mcqPools, pools.geoPool);
+      } else {
+        const mode = QUIZ_MODES[modeKey];
+        const pool = await mode.preparePool();
+        if (pool.length < 4) {
+          quizStatus.textContent = `Not enough data to run the ${mode.label} quiz right now. Try another mode.`;
+          quizStatus.classList.add("error");
+          return;
+        }
+        questions = buildQuizQuestions(pool, mode);
       }
-      quizState = { questions: buildQuizQuestions(pool, mode), index: 0, score: 0 };
+
+      if (geoPool && geoPool.length) {
+        const namesInPool = geoPool.map((c) => c.name).sort((a, b) => a.localeCompare(b));
+        const capitalsInPool = Array.from(new Set(geoPool.map((c) => c.capital))).sort((a, b) => a.localeCompare(b));
+        populateDatalist(quizCountryGuessList, namesInPool);
+        populateDatalist(quizCapitalGuessList, capitalsInPool);
+      }
+
+      quizState = {
+        questions,
+        index: 0,
+        score: 0,
+        geoPool: geoPool || [],
+        countryAnswered: false,
+        bonusActive: false,
+      };
       quizStatus.textContent = "";
       showQuizScreen("question");
       renderQuizQuestion();
@@ -1148,7 +1193,20 @@
 
     quizProgressText.textContent = `Question ${index + 1} of ${questions.length}`;
     quizScoreText.textContent = `Score: ${score}`;
+    quizProgressBar.classList.toggle("quiz-progress--geo", question.kind === "geography");
 
+    if (question.kind === "geography") {
+      quizQuestionEl.hidden = true;
+      quizGeoQuestionEl.hidden = false;
+      renderGeoQuestion(question);
+    } else {
+      quizGeoQuestionEl.hidden = true;
+      quizQuestionEl.hidden = false;
+      renderMcqQuestion(question);
+    }
+  }
+
+  function renderMcqQuestion(question) {
     quizPrompt.innerHTML =
       question.promptType === "image"
         ? `<img class="quiz-flag" src="${question.prompt}" alt="Flag to identify" />`
@@ -1193,18 +1251,22 @@
     handleQuizAnswer(btn);
   });
 
-  quizNextBtn.addEventListener("click", () => {
+  function goToNextQuestion() {
     quizState.index += 1;
     if (quizState.index >= quizState.questions.length) {
+      quizGlobe.clearHighlight();
       quizFinalScore.textContent = `${quizState.score}/${quizState.questions.length}`;
       showQuizScreen("score");
     } else {
       renderQuizQuestion();
     }
-  });
+  }
+
+  quizNextBtn.addEventListener("click", goToNextQuestion);
+  quizGeoNextBtn.addEventListener("click", goToNextQuestion);
 
   quizPlayAgainBtn.addEventListener("click", () => {
-    quizMap.clearHighlight();
+    quizGlobe.clearHighlight();
     quizState = null;
     showQuizScreen("mode");
   });
@@ -1212,7 +1274,7 @@
   quizModeButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
       const mode = btn.dataset.mode;
-      if (mode === "map") {
+      if (mode === "geography") {
         quizRegionStatus.textContent = "";
         quizRegionStatus.classList.remove("error");
         showQuizScreen("region");
@@ -1225,28 +1287,17 @@
   quizRegionBackBtn.addEventListener("click", () => showQuizScreen("mode"));
 
   quizRegionButtons.forEach((btn) => {
-    btn.addEventListener("click", () => startMapQuiz(btn.dataset.region));
+    btn.addEventListener("click", () => startGeographyQuiz(btn.dataset.region));
   });
 
-  let mapQuizCountriesCache = null;
-  async function ensureMapQuizCountries() {
-    if (mapQuizCountriesCache) return mapQuizCountriesCache;
+  let geoCountriesCache = null;
+  async function ensureGeoCountries() {
+    if (geoCountriesCache) return geoCountriesCache;
     const res = await fetch(`${API_BASE}/countries?fields=name,capital,region,alpha2Code`);
     if (!res.ok) throw new Error(`Request failed: ${res.status}`);
     const data = await res.json();
-    mapQuizCountriesCache = data.filter(
-      (c) => c && c.name && c.capital && c.alpha2Code && REGIONS.includes(c.region)
-    );
-    return mapQuizCountriesCache;
-  }
-
-  function buildMapQuizQuestions(pool) {
-    const shuffledPool = shuffleArray(pool);
-    const picks = [];
-    for (let i = 0; i < QUIZ_QUESTION_COUNT; i++) {
-      picks.push(shuffledPool[i % shuffledPool.length]);
-    }
-    return picks.map((country) => ({ country }));
+    geoCountriesCache = data.filter((c) => c && c.name && c.capital && c.alpha2Code && REGIONS.includes(c.region));
+    return geoCountriesCache;
   }
 
   function populateDatalist(datalistEl, values) {
@@ -1259,13 +1310,13 @@
     return pool.find((item) => item[key].toLowerCase() === value) || null;
   }
 
-  async function startMapQuiz(region) {
+  async function startGeographyQuiz(region) {
     quizRegionStatus.classList.remove("error");
     quizRegionStatus.textContent = "Loading quiz…";
     try {
-      await quizMap.ensureLoaded();
-      const countries = await ensureMapQuizCountries();
-      const availableCodes = quizMap.getAvailableCodes();
+      await quizGlobe.ensureLoaded();
+      const countries = await ensureGeoCountries();
+      const availableCodes = quizGlobe.getAvailableCodes();
       const pool = countries.filter((c) => c.region === region && availableCodes.has(c.alpha2Code));
 
       if (pool.length < 4) {
@@ -1280,10 +1331,9 @@
       populateDatalist(quizCapitalGuessList, capitalsInRegion);
 
       quizState = {
-        isMapMode: true,
         region,
-        pool,
-        questions: buildMapQuizQuestions(pool),
+        geoPool: pool,
+        questions: buildGeoQuestions(pool),
         index: 0,
         score: 0,
         countryAnswered: false,
@@ -1291,25 +1341,22 @@
       };
       quizRegionStatus.textContent = "";
       showQuizScreen("question");
-      renderMapQuizQuestion();
+      renderQuizQuestion();
     } catch (err) {
       quizRegionStatus.textContent = "Couldn't load quiz data. Check your connection and try again.";
       quizRegionStatus.classList.add("error");
-      console.error("Failed to start map quiz:", err);
+      console.error("Failed to start geography quiz:", err);
     }
   }
 
-  function renderMapQuizQuestion() {
-    const { questions, index, score, pool } = quizState;
-    const question = questions[index];
-
-    quizProgressText.textContent = `Question ${index + 1} of ${questions.length}`;
-    quizScoreText.textContent = `Score: ${score}`;
-
-    quizMap.fitToCodes(pool.map((c) => c.alpha2Code));
-    quizMap.zoomAtCenter(QUIZ_MAP_ZOOM_BOOST);
-    quizMap.centerHorizontallyOn(question.country.alpha2Code);
-    quizMap.highlight(question.country.alpha2Code);
+  function renderGeoQuestion(question) {
+    // A chosen region (standalone Geography mode) frames the whole region so
+    // the target has to be located within it; Mixed mode has no region, so
+    // its geography questions zoom in tight on just the target country.
+    const highlightOptions = quizState.region
+      ? { contextCodes: quizState.geoPool.map((c) => c.alpha2Code), boost: QUIZ_GEO_ZOOM_BOOST }
+      : {};
+    quizGlobe.highlight(question.country.alpha2Code, highlightOptions);
 
     quizState.countryAnswered = false;
     quizState.bonusActive = false;
@@ -1320,12 +1367,12 @@
     quizCapitalGuessInput.disabled = true;
     quizBonusRow.hidden = true;
 
-    quizMapInputStatus.textContent = "";
-    quizMapInputStatus.classList.remove("error");
-    quizMapFeedback.hidden = true;
-    quizMapFeedback.textContent = "";
-    quizMapFeedback.classList.remove("correct", "wrong");
-    quizMapNextBtn.hidden = true;
+    quizGeoInputStatus.textContent = "";
+    quizGeoInputStatus.classList.remove("error");
+    quizGeoFeedback.hidden = true;
+    quizGeoFeedback.textContent = "";
+    quizGeoFeedback.classList.remove("correct", "wrong");
+    quizGeoNextBtn.hidden = true;
 
     quizCountryGuessInput.focus();
   }
@@ -1333,26 +1380,26 @@
   function handleCountryGuess() {
     if (!quizState || quizState.countryAnswered) return;
     const question = quizState.questions[quizState.index];
-    const match = matchPoolItem(quizState.pool, quizCountryGuessInput.value, "name");
+    const match = matchPoolItem(quizState.geoPool, quizCountryGuessInput.value, "name");
 
     if (!match) {
-      quizMapInputStatus.textContent = "Pick a country from the suggestions.";
-      quizMapInputStatus.classList.add("error");
+      quizGeoInputStatus.textContent = "Pick a country from the suggestions.";
+      quizGeoInputStatus.classList.add("error");
       return;
     }
-    quizMapInputStatus.textContent = "";
-    quizMapInputStatus.classList.remove("error");
+    quizGeoInputStatus.textContent = "";
+    quizGeoInputStatus.classList.remove("error");
 
     quizState.countryAnswered = true;
     quizCountryGuessInput.disabled = true;
     const isCorrect = match.alpha2Code === question.country.alpha2Code;
 
-    quizMapFeedback.hidden = false;
+    quizGeoFeedback.hidden = false;
     if (isCorrect) {
       quizState.score += 1;
       quizScoreText.textContent = `Score: ${quizState.score}`;
-      quizMapFeedback.textContent = "Correct! Bonus round: name the capital.";
-      quizMapFeedback.classList.add("correct");
+      quizGeoFeedback.textContent = "Correct! Bonus round: name the capital.";
+      quizGeoFeedback.classList.add("correct");
 
       quizState.bonusActive = true;
       quizBonusCountryName.textContent = question.country.name;
@@ -1360,25 +1407,25 @@
       quizCapitalGuessInput.disabled = false;
       quizCapitalGuessInput.focus();
     } else {
-      quizMapFeedback.textContent = `Not quite — the highlighted country is ${question.country.name}.`;
-      quizMapFeedback.classList.add("wrong");
-      quizMapNextBtn.hidden = false;
-      quizMapNextBtn.textContent = quizState.index === quizState.questions.length - 1 ? "See Score" : "Next Question";
+      quizGeoFeedback.textContent = `Not quite — the highlighted country is ${question.country.name}.`;
+      quizGeoFeedback.classList.add("wrong");
+      quizGeoNextBtn.hidden = false;
+      quizGeoNextBtn.textContent = quizState.index === quizState.questions.length - 1 ? "See Score" : "Next Question";
     }
   }
 
   function handleCapitalGuess() {
     if (!quizState || !quizState.bonusActive) return;
     const question = quizState.questions[quizState.index];
-    const match = matchPoolItem(quizState.pool, quizCapitalGuessInput.value, "capital");
+    const match = matchPoolItem(quizState.geoPool, quizCapitalGuessInput.value, "capital");
 
     if (!match) {
-      quizMapInputStatus.textContent = "Pick a capital from the suggestions.";
-      quizMapInputStatus.classList.add("error");
+      quizGeoInputStatus.textContent = "Pick a capital from the suggestions.";
+      quizGeoInputStatus.classList.add("error");
       return;
     }
-    quizMapInputStatus.textContent = "";
-    quizMapInputStatus.classList.remove("error");
+    quizGeoInputStatus.textContent = "";
+    quizGeoInputStatus.classList.remove("error");
 
     quizState.bonusActive = false;
     quizCapitalGuessInput.disabled = true;
@@ -1389,35 +1436,25 @@
       quizScoreText.textContent = `Score: ${quizState.score}`;
     }
 
-    quizMapFeedback.textContent = isBonusCorrect
+    quizGeoFeedback.textContent = isBonusCorrect
       ? "Correct! +1 bonus point for the capital."
       : `Close — the capital is ${question.country.capital}.`;
-    quizMapFeedback.classList.toggle("correct", isBonusCorrect);
-    quizMapFeedback.classList.toggle("wrong", !isBonusCorrect);
+    quizGeoFeedback.classList.toggle("correct", isBonusCorrect);
+    quizGeoFeedback.classList.toggle("wrong", !isBonusCorrect);
 
-    quizMapNextBtn.hidden = false;
-    quizMapNextBtn.textContent = quizState.index === quizState.questions.length - 1 ? "See Score" : "Next Question";
+    quizGeoNextBtn.hidden = false;
+    quizGeoNextBtn.textContent = quizState.index === quizState.questions.length - 1 ? "See Score" : "Next Question";
   }
 
   quizCountryGuessInput.addEventListener("change", handleCountryGuess);
   quizCapitalGuessInput.addEventListener("change", handleCapitalGuess);
 
-  quizMapNextBtn.addEventListener("click", () => {
-    quizState.index += 1;
-    if (quizState.index >= quizState.questions.length) {
-      quizMap.clearHighlight();
-      quizFinalScore.textContent = `${quizState.score}/${quizState.questions.length}`;
-      showQuizScreen("score");
-    } else {
-      renderMapQuizQuestion();
-    }
-  });
-
   function applyDarkMode(isDark) {
     document.documentElement.classList.toggle("dark", isDark);
     darkModeToggle.setAttribute("aria-pressed", String(isDark));
     darkModeIcon.textContent = isDark ? "☀️" : "🌙";
-    applyGlobeTheme();
+    exploreGlobe.applyTheme();
+    quizGlobe.applyTheme();
   }
 
   function initDarkMode() {

@@ -91,9 +91,13 @@
             <span class="quiz-mode-title">Language</span>
             <span class="quiz-mode-desc">See a country, pick its official language</span>
           </button>
-          <button type="button" class="quiz-mode-btn" data-mode="map">
-            <span class="quiz-mode-title">Map</span>
+          <button type="button" class="quiz-mode-btn" data-mode="geography">
+            <span class="quiz-mode-title">Geography</span>
             <span class="quiz-mode-desc">Find the highlighted country, then its capital</span>
+          </button>
+          <button type="button" class="quiz-mode-btn" data-mode="mixed">
+            <span class="quiz-mode-title">Mixed</span>
+            <span class="quiz-mode-desc">A random mix of every quiz type</span>
           </button>
         </div>
         <p id="quiz-status" class="status" role="status"></p>
@@ -134,16 +138,16 @@
         <button type="button" id="quiz-next-btn" class="quiz-btn-primary" hidden>Next Question</button>
       </div>
 
-      <div id="quiz-map-question" class="quiz-map-question" hidden aria-live="polite">
-        <p class="quiz-map-instruction">Which country is highlighted?</p>
-        <div id="quiz-map-container" class="map-container quiz-map-container">
-          <p id="quiz-map-loading" class="status">Loading map&hellip;</p>
+      <div id="quiz-geo-question" class="quiz-geo-question" hidden aria-live="polite">
+        <p class="quiz-geo-instruction">Which country is highlighted?</p>
+        <div id="quiz-geo-globe-container" class="map-container globe-container quiz-geo-globe-container">
+          <p id="quiz-geo-globe-loading" class="status">Loading globe&hellip;</p>
           <div class="map-controls">
-            <button type="button" id="quiz-map-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
-            <button type="button" id="quiz-map-zoom-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
+            <button type="button" id="quiz-geo-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+            <button type="button" id="quiz-geo-zoom-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
           </div>
         </div>
-        <div class="quiz-map-answer-row">
+        <div class="quiz-geo-answer-row">
           <label for="quiz-country-guess">Country</label>
           <input
             id="quiz-country-guess"
@@ -155,7 +159,7 @@
           />
           <datalist id="quiz-country-guess-list"></datalist>
         </div>
-        <div id="quiz-bonus-row" class="quiz-map-answer-row quiz-bonus-row" hidden>
+        <div id="quiz-bonus-row" class="quiz-geo-answer-row quiz-bonus-row" hidden>
           <p class="quiz-bonus-label">Bonus: pick the capital of <strong id="quiz-bonus-country-name"></strong></p>
           <label for="quiz-capital-guess">Capital</label>
           <input
@@ -168,9 +172,9 @@
           />
           <datalist id="quiz-capital-guess-list"></datalist>
         </div>
-        <p id="quiz-map-input-status" class="status" role="status"></p>
-        <p id="quiz-map-feedback" class="quiz-feedback" hidden></p>
-        <button type="button" id="quiz-map-next-btn" class="quiz-btn-primary" hidden>Next Question</button>
+        <p id="quiz-geo-input-status" class="status" role="status"></p>
+        <p id="quiz-geo-feedback" class="quiz-feedback" hidden></p>
+        <button type="button" id="quiz-geo-next-btn" class="quiz-btn-primary" hidden>Next Question</button>
       </div>
 
       <div id="quiz-score-screen" class="quiz-score-screen" hidden>

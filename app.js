@@ -18,6 +18,12 @@
   const mapZoomInBtn = document.getElementById("map-zoom-in");
   const mapZoomOutBtn = document.getElementById("map-zoom-out");
   const mapZoomResetBtn = document.getElementById("map-zoom-reset");
+  const globeSection = document.getElementById("globe-section");
+  const globeContainer = document.getElementById("globe-container");
+  const globeLoading = document.getElementById("globe-loading");
+  const globeZoomInBtn = document.getElementById("globe-zoom-in");
+  const globeZoomOutBtn = document.getElementById("globe-zoom-out");
+  const globeResetBtn = document.getElementById("globe-reset");
 
   const sectionToggleButtons = document.querySelectorAll("#section-toggle button");
   const exploreSection = document.getElementById("explore-section");
@@ -832,16 +838,152 @@
     enableCountryInteraction: false,
   });
 
+  // --- 3D globe view (globe.gl, loaded via CDN) ---
+  const GLOBE_GEO_URL = "https://unpkg.com/world-atlas@2/countries-110m.json";
+  const GLOBE_DEFAULT_POV = { lat: 15, lng: 10, altitude: 2.2 };
+  const GLOBE_MIN_ALTITUDE = 0.4;
+  const GLOBE_MAX_ALTITUDE = 4;
+  const GLOBE_ZOOM_FACTOR = 1.4;
+
+  let globeInstance = null;
+  let globeFeaturesPromise = null;
+  let globeNumericToAlpha2Promise = null;
+  let globeHoverFeature = null;
+
+  function getCssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function fetchGlobeFeatures() {
+    if (!globeFeaturesPromise) {
+      globeFeaturesPromise = fetch(GLOBE_GEO_URL)
+        .then((res) => {
+          if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+          return res.json();
+        })
+        .then((topology) => topojson.feature(topology, topology.objects.countries).features);
+    }
+    return globeFeaturesPromise;
+  }
+
+  // world-atlas polygon ids are zero-padded ISO 3166-1 numeric codes, which
+  // line up with the numericCode field the country API returns — used here to
+  // resolve a clicked polygon back to the alpha2 code the rest of the app keys on.
+  function fetchNumericToAlpha2Map() {
+    if (!globeNumericToAlpha2Promise) {
+      globeNumericToAlpha2Promise = fetch(`${API_BASE}/countries?fields=alpha2Code,numericCode`)
+        .then((res) => {
+          if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+          return res.json();
+        })
+        .then((data) => {
+          const map = new Map();
+          data.forEach((c) => {
+            if (c.numericCode && c.alpha2Code) map.set(c.numericCode, c.alpha2Code);
+          });
+          return map;
+        });
+    }
+    return globeNumericToAlpha2Promise;
+  }
+
+  function refreshGlobePolygonStyles() {
+    if (!globeInstance) return;
+    const fillColor = getCssVar("--map-fill");
+    const hoverColor = getCssVar("--map-hover");
+    const strokeColor = getCssVar("--map-stroke");
+    globeInstance
+      .polygonCapColor((d) => (d === globeHoverFeature ? hoverColor : fillColor))
+      .polygonSideColor(() => fillColor)
+      .polygonStrokeColor(() => strokeColor)
+      .polygonAltitude((d) => (d === globeHoverFeature ? 0.02 : 0.006));
+  }
+
+  function applyGlobeTheme() {
+    if (!globeInstance) return;
+    globeInstance.backgroundColor("rgba(0,0,0,0)");
+    globeInstance.globeMaterial().color.set(getCssVar("--surface") || "#ffffff");
+    globeInstance.atmosphereColor(getCssVar("--accent") || "#2f6fed");
+    refreshGlobePolygonStyles();
+  }
+
+  function resizeGlobe() {
+    if (!globeInstance) return;
+    const rect = globeContainer.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    globeInstance.width(rect.width).height(rect.height);
+  }
+
+  async function handleGlobeCountryClick(feature) {
+    const code = feature?.id;
+    if (!code) return;
+    const map = await fetchNumericToAlpha2Map();
+    const alpha2 = map.get(code);
+    if (!alpha2) return;
+    await selectCountryByCode(alpha2);
+  }
+
+  async function ensureGlobeLoaded() {
+    if (globeInstance) {
+      resizeGlobe();
+      return;
+    }
+    try {
+      const [features] = await Promise.all([fetchGlobeFeatures(), fetchNumericToAlpha2Map()]);
+
+      globeInstance = Globe()(globeContainer)
+        .showAtmosphere(true)
+        .atmosphereAltitude(0.15)
+        .polygonsData(features)
+        .polygonLabel(({ properties }) => (properties && properties.name) || "")
+        .polygonsTransitionDuration(200)
+        .onPolygonHover((feat) => {
+          globeHoverFeature = feat;
+          refreshGlobePolygonStyles();
+        })
+        .onPolygonClick(handleGlobeCountryClick);
+
+      globeInstance.pointOfView(GLOBE_DEFAULT_POV, 0);
+      applyGlobeTheme();
+      resizeGlobe();
+      globeLoading.hidden = true;
+    } catch (err) {
+      globeLoading.textContent = "Couldn't load the globe. Check your connection and try again.";
+      console.error("Failed to load globe:", err);
+    }
+  }
+
+  function zoomGlobe(factor) {
+    if (!globeInstance) return;
+    const pov = globeInstance.pointOfView();
+    const altitude = clamp(pov.altitude * factor, GLOBE_MIN_ALTITUDE, GLOBE_MAX_ALTITUDE);
+    globeInstance.pointOfView({ lat: pov.lat, lng: pov.lng, altitude }, 250);
+  }
+
+  globeZoomInBtn.addEventListener("click", () => zoomGlobe(1 / GLOBE_ZOOM_FACTOR));
+  globeZoomOutBtn.addEventListener("click", () => zoomGlobe(GLOBE_ZOOM_FACTOR));
+  globeResetBtn.addEventListener("click", () => {
+    if (!globeInstance) return;
+    globeInstance.pointOfView(GLOBE_DEFAULT_POV, 600);
+  });
+
+  window.addEventListener("resize", () => {
+    if (globeInstance && !globeSection.hidden) resizeGlobe();
+  });
+
   function setView(view) {
     const isMap = view === "map";
-    searchSection.hidden = isMap;
+    const isGlobe = view === "globe";
+    searchSection.hidden = isMap || isGlobe;
     mapSection.hidden = !isMap;
+    globeSection.hidden = !isGlobe;
     viewToggleButtons.forEach((btn) => {
       const active = btn.dataset.view === view;
       btn.classList.toggle("active", active);
       btn.setAttribute("aria-selected", String(active));
     });
     if (isMap) exploreMap.ensureLoaded();
+    if (isGlobe) ensureGlobeLoaded();
   }
 
   viewToggleButtons.forEach((btn) => {
@@ -1275,6 +1417,7 @@
     document.documentElement.classList.toggle("dark", isDark);
     darkModeToggle.setAttribute("aria-pressed", String(isDark));
     darkModeIcon.textContent = isDark ? "☀️" : "🌙";
+    applyGlobeTheme();
   }
 
   function initDarkMode() {

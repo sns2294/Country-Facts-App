@@ -387,6 +387,33 @@ main {
   text-align: center;
 }
 
+.globe-section {
+  width: 100%;
+}
+
+.globe-container {
+  cursor: grab;
+}
+
+.globe-container:active {
+  cursor: grabbing;
+}
+
+.globe-container canvas {
+  outline: none;
+}
+
+/* globe.gl's built-in hover label, restyled to match .map-tooltip */
+#globe-container .float-tooltip-kap {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border);
+  padding: 0.3rem 0.6rem !important;
+  border-radius: 0.4rem !important;
+  font: 0.8rem -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
 .map-tooltip {
   position: absolute;
   top: 0;

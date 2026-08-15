@@ -46,6 +46,10 @@
   const quizScoreScreen = document.getElementById("quiz-score-screen");
   const quizFinalScore = document.getElementById("quiz-final-score");
   const quizPlayAgainBtn = document.getElementById("quiz-play-again-btn");
+  const quizExitBtn = document.getElementById("quiz-exit-btn");
+  const exitQuizDialog = document.getElementById("exit-quiz-dialog");
+  const exitQuizCancelBtn = document.getElementById("exit-quiz-cancel-btn");
+  const exitQuizConfirmBtn = document.getElementById("exit-quiz-confirm-btn");
 
   const quizGeoQuestionEl = document.getElementById("quiz-geo-question");
   const quizGeoGlobeContainer = document.getElementById("quiz-geo-globe-container");
@@ -1265,10 +1269,33 @@
   quizNextBtn.addEventListener("click", goToNextQuestion);
   quizGeoNextBtn.addEventListener("click", goToNextQuestion);
 
-  quizPlayAgainBtn.addEventListener("click", () => {
+  function returnToModeSelect() {
     quizGlobe.clearHighlight();
     quizState = null;
     showQuizScreen("mode");
+  }
+
+  quizPlayAgainBtn.addEventListener("click", returnToModeSelect);
+
+  function openExitQuizDialog() {
+    exitQuizDialog.hidden = false;
+  }
+
+  function closeExitQuizDialog() {
+    exitQuizDialog.hidden = true;
+  }
+
+  quizExitBtn.addEventListener("click", openExitQuizDialog);
+  exitQuizCancelBtn.addEventListener("click", closeExitQuizDialog);
+  exitQuizConfirmBtn.addEventListener("click", () => {
+    closeExitQuizDialog();
+    returnToModeSelect();
+  });
+  exitQuizDialog.addEventListener("click", (evt) => {
+    if (evt.target === exitQuizDialog) closeExitQuizDialog();
+  });
+  document.addEventListener("keydown", (evt) => {
+    if (evt.key === "Escape" && !exitQuizDialog.hidden) closeExitQuizDialog();
   });
 
   quizModeButtons.forEach((btn) => {

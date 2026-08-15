@@ -127,8 +127,11 @@
       </div>
 
       <div id="quiz-progress-bar" class="quiz-progress" hidden>
-        <span id="quiz-progress-text"></span>
-        <span id="quiz-score-text"></span>
+        <div class="quiz-progress-info">
+          <span id="quiz-progress-text"></span>
+          <span id="quiz-score-text"></span>
+        </div>
+        <button type="button" id="quiz-exit-btn" class="quiz-exit-btn">Exit Quiz</button>
       </div>
 
       <div id="quiz-question" class="quiz-question" hidden aria-live="polite">
@@ -183,6 +186,17 @@
         <button type="button" id="quiz-play-again-btn" class="quiz-btn-primary">Play Again</button>
       </div>
     </section>
+
+    <div id="exit-quiz-dialog" class="modal-overlay" hidden>
+      <div class="modal-dialog" role="alertdialog" aria-modal="true" aria-labelledby="exit-quiz-dialog-title" aria-describedby="exit-quiz-dialog-desc">
+        <h3 id="exit-quiz-dialog-title">Exit quiz?</h3>
+        <p id="exit-quiz-dialog-desc">Are you sure you want to exit? Your progress will be lost.</p>
+        <div class="modal-dialog-actions">
+          <button type="button" id="exit-quiz-cancel-btn" class="quiz-btn-secondary">Cancel</button>
+          <button type="button" id="exit-quiz-confirm-btn" class="quiz-btn-danger">Exit Quiz</button>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script src="https://unpkg.com/topojson-client@3"></script>

@@ -627,7 +627,9 @@ main {
   width: 100%;
   max-width: 420px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 0.75rem;
   font-size: 0.8rem;
   color: var(--text-muted);
   margin-bottom: 0.75rem;
@@ -635,6 +637,28 @@ main {
 
 .quiz-progress--geo {
   max-width: 760px;
+}
+
+.quiz-progress-info {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.quiz-exit-btn {
+  flex-shrink: 0;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.quiz-exit-btn:hover {
+  border-color: #e0553f;
+  color: #e0553f;
 }
 
 .quiz-prompt {
@@ -775,6 +799,82 @@ main {
 
 .quiz-btn-primary:hover {
   opacity: 0.9;
+}
+
+.quiz-btn-secondary {
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.quiz-btn-secondary:hover {
+  border-color: var(--accent);
+}
+
+.quiz-btn-danger {
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+  color: #ffffff;
+  background: #e0553f;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.quiz-btn-danger:hover {
+  opacity: 0.9;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 100;
+}
+
+.modal-overlay[hidden] {
+  display: none;
+}
+
+.modal-dialog {
+  width: 100%;
+  max-width: 360px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  box-shadow: 0 8px 24px var(--shadow);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-dialog h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.modal-dialog p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.modal-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
 }
 
 .quiz-score-screen {

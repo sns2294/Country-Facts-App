@@ -455,13 +455,18 @@ main {
 .fact-card dl {
   margin: 0;
   display: grid;
-  grid-template-columns: minmax(9rem, auto) 1fr;
-  align-items: baseline;
-  row-gap: 1.1rem;
-  column-gap: 1.25rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  row-gap: 1.25rem;
+  column-gap: 1.5rem;
 }
 
-.fact-card dt {
+.fact-card .stat {
+  min-width: 0;
+}
+
+.fact-card dt,
+.fact-card .borders-section h3 {
+  margin: 0 0 0.3rem;
   color: var(--text-muted);
   font-weight: 600;
   font-size: 0.7rem;
@@ -473,20 +478,28 @@ main {
   margin: 0;
   font-weight: 400;
   color: var(--text);
+  overflow-wrap: anywhere;
 }
 
-.fact-card .field-divider {
-  grid-column: 1 / -1;
+.fact-card .stat-note {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.fact-card .borders-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
   border-top: 1px solid var(--border);
-  height: 0;
+}
+
+.fact-card .borders-section h3 {
+  margin-bottom: 0.6rem;
 }
 
 .fact-card .borders-list {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  align-self: start;
-  min-width: 0;
 }
 
 .fact-card .border-chip {

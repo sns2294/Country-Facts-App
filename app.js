@@ -1,6 +1,7 @@
 (() => {
   const API_BASE = "https://countries.dev";
   const GEO_API_BASE = "https://geoapi.info/api";
+  const WORLD_BANK_API_BASE = "https://api.worldbank.org/v2";
   const DARK_MODE_KEY = "countryFactsApp.darkMode";
 
   const countryInput = document.getElementById("country-input");
@@ -95,6 +96,15 @@
     return BORDER_DISPLAY_NAME_OVERRIDES[name] || name;
   }
 
+  // Corrections for bad currency data from countries.dev, keyed by alpha2Code.
+  const CURRENCY_OVERRIDES = {
+    ZW: [{ code: "ZWG", name: "Zimbabwe Gold", symbol: "ZiG" }],
+  };
+
+  function getCurrencies(country) {
+    return CURRENCY_OVERRIDES[country.alpha2Code] || country.currencies;
+  }
+
   function setStatus(message, isError = false) {
     searchStatus.textContent = message;
     searchStatus.classList.toggle("error", isError);
@@ -102,6 +112,46 @@
 
   function formatPopulation(pop) {
     return typeof pop === "number" ? pop.toLocaleString("en-US") : "Unknown";
+  }
+
+  function formatArea(area) {
+    return typeof area === "number" ? `${area.toLocaleString("en-US")} km²` : "N/A";
+  }
+
+  function formatCurrencies(currencies) {
+    if (!currencies?.length) return "N/A";
+    return currencies.map((c) => (c.code ? `${c.name} (${c.code})` : c.name)).join(", ");
+  }
+
+  function formatGdp(gdp) {
+    if (!gdp) return "N/A";
+    const units = [
+      [1e12, "T"],
+      [1e9, "B"],
+      [1e6, "M"],
+    ];
+    for (const [size, suffix] of units) {
+      if (gdp.value >= size) return `$${(gdp.value / size).toFixed(1)}${suffix}`;
+    }
+    return `$${Math.round(gdp.value).toLocaleString("en-US")}`;
+  }
+
+  // Most recent non-empty GDP (current US$) from the World Bank. Returns null
+  // for countries the World Bank doesn't track or has no data for.
+  async function fetchGdp(alpha2Code) {
+    if (!alpha2Code) return null;
+    try {
+      const res = await fetch(
+        `${WORLD_BANK_API_BASE}/country/${encodeURIComponent(alpha2Code)}/indicator/NY.GDP.MKTP.CD?format=json&mrnev=1`
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      const entry = Array.isArray(data?.[1]) ? data[1][0] : null;
+      return typeof entry?.value === "number" ? { value: entry.value, year: entry.date } : null;
+    } catch (err) {
+      console.error("Failed to load World Bank GDP:", err);
+      return null;
+    }
   }
 
   async function fetchGeoFacts(alpha2Code) {
@@ -160,22 +210,23 @@
     return overview;
   }
 
-  function renderCountry(country, geoFacts, borderCountries) {
+  function renderCountry(country, geoFacts, borderCountries, gdp) {
     const flagUrl = country.flags?.svg || country.flags?.png || "";
     const showNativeName = country.nativeName && country.nativeName !== country.name;
     const bordersMarkup = borderCountries.length
       ? `
-          <div class="field-divider"></div>
-          <dt>Bordering Countries</dt>
-          <dd class="borders-list">${borderCountries
+        <div class="borders-section">
+          <h3>Bordering Countries</h3>
+          <div class="borders-list">${borderCountries
             .map(
               (b) =>
                 `<button type="button" class="border-chip" data-code="${b.code}">${getBorderDisplayName(
                   b.name
                 )}</button>`
             )
-            .join("")}</dd>
-        `
+            .join("")}</div>
+        </div>
+      `
       : "";
 
     factCard.innerHTML = `
@@ -187,21 +238,49 @@
         </div>
       </div>
       <div class="card-body">
-        <dl>
-          <dt>Capital</dt>
-          <dd>${country.capital || "N/A"}</dd>
-          <dt>Population</dt>
-          <dd>${formatPopulation(country.population)}</dd>
-          <dt>Region</dt>
-          <dd>${country.region || "N/A"}${country.subregion ? ` (${country.subregion})` : ""}</dd>
-          <dt>Languages</dt>
-          <dd>${country.languages?.length ? country.languages.map((l) => l.name).join(", ") : "N/A"}</dd>
-          ${bordersMarkup}
-          <dt>Form of Government</dt>
-          <dd>${geoFacts.governmentType || "N/A"}</dd>
-          <dt>Religion</dt>
-          <dd>${geoFacts.religion || "N/A"}</dd>
+        <dl class="stats-grid">
+          <div class="stat">
+            <dt>Capital</dt>
+            <dd>${country.capital || "N/A"}</dd>
+          </div>
+          <div class="stat">
+            <dt>Population</dt>
+            <dd>${formatPopulation(country.population)}</dd>
+          </div>
+          <div class="stat">
+            <dt>Region</dt>
+            <dd>${country.region || "N/A"}${country.subregion ? ` (${country.subregion})` : ""}</dd>
+          </div>
+          <div class="stat">
+            <dt>Area</dt>
+            <dd>${formatArea(country.area)}</dd>
+          </div>
+          <div class="stat">
+            <dt>Demonym</dt>
+            <dd>${country.demonym || "N/A"}</dd>
+          </div>
+          <div class="stat">
+            <dt>Languages</dt>
+            <dd>${country.languages?.length ? country.languages.map((l) => l.name).join(", ") : "N/A"}</dd>
+          </div>
+          <div class="stat">
+            <dt>Form of Government</dt>
+            <dd>${geoFacts.governmentType || "N/A"}</dd>
+          </div>
+          <div class="stat">
+            <dt>Religion</dt>
+            <dd>${geoFacts.religion || "N/A"}</dd>
+          </div>
+          <div class="stat">
+            <dt>Currency</dt>
+            <dd>${formatCurrencies(getCurrencies(country))}</dd>
+          </div>
+          <div class="stat">
+            <dt>GDP</dt>
+            <dd>${formatGdp(gdp)}${gdp ? ` <span class="stat-note">(${gdp.year})</span>` : ""}</dd>
+          </div>
         </dl>
+        ${bordersMarkup}
         <p class="overview">${buildOverview(country, geoFacts)}</p>
       </div>
     `;
@@ -227,11 +306,12 @@
   }
 
   async function showCountryData(country) {
-    const [geoFacts, borderCountries] = await Promise.all([
+    const [geoFacts, borderCountries, gdp] = await Promise.all([
       fetchGeoFacts(country.alpha2Code),
       fetchBorderNames(country.borders),
+      fetchGdp(country.alpha2Code),
     ]);
-    renderCountry(country, geoFacts, borderCountries);
+    renderCountry(country, geoFacts, borderCountries, gdp);
     setStatus(`Showing facts for ${country.name}.`);
   }
 

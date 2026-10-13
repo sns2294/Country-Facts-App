@@ -1,7 +1,6 @@
 (() => {
-  const API_BASE = "https://countries.dev";
-  const GEO_API_BASE = "https://geoapi.info/api";
-  const WORLD_BANK_API_BASE = "https://api.worldbank.org/v2";
+  const COUNTRIES_URL = "data/countries.json";
+  const META_URL = "data/meta.json";
   const DARK_MODE_KEY = "countryFactsApp.darkMode";
 
   const countryInput = document.getElementById("country-input");
@@ -136,63 +135,92 @@
     return `$${Math.round(gdp.value).toLocaleString("en-US")}`;
   }
 
-  // Most recent non-empty GDP (current US$) from the World Bank. Returns null
-  // for countries the World Bank doesn't track or has no data for.
-  async function fetchGdp(alpha2Code) {
-    if (!alpha2Code) return null;
-    try {
-      const res = await fetch(
-        `${WORLD_BANK_API_BASE}/country/${encodeURIComponent(alpha2Code)}/indicator/NY.GDP.MKTP.CD?format=json&mrnev=1`
-      );
-      if (!res.ok) return null;
-      const data = await res.json();
-      const entry = Array.isArray(data?.[1]) ? data[1][0] : null;
-      return typeof entry?.value === "number" ? { value: entry.value, year: entry.date } : null;
-    } catch (err) {
-      console.error("Failed to load World Bank GDP:", err);
-      return null;
+  // All country data is read from local files written by scripts/update-data.mjs.
+  // Loaded once; every lookup below works off these in-memory indexes.
+  let countryDataPromise = null;
+  function loadCountryData() {
+    if (!countryDataPromise) {
+      countryDataPromise = fetch(COUNTRIES_URL)
+        .then((res) => {
+          if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+          return res.json();
+        })
+        .then((countries) => {
+          const byCode = new Map();
+          countries.forEach((c) => {
+            if (c.alpha2Code) byCode.set(c.alpha2Code, c);
+            if (c.alpha3Code) byCode.set(c.alpha3Code, c);
+          });
+          return { countries, byCode };
+        });
+      countryDataPromise.catch(() => {
+        countryDataPromise = null;
+      });
     }
+    return countryDataPromise;
   }
 
-  async function fetchGeoFacts(alpha2Code) {
-    if (!alpha2Code) return { governmentType: null, religion: null };
-    try {
-      const res = await fetch(`${GEO_API_BASE}/country?code=${encodeURIComponent(alpha2Code)}`);
-      if (!res.ok) return { governmentType: null, religion: null };
-      const data = await res.json();
-      return {
-        governmentType: data.governmentType || null,
-        religion: data.religion || null,
-      };
-    } catch (err) {
-      console.error("Failed to load GeoAPI facts:", err);
-      return { governmentType: null, religion: null };
-    }
+  async function getCountries() {
+    return (await loadCountryData()).countries.filter((c) => c && c.name);
   }
 
-  async function fetchBorderNames(borderCodes) {
+  async function findCountryByCode(code) {
+    const { byCode } = await loadCountryData();
+    return byCode.get(String(code).toUpperCase()) || null;
+  }
+
+  async function getBorderCountries(borderCodes) {
     if (!borderCodes || !borderCodes.length) return [];
-    const results = await Promise.all(
-      borderCodes.map(async (code) => {
-        try {
-          const res = await fetch(`${API_BASE}/alpha/${encodeURIComponent(code)}`);
-          if (!res.ok) return null;
-          const data = await res.json();
-          return data?.name ? { code, name: data.name } : null;
-        } catch (err) {
-          console.error(`Failed to load bordering country ${code}:`, err);
-          return null;
-        }
-      })
-    );
-    return results.filter(Boolean);
+    const { byCode } = await loadCountryData();
+    return borderCodes.map((code) => byCode.get(code)).filter(Boolean).map((c) => ({ code: c.alpha3Code, name: c.name }));
   }
 
-  function buildOverview(country, geoFacts) {
+  async function showDataDate() {
+    const el = document.getElementById("data-updated");
+    if (!el) return;
+    try {
+      const res = await fetch(META_URL);
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+      const { updatedAt } = await res.json();
+      const date = new Date(updatedAt);
+      if (Number.isNaN(date.getTime())) throw new Error("Invalid date");
+      el.textContent = `Data last updated: ${date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`;
+    } catch (err) {
+      console.error("Failed to load data date:", err);
+    }
+  }
+
+  const NON_RELIGIOUS = "Non-religious";
+
+  function capitalize(text) {
+    return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+  }
+
+  function withArticle(phrase) {
+    return `${/^[aeiou]/i.test(phrase) ? "an" : "a"} ${phrase}`;
+  }
+
+  // Top religious groups, each with its share when the Factbook gives one.
+  function formatReligions(religions) {
+    if (!religions?.length) return "N/A";
+    return religions
+      .map((r) => (r.pct === null ? r.name : `${r.name} <span class="stat-note">(${r.pct}%)</span>`))
+      .join("<br />");
+  }
+
+  // The single predominant religion, or null when the largest group is
+  // non-religious or the Factbook gave no percentages to rank by.
+  function getPredominantReligion(country) {
+    const top = country.religions?.[0];
+    if (!top || top.pct === null || top.name === NON_RELIGIOUS) return null;
+    return top.name;
+  }
+
+  function buildOverview(country) {
     const regionPhrase = country.region
       ? `located in ${country.region}${country.subregion ? ` (${country.subregion})` : ""}`
       : "";
-    const govPhrase = geoFacts.governmentType ? `a ${geoFacts.governmentType}` : "";
+    const govPhrase = country.governmentType ? withArticle(country.governmentType) : "";
 
     let overview = country.name;
     if (govPhrase && regionPhrase) {
@@ -203,14 +231,16 @@
       overview += ".";
     }
 
-    if (geoFacts.religion) {
-      overview += ` ${geoFacts.religion} is the predominant religion.`;
+    const predominantReligion = getPredominantReligion(country);
+    if (predominantReligion) {
+      overview += ` ${predominantReligion} is the predominant religion.`;
     }
 
     return overview;
   }
 
-  function renderCountry(country, geoFacts, borderCountries, gdp) {
+  function renderCountry(country, borderCountries) {
+    const gdp = country.gdp;
     const flagUrl = country.flags?.svg || country.flags?.png || "";
     const showNativeName = country.nativeName && country.nativeName !== country.name;
     const bordersMarkup = borderCountries.length
@@ -245,7 +275,7 @@
           </div>
           <div class="stat">
             <dt>Population</dt>
-            <dd>${formatPopulation(country.population)}</dd>
+            <dd>${formatPopulation(country.population)}${country.populationYear ? ` <span class="stat-note">(${country.populationYear})</span>` : ""}</dd>
           </div>
           <div class="stat">
             <dt>Region</dt>
@@ -265,11 +295,11 @@
           </div>
           <div class="stat">
             <dt>Form of Government</dt>
-            <dd>${geoFacts.governmentType || "N/A"}</dd>
+            <dd>${capitalize(country.governmentType) || "N/A"}</dd>
           </div>
           <div class="stat">
             <dt>Religion</dt>
-            <dd>${geoFacts.religion || "N/A"}</dd>
+            <dd>${formatReligions(country.religions)}</dd>
           </div>
           <div class="stat">
             <dt>Currency</dt>
@@ -281,7 +311,7 @@
           </div>
         </dl>
         ${bordersMarkup}
-        <p class="overview">${buildOverview(country, geoFacts)}</p>
+        <p class="overview">${buildOverview(country)}</p>
       </div>
     `;
     factCard.hidden = false;
@@ -289,10 +319,8 @@
 
   async function loadCountryList() {
     try {
-      const res = await fetch(`${API_BASE}/countries?fields=name`);
-      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-      const data = await res.json();
-      countryNames = data.map((c) => c.name).sort((a, b) => a.localeCompare(b));
+      const countries = await getCountries();
+      countryNames = countries.map((c) => c.name).sort((a, b) => a.localeCompare(b));
 
       countryList.innerHTML = countryNames
         .map((name) => `<option value="${name}"></option>`)
@@ -300,18 +328,20 @@
 
       setStatus(`${countryNames.length} countries loaded. Pick one to see its facts.`);
     } catch (err) {
-      setStatus("Couldn't load the country list. Check your connection and reload.", true);
+      setStatus("Couldn't load the country list. Reload the page and try again.", true);
       console.error("Failed to load country list:", err);
     }
   }
 
-  async function showCountryData(country) {
-    const [geoFacts, borderCountries, gdp] = await Promise.all([
-      fetchGeoFacts(country.alpha2Code),
-      fetchBorderNames(country.borders),
-      fetchGdp(country.alpha2Code),
-    ]);
-    renderCountry(country, geoFacts, borderCountries, gdp);
+  // Bumped on every selection so a slower, older lookup can't overwrite a newer one.
+  let latestSelection = 0;
+  let shownCountryName = null;
+
+  async function showCountryData(country, selection) {
+    const borderCountries = await getBorderCountries(country.borders);
+    if (selection !== latestSelection) return;
+    renderCountry(country, borderCountries);
+    shownCountryName = country.name;
     setStatus(`Showing facts for ${country.name}.`);
   }
 
@@ -323,21 +353,26 @@
     if (!match) {
       setStatus(`"${name}" isn't in the country list — pick one from the suggestions.`, true);
       factCard.hidden = true;
+      shownCountryName = null;
       return;
     }
 
+    // Already showing it (e.g. the input blurred mid-click on a border chip):
+    // re-rendering would replace the card the user is interacting with.
+    if (match === shownCountryName && !factCard.hidden) return;
+
+    const selection = ++latestSelection;
     setStatus(`Loading ${match}…`);
     try {
-      const res = await fetch(`${API_BASE}/name/${encodeURIComponent(match)}`);
-      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-      const results = await res.json();
-      const country = results.find((c) => c.name.toLowerCase() === match.toLowerCase()) || results[0];
-      if (!country) throw new Error("No matching country in response");
+      const countries = await getCountries();
+      const country = countries.find((c) => c.name.toLowerCase() === match.toLowerCase());
+      if (!country) throw new Error("No matching country in data");
 
-      await showCountryData(country);
+      await showCountryData(country, selection);
     } catch (err) {
       setStatus(`Couldn't load data for ${match}. Try again.`, true);
       factCard.hidden = true;
+      shownCountryName = null;
       console.error("Failed to load country:", err);
     }
   }
@@ -345,18 +380,18 @@
   async function selectCountryByCode(code) {
     if (!code) return;
 
+    const selection = ++latestSelection;
     setStatus("Loading…");
     try {
-      const res = await fetch(`${API_BASE}/alpha/${encodeURIComponent(code)}`);
-      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-      const country = await res.json();
-      if (!country || !country.name) throw new Error("No country data in response");
+      const country = await findCountryByCode(code);
+      if (!country) throw new Error("No country data for code");
 
       countryInput.value = country.name;
-      await showCountryData(country);
+      await showCountryData(country, selection);
     } catch (err) {
       setStatus("Couldn't load data for that country. Try again.", true);
       factCard.hidden = true;
+      shownCountryName = null;
       console.error("Failed to load country by code:", err);
     }
   }
@@ -710,7 +745,7 @@
         attachZoomPanHandlers();
         applyViewBox(NATIVE_VIEW_BOX.x, NATIVE_VIEW_BOX.y, NATIVE_VIEW_BOX.w);
       } catch (err) {
-        if (loadingEl) loadingEl.textContent = "Couldn't load the map. Check your connection and try again.";
+        if (loadingEl) loadingEl.textContent = "Couldn't load the map. Reload the page and try again.";
         console.error("Failed to load world map:", err);
         throw err;
       }
@@ -736,7 +771,7 @@
   // Country polygon data + the ISO numeric<->alpha2 lookup are fetched once
   // and shared by every Globe() instance (Explore's and the quiz's) rather
   // than being re-fetched per instance.
-  const GLOBE_GEO_URL = "https://unpkg.com/world-atlas@2/countries-110m.json";
+  const GLOBE_GEO_URL = "data/countries-110m.json";
   const GLOBE_DEFAULT_POV = { lat: 15, lng: 10, altitude: 2.2 };
   const GLOBE_MIN_ALTITUDE = 0.32;
   const GLOBE_MAX_ALTITUDE = 4;
@@ -768,22 +803,17 @@
   }
 
   // world-atlas polygon ids are zero-padded ISO 3166-1 numeric codes, which
-  // line up with the numericCode field the country API returns — used to
+  // line up with the numericCode field in the country data — used to
   // resolve a polygon back to the alpha2 code the rest of the app keys on.
   function fetchNumericToAlpha2Map() {
     if (!globeNumericToAlpha2Promise) {
-      globeNumericToAlpha2Promise = fetch(`${API_BASE}/countries?fields=alpha2Code,numericCode`)
-        .then((res) => {
-          if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-          return res.json();
-        })
-        .then((data) => {
-          const map = new Map();
-          data.forEach((c) => {
-            if (c.numericCode && c.alpha2Code) map.set(c.numericCode, c.alpha2Code);
-          });
-          return map;
+      globeNumericToAlpha2Promise = getCountries().then((data) => {
+        const map = new Map();
+        data.forEach((c) => {
+          if (c.numericCode && c.alpha2Code) map.set(c.numericCode, c.alpha2Code);
         });
+        return map;
+      });
     }
     return globeNumericToAlpha2Promise;
   }
@@ -919,7 +949,7 @@
         resize();
         if (loadingEl) loadingEl.hidden = true;
       } catch (err) {
-        if (loadingEl) loadingEl.textContent = "Couldn't load the globe. Check your connection and try again.";
+        if (loadingEl) loadingEl.textContent = "Couldn't load the globe. Reload the page and try again.";
         console.error("Failed to load globe:", err);
         throw err;
       }
@@ -1045,10 +1075,7 @@
 
   async function ensureQuizCountries() {
     if (quizCountriesCache) return quizCountriesCache;
-    const res = await fetch(`${API_BASE}/countries?fields=name,capital,flags,alpha2Code,languages`);
-    if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-    const data = await res.json();
-    quizCountriesCache = data.filter((c) => c && c.name);
+    quizCountriesCache = await getCountries();
     return quizCountriesCache;
   }
 
@@ -1134,14 +1161,9 @@
       promptLabel: "What is the predominant religion in",
       async preparePool() {
         const countries = await ensureQuizCountries();
-        const sample = shuffleArray(countries.filter((c) => c.alpha2Code)).slice(0, 40);
-        const results = await Promise.all(
-          sample.map(async (c) => {
-            const facts = await fetchGeoFacts(c.alpha2Code);
-            return facts.religion ? { ...c, religion: facts.religion } : null;
-          })
-        );
-        return results.filter(Boolean);
+        return countries
+          .map((c) => ({ ...c, religion: getPredominantReligion(c) }))
+          .filter((c) => c.religion);
       },
       getPrompt: (c) => c.name,
       getAnswer: (c) => c.religion,
@@ -1265,7 +1287,7 @@
       showQuizScreen("question");
       renderQuizQuestion();
     } catch (err) {
-      quizStatus.textContent = "Couldn't load quiz data. Check your connection and try again.";
+      quizStatus.textContent = "Couldn't load quiz data. Reload the page and try again.";
       quizStatus.classList.add("error");
       console.error("Failed to start quiz:", err);
     }
@@ -1400,9 +1422,7 @@
   let geoCountriesCache = null;
   async function ensureGeoCountries() {
     if (geoCountriesCache) return geoCountriesCache;
-    const res = await fetch(`${API_BASE}/countries?fields=name,capital,region,alpha2Code`);
-    if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-    const data = await res.json();
+    const data = await getCountries();
     geoCountriesCache = data.filter((c) => c && c.name && c.capital && c.alpha2Code && REGIONS.includes(c.region));
     return geoCountriesCache;
   }
@@ -1450,7 +1470,7 @@
       showQuizScreen("question");
       renderQuizQuestion();
     } catch (err) {
-      quizRegionStatus.textContent = "Couldn't load quiz data. Check your connection and try again.";
+      quizRegionStatus.textContent = "Couldn't load quiz data. Reload the page and try again.";
       quizRegionStatus.classList.add("error");
       console.error("Failed to start geography quiz:", err);
     }
@@ -1579,6 +1599,7 @@
 
   initDarkMode();
   loadCountryList();
+  showDataDate();
   setView("dropdown");
   setAppSection("explore");
   showQuizScreen("mode");

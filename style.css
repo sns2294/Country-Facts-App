@@ -908,3 +908,16 @@ main {
   font-size: 2.25rem;
   color: var(--text);
 }
+
+.site-footer {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 1.5rem 2rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.site-footer p {
+  margin: 0.25rem 0;
+}

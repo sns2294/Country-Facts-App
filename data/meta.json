@@ -1,0 +1,11 @@
+{
+  "updatedAt": "2026-10-13T17:38:40.359Z",
+  "sources": {
+    "countries": "countries.dev (GeoNames, CC BY 4.0)",
+    "governmentAndReligion": "CIA World Factbook via factbook/factbook.json (CC0); government fallback: Wikidata (CC0)",
+    "gdp": "World Bank, NY.GDP.MKTP.CD (CC BY 4.0)",
+    "population": "World Bank, SP.POP.TOTL (CC BY 4.0); countries.dev fallback where missing",
+    "shapes": "world-atlas 2.0.2 / Natural Earth (public domain)",
+    "flags": "flag-icons 7.2.3 (MIT)"
+  }
+}

@@ -163,6 +163,8 @@
             autocomplete="off"
           />
           <datalist id="quiz-country-guess-list"></datalist>
+          <p id="quiz-geo-input-status" class="status" role="status"></p>
+          <p id="quiz-geo-feedback" class="quiz-feedback" hidden></p>
         </div>
         <div id="quiz-bonus-row" class="quiz-geo-answer-row quiz-bonus-row" hidden>
           <p class="quiz-bonus-label">Bonus: pick the capital of <strong id="quiz-bonus-country-name"></strong></p>
@@ -176,9 +178,9 @@
             autocomplete="off"
           />
           <datalist id="quiz-capital-guess-list"></datalist>
+          <p id="quiz-bonus-status" class="status" role="status"></p>
+          <p id="quiz-bonus-feedback" class="quiz-feedback" hidden></p>
         </div>
-        <p id="quiz-geo-input-status" class="status" role="status"></p>
-        <p id="quiz-geo-feedback" class="quiz-feedback" hidden></p>
         <button type="button" id="quiz-geo-next-btn" class="quiz-btn-primary" hidden>Next Question</button>
       </div>
 
@@ -216,6 +218,7 @@
 
   <script src="vendor/topojson-client.min.js"></script>
   <script src="vendor/globe.gl.min.js"></script>
+  <script src="shape-rules.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

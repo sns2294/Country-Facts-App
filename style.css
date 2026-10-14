@@ -94,8 +94,14 @@ html::before {
   background-image: var(--emblem-image);
   background-repeat: no-repeat;
   background-size: contain;
-  z-index: 1;
+  z-index: -1; /* behind content so it never covers text or inputs */
   transition: opacity 0.2s ease;
+}
+
+@media (max-width: 700px) {
+  html::before {
+    display: none;
+  }
 }
 
 .app-header {
@@ -672,6 +678,34 @@ main {
    island countries have more on-screen room to see and zoom into. */
 .quiz-geo-question {
   max-width: 760px;
+  padding: 1rem 1.25rem;
+  gap: 0.75rem;
+}
+
+/* A shorter map so the question, country input and its feedback fit on a
+   laptop screen; height follows the window (--quiz-chrome ≈ everything else). */
+.quiz-geo-globe-container {
+  --quiz-chrome: 540px;
+  aspect-ratio: auto;
+  height: clamp(150px, calc(100vh - var(--quiz-chrome)), 340px);
+}
+
+@supports (height: 100dvh) {
+  .quiz-geo-globe-container {
+    height: clamp(150px, calc(100dvh - var(--quiz-chrome)), 340px);
+  }
+}
+
+.quiz-geo-answer-row .status {
+  min-height: 0;
+}
+
+.quiz-geo-answer-row .status:empty {
+  display: none;
+}
+
+.quiz-geo-answer-row .quiz-feedback {
+  text-align: left;
 }
 
 .quiz-progress {
@@ -772,7 +806,7 @@ main {
 }
 
 .quiz-bonus-row {
-  padding: 0.9rem;
+  padding: 0.75rem 0.9rem;
   background: rgba(47, 111, 237, 0.08);
   border: 1px solid var(--border);
   border-radius: 0.5rem;

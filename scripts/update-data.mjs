@@ -26,7 +26,7 @@ const SOURCES = {
     "https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD?format=json&mrnev=1&per_page=400",
   worldBankPopulation:
     "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL?format=json&mrnev=1&per_page=400",
-  worldAtlas: "https://unpkg.com/world-atlas@2.0.2/countries-110m.json",
+  worldAtlas: "https://unpkg.com/world-atlas@2.0.2/countries-50m.json",
   factbook: "https://codeload.github.com/factbook/factbook.json/tar.gz/refs/heads/master",
   flagIcons: "https://registry.npmjs.org/flag-icons/-/flag-icons-7.2.3.tgz",
   wikidata: "https://query.wikidata.org/sparql",
@@ -40,6 +40,26 @@ const FACTBOOK_OVERRIDES = {
   NL: "nl",
   PS: "we", // West Bank
 };
+
+// Sovereign states for the geography quiz: the 193 UN member states plus the
+// two UN observer states (Vatican City, Palestine). Territories, dependencies
+// and partly recognized states (Taiwan, Kosovo, Western Sahara, Cook Islands,
+// Niue) are not included.
+const SOVEREIGN_ALPHA2 = new Set([
+  "AF", "AL", "DZ", "AD", "AO", "AG", "AR", "AM", "AU", "AT", "AZ", "BS", "BH", "BD", "BB",
+  "BY", "BE", "BZ", "BJ", "BT", "BO", "BA", "BW", "BR", "BN", "BG", "BF", "BI", "CV", "KH",
+  "CM", "CA", "CF", "TD", "CL", "CN", "CO", "KM", "CG", "CD", "CR", "CI", "HR", "CU", "CY",
+  "CZ", "DK", "DJ", "DM", "DO", "EC", "EG", "SV", "GQ", "ER", "EE", "SZ", "ET", "FJ", "FI",
+  "FR", "GA", "GM", "GE", "DE", "GH", "GR", "GD", "GT", "GN", "GW", "GY", "HT", "HN", "HU",
+  "IS", "IN", "ID", "IR", "IQ", "IE", "IL", "IT", "JM", "JP", "JO", "KZ", "KE", "KI", "KP",
+  "KR", "KW", "KG", "LA", "LV", "LB", "LS", "LR", "LY", "LI", "LT", "LU", "MG", "MW", "MY",
+  "MV", "ML", "MT", "MH", "MR", "MU", "MX", "FM", "MD", "MC", "MN", "ME", "MA", "MZ", "MM",
+  "NA", "NR", "NP", "NL", "NZ", "NI", "NE", "NG", "MK", "NO", "OM", "PK", "PW", "PA", "PG",
+  "PY", "PE", "PH", "PL", "PT", "QA", "RO", "RU", "RW", "KN", "LC", "VC", "WS", "SM", "ST",
+  "SA", "SN", "RS", "SC", "SL", "SG", "SK", "SI", "SB", "SO", "ZA", "SS", "ES", "LK", "SD",
+  "SR", "SE", "CH", "SY", "TJ", "TZ", "TH", "TL", "TG", "TO", "TT", "TN", "TR", "TM", "TV",
+  "UG", "UA", "AE", "GB", "US", "UY", "UZ", "VU", "VE", "VN", "YE", "ZM", "ZW", "VA", "PS",
+]);
 
 // Territories countries.dev lists as land borders of the country they belong
 // to. Keyed by alpha2 code of the country whose list to trim; values are the
@@ -265,7 +285,7 @@ async function main() {
     log("Downloading world-atlas shapes…");
     const atlas = await download(SOURCES.worldAtlas, { json: true });
     if (!atlas?.objects?.countries) throw new Error("world-atlas file has no countries object");
-    fs.writeFileSync(path.join(STAGING_DIR, "countries-110m.json"), JSON.stringify(atlas));
+    fs.writeFileSync(path.join(STAGING_DIR, "countries-50m.json"), JSON.stringify(atlas));
 
     log("Downloading CIA World Factbook (factbook.json)…");
     await downloadAndExtract(SOURCES.factbook, path.join(tmp, "factbook"));
@@ -355,6 +375,7 @@ async function main() {
         currencies: (c.currencies || []).map((cur) => ({ code: cur.code, name: cur.name, symbol: cur.symbol })),
         borders,
         flags: flag ? { svg: flag } : {},
+        sovereign: SOVEREIGN_ALPHA2.has(iso2),
         governmentType,
         religions,
         gdp,

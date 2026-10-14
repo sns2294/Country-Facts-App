@@ -64,6 +64,8 @@
   const quizCapitalGuessList = document.getElementById("quiz-capital-guess-list");
   const quizGeoInputStatus = document.getElementById("quiz-geo-input-status");
   const quizGeoFeedback = document.getElementById("quiz-geo-feedback");
+  const quizBonusStatus = document.getElementById("quiz-bonus-status");
+  const quizBonusFeedback = document.getElementById("quiz-bonus-feedback");
   const quizGeoNextBtn = document.getElementById("quiz-geo-next-btn");
 
   const NATIVE_VIEW_BOX = { x: -180, y: -84, w: 360, h: 174 };
@@ -448,6 +450,97 @@
     return mapMarkupPromise;
   }
 
+  // --- Flat-map shape rules (see shape-rules.js; the globe applies the same table) ---
+
+  // The map's paths are straight-line rings ("M x,y L x,y ... Z").
+  function parsePathRings(d) {
+    return (d.match(/M[^M]*/g) || []).map((sub) => {
+      const points = (sub.match(/-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?/g) || []).map((p) => p.split(",").map(Number));
+      const last = points[points.length - 1];
+      const first = points[0];
+      if (last && first && last[0] === first[0] && last[1] === first[1]) points.pop();
+      return points;
+    });
+  }
+
+  function ringsToPathData(rings) {
+    return rings.map((ring) => `M${ring.map(([x, y]) => `${x},${y}`).join("L")}Z`).join("");
+  }
+
+  // Joins two rings that share a border into one ring, dropping the shared
+  // stretch so no line is drawn between them. Returns null if they share no
+  // stretch of at least two consecutive points.
+  function dissolveRingPair(a, b) {
+    const key = ([x, y]) => `${x},${y}`;
+    const inB = new Set(b.map(key));
+    const inA = new Set(a.map(key));
+    const n = a.length;
+    const shared = a.map((p) => inB.has(key(p)));
+    let best = null;
+    for (let start = 0; start < n; start++) {
+      if (!shared[start] || shared[(start + n - 1) % n]) continue;
+      let len = 0;
+      while (len < n && shared[(start + len) % n]) len++;
+      if (len >= 2 && len < n && (!best || len > best.len)) best = { start, len };
+    }
+    if (!best) return null;
+
+    const end = (best.start + best.len - 1) % n;
+    const p = a[best.start];
+    const q = a[end];
+    const jp = b.findIndex((pt) => key(pt) === key(p));
+    const jq = b.findIndex((pt) => key(pt) === key(q));
+    const m = b.length;
+    const walk = (from, to, step) => {
+      const out = [];
+      for (let j = (from + step + m) % m; j !== to; j = (j + step + m) % m) out.push(b[j]);
+      return out;
+    };
+    const arcs = [walk(jp, jq, 1), walk(jp, jq, -1)];
+    const sharedCount = (arc) => arc.filter((pt) => inA.has(key(pt))).length;
+    arcs.sort((x, y) => sharedCount(x) - sharedCount(y) || y.length - x.length);
+
+    const outerA = [];
+    for (let i = end; ; i = (i + 1) % n) {
+      outerA.push(a[i]);
+      if (i === best.start) break;
+    }
+    return [...outerA, ...arcs[0]];
+  }
+
+  function mergePathRings(parentRings, childRings) {
+    const rings = parentRings.map((r) => r.slice());
+    childRings.forEach((child) => {
+      for (let i = 0; i < rings.length; i++) {
+        const joined = dissolveRingPair(rings[i], child);
+        if (joined) {
+          rings[i] = joined;
+          return;
+        }
+      }
+      rings.push(child);
+    });
+    return rings;
+  }
+
+  function applyFlatMapShapeRules(svg) {
+    svg.querySelectorAll("path.country:not([id])").forEach((path) => {
+      const rule = window.SHAPE_RULES[path.dataset.name];
+      if (!rule) return;
+      if (rule.linkTo) {
+        path.id = rule.linkTo;
+        path.classList.remove("no-code");
+      }
+      if (rule.mergeInto) {
+        const parent = svg.querySelector(`path.country[id="${rule.mergeInto}"]`);
+        if (!parent) return;
+        const rings = mergePathRings(parsePathRings(parent.getAttribute("d")), parsePathRings(path.getAttribute("d")));
+        parent.setAttribute("d", ringsToPathData(rings));
+        path.remove();
+      }
+    });
+  }
+
   // Shared pan/zoom/pinch/highlight engine backing both the Explore map and
   // the Map quiz mode's map, each with its own DOM, viewBox, and interaction rules.
   function createMapController({
@@ -741,6 +834,7 @@
         if (loadingEl) loadingEl.hidden = true;
         loaded = true;
         svg = container.querySelector("svg");
+        applyFlatMapShapeRules(svg);
         if (enableCountryInteraction) attachMapHandlers();
         attachZoomPanHandlers();
         applyViewBox(NATIVE_VIEW_BOX.x, NATIVE_VIEW_BOX.y, NATIVE_VIEW_BOX.w);
@@ -771,11 +865,15 @@
   // Country polygon data + the ISO numeric<->alpha2 lookup are fetched once
   // and shared by every Globe() instance (Explore's and the quiz's) rather
   // than being re-fetched per instance.
-  const GLOBE_GEO_URL = "data/countries-110m.json";
+  const GLOBE_GEO_URL = "data/countries-50m.json";
   const GLOBE_DEFAULT_POV = { lat: 15, lng: 10, altitude: 1.85 };
   const GLOBE_MIN_ALTITUDE = 0.32;
   const GLOBE_MAX_ALTITUDE = 4;
   const GLOBE_ZOOM_FACTOR = 1.4;
+  const GLOBE_CAMERA_NEAR = 5;
+  const GLOBE_CAMERA_FAR = 1200;
+  const COUNTRY_FRAME_PADDING = 1.9;
+  const COUNTRY_FRAME_MIN_SPAN = 9;
 
   let globeFeaturesPromise = null;
   let globeNumericToAlpha2Promise = null;
@@ -790,14 +888,40 @@
     return [1, 2, 3].map((i) => parseInt(m[i], 16)).join(",");
   }
 
+  // Applies window.SHAPE_RULES (see shape-rules.js) to the globe's shapes.
+  function applyGlobeShapeRules(topology, numericToAlpha2) {
+    const alpha2ToNumeric = new Map([...numericToAlpha2].map(([numeric, alpha2]) => [alpha2, numeric]));
+    const collection = topology.objects.countries;
+    const features = topojson.feature(topology, collection).features;
+    const geometries = collection.geometries;
+    const mergedAway = new Set();
+
+    features.forEach((feature, i) => {
+      const rule = window.SHAPE_RULES[feature.properties?.name];
+      if (!rule || feature.id) return;
+      if (rule.linkTo) feature.id = alpha2ToNumeric.get(rule.linkTo);
+      if (rule.neutral) feature.properties = { ...feature.properties, name: "", neutral: true };
+      if (rule.mergeInto) {
+        const parentId = alpha2ToNumeric.get(rule.mergeInto);
+        const parentIndex = features.findIndex((f) => f.id === parentId);
+        if (parentIndex < 0) return;
+        const merged = topojson.merge(topology, [geometries[parentIndex], geometries[i]]);
+        features[parentIndex] = { ...features[parentIndex], geometry: merged };
+        mergedAway.add(i);
+      }
+    });
+    return features.filter((_, i) => !mergedAway.has(i));
+  }
+
   function fetchGlobeFeatures() {
     if (!globeFeaturesPromise) {
-      globeFeaturesPromise = fetch(GLOBE_GEO_URL)
-        .then((res) => {
+      globeFeaturesPromise = Promise.all([
+        fetch(GLOBE_GEO_URL).then((res) => {
           if (!res.ok) throw new Error(`Request failed: ${res.status}`);
           return res.json();
-        })
-        .then((topology) => topojson.feature(topology, topology.objects.countries).features);
+        }),
+        fetchNumericToAlpha2Map(),
+      ]).then(([topology, numericToAlpha2]) => applyGlobeShapeRules(topology, numericToAlpha2));
     }
     return globeFeaturesPromise;
   }
@@ -945,11 +1069,25 @@
           globe
             .polygonLabel(({ properties }) => (properties && properties.name) || "")
             .onPolygonHover((feat) => {
-              hoverFeature = feat;
+              hoverFeature = feat?.properties?.neutral ? null : feat;
               refreshPolygonStyles();
             })
             .onPolygonClick(handlePolygonClick);
         }
+
+        // globe.gl leaves the camera at near 0.05 / far 125000, leaving the depth
+        // buffer too coarse to tell country borders (drawn 0.01 units above the
+        // land) from the land itself, which makes borders flicker and dot. The
+        // camera never gets closer than ~30 or farther than ~600 units, so a
+        // tight range fixes it.
+        const tuneDepthRange = () => {
+          const camera = globe.camera();
+          camera.near = GLOBE_CAMERA_NEAR;
+          camera.far = GLOBE_CAMERA_FAR;
+          camera.updateProjectionMatrix();
+        };
+        tuneDepthRange();
+        globe.onGlobeReady(tuneDepthRange);
 
         globe.pointOfView(defaultPov(), 0);
         applyTheme();
@@ -981,7 +1119,10 @@
     // Frames the target country's own location, sizing the camera altitude to
     // fit `contextCodes` (defaults to just the target) — mirrors the flat
     // map's fitToCodes + centerHorizontallyOn pairing used by the old quiz map.
-    function highlight(code, { contextCodes = [code], boost = 1, transitionMs = 600 } = {}) {
+    // `framing: "country"` sizes the view to the target alone, padded so its
+    // neighbors and nearby seas show, with a floor so tiny countries stay
+    // findable and a ceiling (the max altitude) so huge ones keep a margin.
+    function highlight(code, { contextCodes = [code], boost = 1, transitionMs = 600, framing = "context" } = {}) {
       if (!globe) return;
       const feature = alpha2ToFeature.get(code);
       if (!feature) return;
@@ -993,7 +1134,8 @@
       const contextBox = getFeatureSetBBox(contextFeatures.length ? contextFeatures : [feature]) || targetBox;
       if (!targetBox || !contextBox) return;
 
-      const span = Math.max(contextBox.lngSpan, contextBox.latSpan * 2);
+      let span = Math.max(contextBox.lngSpan, contextBox.latSpan * 2);
+      if (framing === "country") span = clamp(span * COUNTRY_FRAME_PADDING, COUNTRY_FRAME_MIN_SPAN, Infinity);
       const altitude = altitudeForSpan(span) * boost;
       globe.pointOfView({ lat: targetBox.centerLat, lng: targetBox.centerLng, altitude }, transitionMs);
       globe.ringsData([{ lat: targetBox.centerLat, lng: targetBox.centerLng }]);
@@ -1426,11 +1568,13 @@
     btn.addEventListener("click", () => startGeographyQuiz(btn.dataset.region));
   });
 
+  // Geography questions (standalone and in Mixed mode) cover sovereign states
+  // only: UN members plus observers, not territories.
   let geoCountriesCache = null;
   async function ensureGeoCountries() {
     if (geoCountriesCache) return geoCountriesCache;
     const data = await getCountries();
-    geoCountriesCache = data.filter((c) => c && c.name && c.capital && c.alpha2Code && REGIONS.includes(c.region));
+    geoCountriesCache = data.filter((c) => c && c.name && c.capital && c.alpha2Code && c.sovereign && REGIONS.includes(c.region));
     return geoCountriesCache;
   }
 
@@ -1485,11 +1629,11 @@
 
   function renderGeoQuestion(question) {
     // A chosen region (standalone Geography mode) frames the whole region so
-    // the target has to be located within it; Mixed mode has no region, so
-    // its geography questions zoom in tight on just the target country.
+    // the target has to be located within it; Mixed mode has no region, so it
+    // frames the target with padding for its neighbors and nearby seas.
     const highlightOptions = quizState.region
       ? { contextCodes: quizState.geoPool.map((c) => c.alpha2Code), boost: QUIZ_GEO_ZOOM_BOOST }
-      : {};
+      : { framing: "country" };
     quizGlobe.highlight(question.country.alpha2Code, highlightOptions);
 
     quizState.countryAnswered = false;
@@ -1506,9 +1650,14 @@
     quizGeoFeedback.hidden = true;
     quizGeoFeedback.textContent = "";
     quizGeoFeedback.classList.remove("correct", "wrong");
+    quizBonusStatus.textContent = "";
+    quizBonusStatus.classList.remove("error");
+    quizBonusFeedback.hidden = true;
+    quizBonusFeedback.textContent = "";
+    quizBonusFeedback.classList.remove("correct", "wrong");
     quizGeoNextBtn.hidden = true;
 
-    quizCountryGuessInput.focus();
+    quizCountryGuessInput.focus({ preventScroll: true });
   }
 
   function handleCountryGuess() {
@@ -1539,12 +1688,16 @@
       quizBonusCountryName.textContent = question.country.name;
       quizBonusRow.hidden = false;
       quizCapitalGuessInput.disabled = false;
-      quizCapitalGuessInput.focus();
+      // Bring the bonus box fully on screen before focusing so the browser
+      // doesn't scroll on its own and the Country answer stays visible.
+      quizBonusRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      quizCapitalGuessInput.focus({ preventScroll: true });
     } else {
       quizGeoFeedback.textContent = `Not quite — the highlighted country is ${question.country.name}.`;
       quizGeoFeedback.classList.add("wrong");
       quizGeoNextBtn.hidden = false;
       quizGeoNextBtn.textContent = quizState.index === quizState.questions.length - 1 ? "See Score" : "Next Question";
+      quizGeoNextBtn.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }
 
@@ -1554,12 +1707,12 @@
     const match = matchPoolItem(quizState.geoPool, quizCapitalGuessInput.value, "capital");
 
     if (!match) {
-      quizGeoInputStatus.textContent = "Pick a capital from the suggestions.";
-      quizGeoInputStatus.classList.add("error");
+      quizBonusStatus.textContent = "Pick a capital from the suggestions.";
+      quizBonusStatus.classList.add("error");
       return;
     }
-    quizGeoInputStatus.textContent = "";
-    quizGeoInputStatus.classList.remove("error");
+    quizBonusStatus.textContent = "";
+    quizBonusStatus.classList.remove("error");
 
     quizState.bonusActive = false;
     quizCapitalGuessInput.disabled = true;
@@ -1570,14 +1723,16 @@
       quizScoreText.textContent = `Score: ${quizState.score}`;
     }
 
-    quizGeoFeedback.textContent = isBonusCorrect
+    quizBonusFeedback.hidden = false;
+    quizBonusFeedback.textContent = isBonusCorrect
       ? "Correct! +1 bonus point for the capital."
       : `Close — the capital is ${question.country.capital}.`;
-    quizGeoFeedback.classList.toggle("correct", isBonusCorrect);
-    quizGeoFeedback.classList.toggle("wrong", !isBonusCorrect);
+    quizBonusFeedback.classList.toggle("correct", isBonusCorrect);
+    quizBonusFeedback.classList.toggle("wrong", !isBonusCorrect);
 
     quizGeoNextBtn.hidden = false;
     quizGeoNextBtn.textContent = quizState.index === quizState.questions.length - 1 ? "See Score" : "Next Question";
+    quizGeoNextBtn.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   quizCountryGuessInput.addEventListener("change", handleCountryGuess);

@@ -199,7 +199,48 @@
   }
 
   function withArticle(phrase) {
-    return `${/^[aeiou]/i.test(phrase) ? "an" : "a"} ${phrase}`;
+    // "uni-" and "eu-" are pronounced with a consonant sound ("a unitary
+    // republic"), except "unincorporated".
+    const consonantSound = /^(uni(?!nc)|eu|one)/i.test(phrase);
+    return `${/^[aeiou]/i.test(phrase) && !consonantSound ? "an" : "a"} ${phrase}`;
+  }
+
+  // Factbook government types that don't read as "[Country] is a/an <type>".
+  // Keyed by the raw type string. `card` is the Form of Government text;
+  // `phrase` is a replacement noun phrase for the default template; `lead` is
+  // a full opening clause for the overview, used when no noun phrase fits.
+  const GOVERNMENT_OVERRIDES = {
+    theocratic: { card: "Theocratic", lead: (c) => `${c.name}'s government is theocratic` },
+    authoritarian: { card: "Authoritarian", lead: (c) => `${c.name}'s government is authoritarian` },
+    "in transition": { card: "In transition", lead: (c) => `${c.name}'s government is in transition` },
+    "formerly, semi-presidential republic": {
+      card: "Military junta since a 2023 coup; previously a semi-presidential republic",
+      lead: (c) => `${c.name} has been governed by a military junta since a 2023 coup`,
+      separateSentence: true,
+    },
+    "administered as an overseas territory of Australia": {
+      card: "Administered as an overseas territory of Australia",
+      lead: (c) => `${c.name} is administered as an overseas territory of Australia`,
+    },
+    "legal status of territory and issue of sovereignty unresolved": {
+      card: "Disputed; sovereignty unresolved",
+      lead: (c) => `${c.name}'s legal status and the issue of its sovereignty are unresolved`,
+    },
+    "a commonwealth in political union with and under the sovereignty of the US": {
+      card: "Commonwealth in political union with the United States",
+      phrase: "commonwealth in political union with the United States",
+      subject: "The Northern Mariana Islands",
+    },
+    "Republic of Cyprus - presidential republic": {
+      card: "Presidential republic",
+      phrase: "presidential republic",
+    },
+  };
+
+  function formatGovernment(country) {
+    const type = country.governmentType;
+    if (!type) return "N/A";
+    return GOVERNMENT_OVERRIDES[type]?.card || capitalize(type);
   }
 
   // Top religious groups, each with its share when the Factbook gives one.
@@ -222,9 +263,21 @@
     const regionPhrase = country.region
       ? `located in ${country.region}${country.subregion ? ` (${country.subregion})` : ""}`
       : "";
-    const govPhrase = country.governmentType ? withArticle(country.governmentType) : "";
+    const override = GOVERNMENT_OVERRIDES[country.governmentType];
+    if (override?.lead) {
+      const location = country.region
+        ? `${country.region}${country.subregion ? ` (${country.subregion})` : ""}`
+        : "";
+      const joiner = override.separateSentence ? ". It is" : ", and it is";
+      let overview = `${override.lead(country)}${location ? `${joiner} located in ${location}` : ""}.`;
+      const religion = getPredominantReligion(country);
+      if (religion) overview += ` ${religion} is the predominant religion.`;
+      return overview;
+    }
+    const govType = override?.phrase || country.governmentType;
+    const govPhrase = govType ? withArticle(govType) : "";
 
-    let overview = country.name;
+    let overview = override?.subject || country.name;
     if (govPhrase && regionPhrase) {
       overview += ` is ${govPhrase}, ${regionPhrase}.`;
     } else if (govPhrase || regionPhrase) {
@@ -297,7 +350,7 @@
           </div>
           <div class="stat">
             <dt>Form of Government</dt>
-            <dd>${capitalize(country.governmentType) || "N/A"}</dd>
+            <dd>${formatGovernment(country)}</dd>
           </div>
           <div class="stat">
             <dt>Religion</dt>

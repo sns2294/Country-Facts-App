@@ -3,6 +3,7 @@
 // never calls a live API. Re-run any time to refresh:
 //
 //   node scripts/update-data.mjs
+//   node scripts/update-data.mjs --audit-religion   (report only, writes nothing)
 //
 // Requires Node 18+ and a `tar` binary (macOS, Linux, Windows 10+ all ship one).
 // Everything is built in a staging folder first; ./data is only replaced if
@@ -50,18 +51,28 @@ const BORDER_EXCLUSIONS = {
 // Religion names as the Factbook writes them -> broad group shown in the app.
 // Order matters: the first matching pattern wins.
 const RELIGION_GROUPS = [
-  ["Non-religious", /\b(none|atheist|no religion|unaffiliated|non-?religious|irreligio)/i],
-  ["Christianity", /christian|catholic|protestant|orthodox|anglican|lutheran|pentecost|evangel|baptist|methodist|presbyter|adventist|coptic|mormon|latter|reformed|calvin|apostolic/i],
-  ["Islam", /muslim|sunni|shia|shi'a|islam|ibadi|alawite|ahmadi/i],
+  ["Non-religious", /\b(none|atheist|no religion|unaffiliated|non-?religious|irreligio)|agnostic|non-?believer|humanist|nothing in particular/i],
+  // National and denominational churches ("Church of Norway", "Church of
+  // Sweden", ...) are caught by "church"; the rest are named churches and
+  // movements the Factbook lists without a "Christian" label.
+  ["Christianity", /christian|catholic|protestant|orthodox|anglican|lutheran|pentecost|evangel|baptist|methodist|presbyter|adventist|coptic|mormon|latter|reformed|calvin|apostolic|church|congregation|maronite|melkite|chaldean|syriac|jehovah|witness|jesus christ|iglesia ni cristo|salvation army|salutiste|assembl\w* of god|kimbangu|universal kingdom|worship cent|ekalesia|saio|zione|old believer|\bmana\b/i],
+  ["Islam", /muslim|sunni|shia|shi'a|islam|ibadi|alawite|ahmadi|bektashi/i],
   ["Hinduism", /hindu/i],
   ["Buddhism", /buddh/i],
   ["Judaism", /jewish|judaism/i],
   ["Shintoism", /shinto/i],
   ["Sikhism", /sikh/i],
-  ["Folk/Indigenous religions", /folk|animis|traditional|indigenous|spiritis|vodou|voodoo|santeria|african|tribal/i],
+  ["Taoism", /tao/i],
+  ["Baha'i", /baha'?i/i],
+  ["Druze", /druze/i],
+  ["Folk/Indigenous religions", /folk|animis|traditional|indigenous|spiri?tis|spirtism|vodou|voodoo|santeria|african|tribal|rastafari|ethnic religion|umbanda|candombl|winti|badimo|modekngei|shaman|maori|pagan|kirat|customary/i],
 ];
 const NON_RELIGIOUS = "Non-religious";
 const MAX_RELIGION_GROUPS = 3;
+const LOW_COVERAGE_PCT = 80;
+// Below this the shares are too incomplete to show: names only, no percentages
+// (so the app also keeps the country out of the Religion quiz).
+const MIN_SHARE_COVERAGE_PCT = 60;
 const MAX_GOVERNMENT_LENGTH = 90;
 
 function log(msg) {
@@ -116,32 +127,75 @@ function cleanGovernment(raw) {
 // gives no percentages at all (e.g. "Sunni Muslim (official)"), the groups it
 // names are returned in order of mention with pct: null.
 function parseReligions(raw) {
-  const text = decodeEntities(raw).replace(/\((?:[^()]|\([^()]*\))*\)/g, (m) => (/est\.\)$/.test(m) ? "" : " "));
+  return analyzeReligions(raw).groups;
+}
+
+// parseReligions plus diagnostics: every labelled share with the broad group
+// it mapped to (null if none), and how much of the text's share was mapped.
+function analyzeReligions(raw) {
+  const text = decodeEntities(raw)
+    // Factbook typos: Andorra "89.5," (missing %), DR Congo "93/1%" (for 93.1%).
+    .replace(/(predominantly Roman Catholic\)) 89\.5,/, "$1 89.5%,")
+    .replace(/(\d+)\/(\d)%/, "$1.$2%").replace(/\((?:[^()]|\([^()]*\))*\)/g, (m) => (/est\.\)$/.test(m) ? "" : " "));
   const parts = text.split(",");
   const totals = new Map();
+  const entries = [];
+  let mappedPct = 0;
   for (const part of parts) {
     const pct = part.match(/(<)?\s*(\d+(?:\.\d+)?)(?:\s*-\s*(\d+(?:\.\d+)?))?\s*%/);
     if (!pct) continue;
     const name = part.slice(0, pct.index).trim();
-    const group = RELIGION_GROUPS.find(([, re]) => re.test(name))?.[0];
-    if (!group) continue;
+    const group = RELIGION_GROUPS.find(([, re]) => re.test(name))?.[0] || null;
     let value = parseFloat(pct[2]);
     if (pct[3]) value = (value + parseFloat(pct[3])) / 2;
     if (pct[1]) value /= 2;
+    entries.push({ label: name, pct: value, group });
+    if (!group) continue;
+    mappedPct += value;
     totals.set(group, (totals.get(group) || 0) + value);
   }
   if (totals.size) {
-    return [...totals.entries()]
+    const groups = [...totals.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, MAX_RELIGION_GROUPS)
-      .map(([name, pct]) => ({ name, pct: Math.round(pct * 10) / 10 }));
+      .map(([name, pct]) => ({ name, pct: mappedPct < MIN_SHARE_COVERAGE_PCT ? null : Math.round(pct * 10) / 10 }));
+    return { groups, entries, mappedPct };
   }
   const named = [];
   for (const part of parts) {
     const group = RELIGION_GROUPS.find(([, re]) => re.test(part))?.[0];
     if (group && !named.includes(group)) named.push(group);
   }
-  return named.slice(0, MAX_RELIGION_GROUPS).map((name) => ({ name, pct: null }));
+  const groups = named.slice(0, MAX_RELIGION_GROUPS).map((name) => ({ name, pct: null }));
+  return { groups, entries, mappedPct };
+}
+
+// Prints raw labels that mapped to no group and countries whose mapped shares
+// sum to under LOW_COVERAGE_PCT. Labels like "other" or "unspecified" are
+// expected to be unmapped, so they are listed separately.
+function reportReligionCoverage(rows) {
+  const unmapped = new Map();
+  const low = [];
+  for (const { name, raw } of rows) {
+    const { entries, mappedPct } = analyzeReligions(raw);
+    for (const e of entries) {
+      if (e.group) continue;
+      const u = unmapped.get(e.label) || { count: 0, countries: [] };
+      u.count++;
+      u.countries.push(name);
+      unmapped.set(e.label, u);
+    }
+    if (entries.length && mappedPct < LOW_COVERAGE_PCT) low.push(`${name} (${Math.round(mappedPct * 10) / 10}%)`);
+  }
+  const isFiller = (l) => /^(other|unspecified|not stated|unknown|none or unspecified|other\/none\/unspecified|)$|^other\b|unspecified|no (response|answer)|not applicable|refused|objected|don't know|undeclared|^believer$/i.test(l.trim());
+  const sorted = [...unmapped.entries()].sort((a, b) => b[1].count - a[1].count);
+  log(`\nUnmapped religion labels (${sorted.filter(([l]) => !isFiller(l)).length} distinct, excluding generic "other"/"unspecified"):`);
+  for (const [label, u] of sorted) {
+    if (isFiller(label)) continue;
+    log(`  ${JSON.stringify(label)} x${u.count}: ${u.countries.slice(0, 4).join(", ")}${u.countries.length > 4 ? ", …" : ""}`);
+  }
+  log(`\nCountries with mapped religion shares under ${LOW_COVERAGE_PCT}% (${low.length}):`);
+  for (const l of low) log(`  ${l}`);
 }
 
 async function loadWikidata() {
@@ -227,6 +281,7 @@ async function main() {
     const flagDir = path.join(tmp, "flags", "package", "flags", "4x3");
 
     const countries = [];
+    const religionRows = [];
     const stats = { government: 0, governmentFromWikidata: 0, religion: 0, gdp: 0, populationWorldBank: 0, populationFallback: 0, missingFlags: [] };
 
     for (const c of rawCountries) {
@@ -249,7 +304,9 @@ async function main() {
         }
       }
 
-      const religions = parseReligions(profile?.["People and Society"]?.Religions?.text);
+      const religionText = profile?.["People and Society"]?.Religions?.text;
+      const religions = parseReligions(religionText);
+      if (religionText) religionRows.push({ name: c.name, raw: religionText });
       if (religions.length) stats.religion++;
 
       const gdp = gdpByAlpha2.get(iso2) || null;
@@ -302,6 +359,12 @@ async function main() {
         religions,
         gdp,
       });
+    }
+
+    reportReligionCoverage(religionRows);
+    if (process.argv.includes("--audit-religion")) {
+      log("\n--audit-religion: report only, data/ left unchanged.");
+      return;
     }
 
     countries.sort((a, b) => a.name.localeCompare(b.name));

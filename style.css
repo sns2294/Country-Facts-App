@@ -1010,3 +1010,23 @@ main {
   margin-inline: auto;
   line-height: 1.6;
 }
+
+/* Phone-only shortcut back up to the map/globe picker. */
+.fact-card .back-to-map {
+  display: none;
+  margin: 0.9rem 0 0 1.5rem;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+@media (max-width: 700px) {
+  .fact-card .back-to-map {
+    display: inline-block;
+  }
+}

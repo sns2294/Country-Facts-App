@@ -294,6 +294,27 @@
     return overview;
   }
 
+  const phoneQuery = window.matchMedia("(max-width: 700px)");
+
+  // The picker the user is currently selecting from: the visible map or globe,
+  // falling back to the search box when the dropdown view is active.
+  function getBackTarget() {
+    if (!mapSection.hidden) return mapSection;
+    if (!globeSection.hidden) return globeSection;
+    return searchSection;
+  }
+
+  function backTargetLabel() {
+    if (!mapSection.hidden) return "map";
+    if (!globeSection.hidden) return "globe";
+    return "search";
+  }
+
+  function scrollIntoViewOnPhone(el) {
+    if (!phoneQuery.matches) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   function renderCountry(country, borderCountries) {
     const gdp = country.gdp;
     const flagUrl = country.flags?.svg || country.flags?.png || "";
@@ -315,6 +336,7 @@
       : "";
 
     factCard.innerHTML = `
+      <button type="button" class="back-to-map">&uarr; Back to ${backTargetLabel()}</button>
       <div class="card-header">
         ${flagUrl ? `<img class="flag" src="${flagUrl}" alt="Flag of ${country.name}" />` : ""}
         <div>
@@ -396,6 +418,7 @@
     const borderCountries = await getBorderCountries(country.borders);
     if (selection !== latestSelection) return;
     renderCountry(country, borderCountries);
+    scrollIntoViewOnPhone(factCard);
     shownCountryName = country.name;
     setStatus(`Showing facts for ${country.name}.`);
   }
@@ -454,6 +477,10 @@
   countryInput.addEventListener("change", () => selectCountry(countryInput.value));
 
   factCard.addEventListener("click", (evt) => {
+    if (evt.target.closest(".back-to-map")) {
+      getBackTarget().scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     const link = evt.target.closest(".border-chip");
     if (!link) return;
     selectCountryByCode(link.dataset.code);

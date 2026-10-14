@@ -1,18 +1,23 @@
 :root {
   color-scheme: light;
-  --bg: #f6f2e8;
+  --bg: #f5f6f8;
   --surface: #ffffff;
   --text: #1b1e23;
   --text-muted: #5b6270;
   --border: #dde1e6;
   --accent: #2f6fed;
   --shadow: rgba(20, 24, 33, 0.08);
-  --map-fill: #cdd3db;
-  --map-stroke: #ffffff;
-  --map-nodata: #e2e5ea;
-  --map-hover: var(--accent);
-  --grain-opacity: 0.05;
-  --frame-color: rgba(91, 82, 60, 0.22);
+  --map-ocean: #4d9bdc;
+  --map-fill: #fbfcfd;
+  --map-stroke: #5f6b7a;
+  --map-nodata: #e4e7eb;
+  --map-highlight: #e8590c;
+  --map-hover: var(--map-highlight);
+  --map-atmosphere: #8cc8f5;
+  --globe-ocean: #5eadeb;
+  --globe-backdrop: #dbe7f1;
+  --grain-opacity: 0.025;
+  --frame-color: rgba(70, 80, 95, 0.22);
   --emblem-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='none' stroke='%235b6270' stroke-width='1'/%3E%3Ccircle cx='50' cy='50' r='36' fill='none' stroke='%235b6270' stroke-width='0.6'/%3E%3Cpath d='M50 4 L50 96 M4 50 L96 50 M15.5 15.5 L84.5 84.5 M84.5 15.5 L15.5 84.5' stroke='%235b6270' stroke-width='0.6'/%3E%3Cpath d='M50 8 L56 50 L50 92 L44 50 Z' fill='%235b6270'/%3E%3C/svg%3E");
 }
 
@@ -25,10 +30,15 @@
   --border: #2c3038;
   --accent: #6fa1ff;
   --shadow: rgba(0, 0, 0, 0.4);
-  --map-fill: #3a3f48;
-  --map-stroke: #14161a;
-  --map-nodata: #24272e;
-  --map-hover: var(--accent);
+  --map-ocean: #123a63;
+  --map-fill: #9db4cb;
+  --map-stroke: #0b1d30;
+  --map-nodata: #6f8296;
+  --map-highlight: #ffb02e;
+  --map-hover: var(--map-highlight);
+  --map-atmosphere: #3f86c9;
+  --globe-ocean: #1d5a99;
+  --globe-backdrop: #090e17;
   --grain-opacity: 0.07;
   --frame-color: rgba(180, 190, 210, 0.16);
   --emblem-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='none' stroke='%239aa2ad' stroke-width='1'/%3E%3Ccircle cx='50' cy='50' r='36' fill='none' stroke='%239aa2ad' stroke-width='0.6'/%3E%3Cpath d='M50 4 L50 96 M4 50 L96 50 M15.5 15.5 L84.5 84.5 M84.5 15.5 L15.5 84.5' stroke='%239aa2ad' stroke-width='0.6'/%3E%3Cpath d='M50 8 L56 50 L50 92 L44 50 Z' fill='%239aa2ad'/%3E%3C/svg%3E");
@@ -93,7 +103,8 @@ html::before {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.5rem;
+  /* Align the header's contents with <main>'s 1100px column on wide screens. */
+  padding: 1.5rem max(1.5rem, calc((100% - 1100px) / 2 + 1.5rem));
   border-bottom: 1px solid var(--border);
 }
 
@@ -134,7 +145,7 @@ html::before {
 }
 
 main {
-  max-width: 640px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 2.5rem 1.5rem 4rem;
   display: flex;
@@ -144,7 +155,8 @@ main {
 
 .section-nav {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
+  gap: 2.5rem;
   width: 100%;
   max-width: 420px;
   margin-bottom: 2rem;
@@ -238,7 +250,7 @@ main {
   position: relative;
   width: 100%;
   aspect-ratio: 360 / 174;
-  background: var(--surface);
+  background: var(--map-ocean);
   border: 1px solid var(--border);
   border-radius: 0.75rem;
   box-shadow: 0 8px 24px var(--shadow);
@@ -264,7 +276,7 @@ main {
 .map-container path.country {
   fill: var(--map-fill);
   stroke: var(--map-stroke);
-  stroke-width: 1;
+  stroke-width: 0.8;
   vector-effect: non-scaling-stroke;
   transition: fill 0.1s ease;
 }
@@ -336,6 +348,32 @@ main {
 
 .globe-container {
   cursor: grab;
+  /* Space behind the globe: kept distinct from the ocean so the ball reads as a ball. */
+  background: var(--globe-backdrop);
+}
+
+/* Panels are sized from the window height so header + tabs + panel + hint fit
+   without scrolling. --panel-chrome is roughly everything else on screen. */
+:root {
+  --panel-chrome: 330px;
+  --panel-max-height: max(240px, calc(100vh - var(--panel-chrome)));
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --panel-max-height: max(240px, calc(100dvh - var(--panel-chrome)));
+  }
+}
+
+#globe-container {
+  aspect-ratio: auto;
+  height: min(var(--panel-max-height), 780px);
+}
+
+#map-container {
+  /* keep the map's 360:174 shape, shrinking its width when height is short */
+  width: min(100%, calc(var(--panel-max-height) * 360 / 174));
+  margin: 0 auto;
 }
 
 .globe-container:active {
@@ -910,9 +948,10 @@ main {
 }
 
 .site-footer {
-  max-width: 640px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 0 1.5rem 2rem;
+  overflow-wrap: anywhere;
   text-align: center;
   font-size: 0.8rem;
   color: var(--text-muted);
@@ -920,4 +959,20 @@ main {
 
 .site-footer p {
   margin: 0.25rem 0;
+}
+
+.site-footer a {
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.site-footer a:hover {
+  text-decoration: underline;
+}
+
+.site-footer .data-credits {
+  max-width: 44rem;
+  margin-inline: auto;
+  line-height: 1.6;
 }

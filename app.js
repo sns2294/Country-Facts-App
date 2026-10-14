@@ -772,7 +772,7 @@
   // and shared by every Globe() instance (Explore's and the quiz's) rather
   // than being re-fetched per instance.
   const GLOBE_GEO_URL = "data/countries-110m.json";
-  const GLOBE_DEFAULT_POV = { lat: 15, lng: 10, altitude: 2.2 };
+  const GLOBE_DEFAULT_POV = { lat: 15, lng: 10, altitude: 1.85 };
   const GLOBE_MIN_ALTITUDE = 0.32;
   const GLOBE_MAX_ALTITUDE = 4;
   const GLOBE_ZOOM_FACTOR = 1.4;
@@ -877,7 +877,7 @@
       const fillColor = getCssVar("--map-fill");
       const hoverColor = getCssVar("--map-hover");
       const strokeColor = getCssVar("--map-stroke");
-      const targetColor = getCssVar("--accent");
+      const targetColor = getCssVar("--map-highlight");
       globe
         .polygonCapColor((d) => (d === targetFeature ? targetColor : d === hoverFeature ? hoverColor : fillColor))
         .polygonSideColor(() => fillColor)
@@ -887,14 +887,21 @@
 
     function applyTheme() {
       if (!globe) return;
-      const accentHex = getCssVar("--accent") || "#2f6fed";
-      const accentRgb = hexToRgbTriplet(accentHex);
+      const highlightRgb = hexToRgbTriplet(getCssVar("--map-highlight") || "#e8590c");
       globe.backgroundColor("rgba(0,0,0,0)");
-      globe.globeMaterial().color.set(getCssVar("--surface") || "#ffffff");
+      globe.globeMaterial().color.set(getCssVar("--globe-ocean") || "#5eadeb");
       globe
-        .atmosphereColor(accentHex)
-        .ringColor(() => (t) => `rgba(${accentRgb},${Math.sqrt(Math.max(0, 1 - t))})`);
+        .atmosphereColor(getCssVar("--map-atmosphere") || "#8cc8f5")
+        .ringColor(() => (t) => `rgba(${highlightRgb},${Math.sqrt(Math.max(0, 1 - t))})`);
       refreshPolygonStyles();
+    }
+
+    // The camera frames the globe by panel height, so on a panel taller than
+    // it is wide (phones) pull back to keep the whole ball in view.
+    function defaultPov() {
+      const rect = container.getBoundingClientRect();
+      const narrowness = rect.width && rect.height ? Math.max(1, rect.height / rect.width) : 1;
+      return { ...GLOBE_DEFAULT_POV, altitude: clamp(GLOBE_DEFAULT_POV.altitude * narrowness, GLOBE_MIN_ALTITUDE, GLOBE_MAX_ALTITUDE) };
     }
 
     function resize() {
@@ -944,7 +951,7 @@
             .onPolygonClick(handlePolygonClick);
         }
 
-        globe.pointOfView(GLOBE_DEFAULT_POV, 0);
+        globe.pointOfView(defaultPov(), 0);
         applyTheme();
         resize();
         if (loadingEl) loadingEl.hidden = true;
@@ -964,7 +971,7 @@
 
     function reset() {
       if (!globe) return;
-      globe.pointOfView(GLOBE_DEFAULT_POV, 600);
+      globe.pointOfView(defaultPov(), 600);
     }
 
     function getAvailableCodes() {

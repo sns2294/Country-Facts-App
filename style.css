@@ -82,6 +82,20 @@ body::after {
   transition: border-color 0.2s ease;
 }
 
+/* Keep all content inside the frame (14px inset + 3px border) on larger screens. */
+@media (min-width: 701px) {
+  body {
+    padding: 20px;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 700px) {
+  body::after {
+    display: none;
+  }
+}
+
 html::before {
   content: "";
   position: fixed;

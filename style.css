@@ -17,7 +17,6 @@
   --globe-ocean: #5eadeb;
   --globe-backdrop: #dbe7f1;
   --grain-opacity: 0.025;
-  --frame-color: rgba(70, 80, 95, 0.22);
   --emblem-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='none' stroke='%235b6270' stroke-width='1'/%3E%3Ccircle cx='50' cy='50' r='36' fill='none' stroke='%235b6270' stroke-width='0.6'/%3E%3Cpath d='M50 4 L50 96 M4 50 L96 50 M15.5 15.5 L84.5 84.5 M84.5 15.5 L15.5 84.5' stroke='%235b6270' stroke-width='0.6'/%3E%3Cpath d='M50 8 L56 50 L50 92 L44 50 Z' fill='%235b6270'/%3E%3C/svg%3E");
 }
 
@@ -40,7 +39,6 @@
   --globe-ocean: #1d5a99;
   --globe-backdrop: #090e17;
   --grain-opacity: 0.07;
-  --frame-color: rgba(180, 190, 210, 0.16);
   --emblem-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='none' stroke='%239aa2ad' stroke-width='1'/%3E%3Ccircle cx='50' cy='50' r='36' fill='none' stroke='%239aa2ad' stroke-width='0.6'/%3E%3Cpath d='M50 4 L50 96 M4 50 L96 50 M15.5 15.5 L84.5 84.5 M84.5 15.5 L15.5 84.5' stroke='%239aa2ad' stroke-width='0.6'/%3E%3Cpath d='M50 8 L56 50 L50 92 L44 50 Z' fill='%239aa2ad'/%3E%3C/svg%3E");
 }
 
@@ -70,30 +68,6 @@ body::before {
   opacity: var(--grain-opacity);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 240px 240px;
-}
-
-body::after {
-  content: "";
-  position: fixed;
-  inset: 14px;
-  border: 3px double var(--frame-color);
-  pointer-events: none;
-  z-index: 1;
-  transition: border-color 0.2s ease;
-}
-
-/* Keep all content inside the frame (14px inset + 3px border) on larger screens. */
-@media (min-width: 701px) {
-  body {
-    padding: 20px;
-    box-sizing: border-box;
-  }
-}
-
-@media (max-width: 700px) {
-  body::after {
-    display: none;
-  }
 }
 
 html::before {

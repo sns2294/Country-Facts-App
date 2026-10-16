@@ -946,6 +946,16 @@
   // and shared by every Globe() instance (Explore's and the quiz's) rather
   // than being re-fetched per instance.
   const GLOBE_GEO_URL = "data/countries-50m.json";
+  const GLOBE_FULL_GEO_URL = "data/countries-50m-full.json";
+  // Below this camera altitude the simplified shapes start to look rough, so
+  // the countries in view are swapped for full-detail ones (see syncDetail).
+  const GLOBE_DETAIL_ALTITUDE = 0.25;
+  // Closest a pinch or scroll gesture can get; any nearer and even the
+  // full-detail shapes would be magnified past what the 50m data resolves.
+  const GLOBE_GESTURE_MIN_ALTITUDE = 0.13;
+  // Cap on full-detail vertices on screen at once, nearest countries first, so
+  // a huge neighbour (Russia, Canada) can't make the swap slow on a phone.
+  const GLOBE_DETAIL_VERTEX_BUDGET = 6000;
   const GLOBE_DEFAULT_POV = { lat: 15, lng: 10, altitude: 1.85 };
   const GLOBE_MIN_ALTITUDE = 0.32;
   const GLOBE_MAX_ALTITUDE = 4;
@@ -957,6 +967,33 @@
 
   let globeFeaturesPromise = null;
   let globeNumericToAlpha2Promise = null;
+  let globeLibraryPromise = null;
+  let globeFullFeaturesPromise = null;
+
+  // globe.gl is ~1.9 MB, so it is only fetched the first time a globe is
+  // needed (the Globe tab or a geography quiz) rather than with the page.
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = src;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error(`Failed to load ${src}`));
+      document.head.appendChild(script);
+    });
+  }
+
+  function loadGlobeLibrary() {
+    if (!globeLibraryPromise) {
+      globeLibraryPromise = Promise.all([
+        loadScript("vendor/topojson-client.min.js"),
+        loadScript("vendor/globe.gl.min.js"),
+      ]).catch((err) => {
+        globeLibraryPromise = null;
+        throw err;
+      });
+    }
+    return globeLibraryPromise;
+  }
 
   function getCssVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -993,6 +1030,7 @@
     return features.filter((_, i) => !mergedAway.has(i));
   }
 
+  // Kicks off the library and the map data together so they download in parallel.
   function fetchGlobeFeatures() {
     if (!globeFeaturesPromise) {
       globeFeaturesPromise = Promise.all([
@@ -1001,9 +1039,39 @@
           return res.json();
         }),
         fetchNumericToAlpha2Map(),
+        loadGlobeLibrary(),
       ]).then(([topology, numericToAlpha2]) => applyGlobeShapeRules(topology, numericToAlpha2));
+      globeFeaturesPromise.catch(() => {
+        globeFeaturesPromise = null;
+      });
     }
     return globeFeaturesPromise;
+  }
+
+  // Full-detail twin of fetchGlobeFeatures(): same shape rules on the same
+  // atlas, so it lines up index-for-index with the simplified features.
+  function fetchGlobeFullFeatures() {
+    if (!globeFullFeaturesPromise) {
+      globeFullFeaturesPromise = Promise.all([
+        fetch(GLOBE_FULL_GEO_URL).then((res) => {
+          if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+          return res.json();
+        }),
+        fetchNumericToAlpha2Map(),
+        loadGlobeLibrary(),
+      ]).then(([topology, numericToAlpha2]) => applyGlobeShapeRules(topology, numericToAlpha2));
+      globeFullFeaturesPromise.catch(() => {
+        globeFullFeaturesPromise = null;
+      });
+    }
+    return globeFullFeaturesPromise;
+  }
+
+  function countVertices(feature) {
+    const geom = feature.geometry;
+    if (!geom) return 0;
+    const rings = geom.type === "Polygon" ? geom.coordinates : geom.type === "MultiPolygon" ? geom.coordinates.flat() : [];
+    return rings.reduce((sum, ring) => sum + ring.length, 0);
   }
 
   // world-atlas polygon ids are zero-padded ISO 3166-1 numeric codes, which
@@ -1075,6 +1143,17 @@
     let alpha2ToFeature = new Map();
     let hoverFeature = null;
     let targetFeature = null;
+    // Level-of-detail state. `features` are the simplified shapes; `detailOf`
+    // maps one to its full-detail twin once that file has loaded. `canon` maps
+    // a displayed shape back to its simplified original so hover/target
+    // comparisons keep working after a swap.
+    let features = [];
+    let detailOf = null;
+    let canon = new Map();
+    let detailRequested = false;
+    let detailTimer = null;
+    let displayedDetail = new Set();
+    const bboxCache = new Map();
 
     function refreshPolygonStyles() {
       if (!globe) return;
@@ -1083,10 +1162,16 @@
       const strokeColor = getCssVar("--map-stroke");
       const targetColor = getCssVar("--map-highlight");
       globe
-        .polygonCapColor((d) => (d === targetFeature ? targetColor : d === hoverFeature ? hoverColor : fillColor))
+        .polygonCapColor((d) => {
+          const base = canon.get(d) || d;
+          return base === targetFeature ? targetColor : base === hoverFeature ? hoverColor : fillColor;
+        })
         .polygonSideColor(() => fillColor)
         .polygonStrokeColor(() => strokeColor)
-        .polygonAltitude((d) => (d === targetFeature ? 0.02 : d === hoverFeature ? 0.015 : 0.006));
+        .polygonAltitude((d) => {
+          const base = canon.get(d) || d;
+          return base === targetFeature ? 0.02 : base === hoverFeature ? 0.015 : 0.006;
+        });
     }
 
     function applyTheme() {
@@ -1128,7 +1213,8 @@
         return;
       }
       try {
-        const [features, numericToAlpha2] = await Promise.all([fetchGlobeFeatures(), fetchNumericToAlpha2Map()]);
+        const [loaded, numericToAlpha2] = await Promise.all([fetchGlobeFeatures(), fetchNumericToAlpha2Map()]);
+        features = loaded;
         features.forEach((feature) => {
           const alpha2 = feature.id && numericToAlpha2.get(feature.id);
           if (alpha2) alpha2ToFeature.set(alpha2, feature);
@@ -1149,7 +1235,7 @@
           globe
             .polygonLabel(({ properties }) => (properties && properties.name) || "")
             .onPolygonHover((feat) => {
-              hoverFeature = feat?.properties?.neutral ? null : feat;
+              hoverFeature = feat?.properties?.neutral ? null : canon.get(feat) || feat;
               refreshPolygonStyles();
             })
             .onPolygonClick(handlePolygonClick);
@@ -1168,6 +1254,12 @@
         };
         tuneDepthRange();
         globe.onGlobeReady(tuneDepthRange);
+        globe.controls().minDistance = globe.getGlobeRadius() * (1 + GLOBE_GESTURE_MIN_ALTITUDE);
+        prefetchDetailWhenIdle();
+        globe.onZoom(() => {
+          clearTimeout(detailTimer);
+          detailTimer = setTimeout(syncDetail, 150);
+        });
 
         globe.pointOfView(defaultPov(), 0);
         applyTheme();
@@ -1178,6 +1270,72 @@
         console.error("Failed to load globe:", err);
         throw err;
       }
+    }
+
+    // Quietly fetches the full-detail shapes once the globe is up and the
+    // browser is idle, so the first zoom-in doesn't wait on the download.
+    // Skipped when the user has asked to save data.
+    function prefetchDetailWhenIdle() {
+      if (navigator.connection?.saveData) return;
+      const start = () => fetchGlobeFullFeatures().catch(() => {});
+      if ("requestIdleCallback" in window) requestIdleCallback(start, { timeout: 5000 });
+      else setTimeout(start, 2000);
+    }
+
+    function featureBBox(feature) {
+      if (!bboxCache.has(feature)) bboxCache.set(feature, getFeatureSetBBox([feature]));
+      return bboxCache.get(feature);
+    }
+
+    // Swaps full-detail shapes in for the countries currently in view when
+    // zoomed in past GLOBE_DETAIL_ALTITUDE, and puts the simplified ones back
+    // when zoomed out. Only the swapped countries change identity, so the
+    // globe rebuilds just those meshes, not the whole planet.
+    async function syncDetail() {
+      if (!globe) return;
+      const pov = globe.pointOfView();
+      const zoomedIn = pov.altitude < GLOBE_DETAIL_ALTITUDE;
+      if (zoomedIn && !detailOf) {
+        if (detailRequested) return;
+        detailRequested = true;
+        try {
+          const full = await fetchGlobeFullFeatures();
+          if (full.length !== features.length) throw new Error("full-detail shapes don't match simplified ones");
+          detailOf = new Map(features.map((f, i) => [f, full[i]]));
+          full.forEach((f, i) => canon.set(f, features[i]));
+        } catch (err) {
+          console.error("Failed to load full-detail shapes:", err);
+          return;
+        }
+        syncDetail();
+        return;
+      }
+      if (!detailOf) return;
+
+      const wanted = new Set();
+      if (zoomedIn) {
+        const halfView = pov.altitude * 45;
+        const candidates = [];
+        features.forEach((feature) => {
+          const box = featureBBox(feature);
+          if (!box) return;
+          const dLat = Math.abs(box.centerLat - pov.lat);
+          const dLng = Math.abs(((box.centerLng - pov.lng + 540) % 360) - 180) * Math.cos((pov.lat * Math.PI) / 180);
+          if (dLat > halfView + box.latSpan / 2 || dLng > halfView + (box.lngSpan * Math.cos((pov.lat * Math.PI) / 180)) / 2) return;
+          candidates.push({ feature, dist: feature === targetFeature ? -1 : Math.hypot(dLat, dLng) });
+        });
+        candidates.sort((p, q) => p.dist - q.dist);
+        let budget = GLOBE_DETAIL_VERTEX_BUDGET;
+        for (const { feature } of candidates) {
+          const cost = countVertices(detailOf.get(feature));
+          if (cost > budget && wanted.size) continue;
+          budget -= cost;
+          wanted.add(feature);
+        }
+      }
+      if (wanted.size === displayedDetail.size && [...wanted].every((f) => displayedDetail.has(f))) return;
+      displayedDetail = wanted;
+      globe.polygonsData(features.map((f) => (wanted.has(f) ? detailOf.get(f) : f)));
     }
 
     function zoomAtCenter(factor) {

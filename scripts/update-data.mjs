@@ -15,6 +15,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { simplifyTopology } from "./simplify-topology.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DATA_DIR = path.join(ROOT, "data");
@@ -31,6 +32,11 @@ const SOURCES = {
   flagIcons: "https://registry.npmjs.org/flag-icons/-/flag-icons-7.2.3.tgz",
   wikidata: "https://query.wikidata.org/sparql",
 };
+
+// Fraction of the 50m atlas's points kept for the globe's default shapes. The
+// full-detail atlas is also saved (countries-50m-full.json) and loaded only when
+// the globe is zoomed in far enough for the simplified shapes to look rough.
+const ATLAS_KEEP_FRACTION = 1 / 2;
 
 const USER_AGENT = "country-facts-app-data-updater/1.0 (https://github.com/sns2294/country-facts-app)";
 
@@ -285,6 +291,9 @@ async function main() {
     log("Downloading world-atlas shapes…");
     const atlas = await download(SOURCES.worldAtlas, { json: true });
     if (!atlas?.objects?.countries) throw new Error("world-atlas file has no countries object");
+    fs.writeFileSync(path.join(STAGING_DIR, "countries-50m-full.json"), JSON.stringify(atlas));
+    const { before, after } = simplifyTopology(atlas, ATLAS_KEEP_FRACTION);
+    log(`Simplified world-atlas shapes: ${before} -> ${after} points`);
     fs.writeFileSync(path.join(STAGING_DIR, "countries-50m.json"), JSON.stringify(atlas));
 
     log("Downloading CIA World Factbook (factbook.json)…");

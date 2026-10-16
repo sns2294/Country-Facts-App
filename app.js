@@ -648,8 +648,19 @@
     function positionTooltip(evt) {
       if (!tooltipEl) return;
       const rect = container.getBoundingClientRect();
-      tooltipEl.style.left = `${evt.clientX - rect.left + 14}px`;
-      tooltipEl.style.top = `${evt.clientY - rect.top + 14}px`;
+      const offset = 14;
+      const x = evt.clientX - rect.left;
+      const y = evt.clientY - rect.top;
+      const { offsetWidth: w, offsetHeight: h } = tooltipEl;
+      // Default is below-right of the cursor; flip to the other side of it on
+      // any edge where the tooltip would overflow the container.
+      let left = x + offset + w > rect.width ? x - offset - w : x + offset;
+      let top = y + offset + h > rect.height ? y - offset - h : y + offset;
+      // Safety net for containers too small for either side.
+      left = clamp(left, 0, Math.max(rect.width - w, 0));
+      top = clamp(top, 0, Math.max(rect.height - h, 0));
+      tooltipEl.style.left = `${left}px`;
+      tooltipEl.style.top = `${top}px`;
     }
 
     function hideTooltip() {

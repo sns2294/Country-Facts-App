@@ -246,9 +246,13 @@
   // Top religious groups, each with its share when the Factbook gives one.
   function formatReligions(religions) {
     if (!religions?.length) return "N/A";
-    return religions
+    const list = religions
       .map((r) => (r.pct === null ? r.name : `${r.name} <span class="stat-note">(${r.pct}%)</span>`))
       .join("<br />");
+    // Names with no shares are deliberate (the Factbook gave none, or too few to
+    // show), so say so rather than leave the numbers looking like a bug.
+    const noShares = religions.every((r) => r.pct === null);
+    return noShares ? `${list}<br /><span class="stat-note">Percentages not available</span>` : list;
   }
 
   // The single predominant religion, or null when the largest group is

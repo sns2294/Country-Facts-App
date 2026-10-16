@@ -392,6 +392,8 @@
       </div>
     `;
     factCard.hidden = false;
+    // In the side-by-side layout the panel scrolls on its own; start each card at the top.
+    factCard.parentElement.scrollTop = 0;
   }
 
   async function loadCountryList() {
@@ -414,10 +416,31 @@
   let latestSelection = 0;
   let shownCountryName = null;
 
-  async function showCountryData(country, selection) {
+  // The country shown in the fact panel, mirrored on the map and globe. A
+  // `recenter` selection (chip, dropdown) also brings it into view there; a
+  // click on the map/globe itself leaves the camera where the user put it.
+  let selectedCode = null;
+
+  function syncSelection({ recenter = false } = {}) {
+    exploreMap.setSelected(selectedCode, { recenter });
+    if (selectedCode) {
+      exploreGlobe.highlight(selectedCode, { framing: "country", moveCamera: recenter });
+    } else {
+      exploreGlobe.clearHighlight();
+    }
+  }
+
+  function clearSelection() {
+    selectedCode = null;
+    syncSelection();
+  }
+
+  async function showCountryData(country, selection, { recenter = false } = {}) {
     const borderCountries = await getBorderCountries(country.borders);
     if (selection !== latestSelection) return;
     renderCountry(country, borderCountries);
+    selectedCode = country.alpha2Code;
+    syncSelection({ recenter });
     scrollIntoViewOnPhone(factCard);
     shownCountryName = country.name;
     setStatus(`Showing facts for ${country.name}.`);
@@ -432,6 +455,7 @@
       setStatus(`"${name}" isn't in the country list — pick one from the suggestions.`, true);
       factCard.hidden = true;
       shownCountryName = null;
+      clearSelection();
       return;
     }
 
@@ -446,16 +470,17 @@
       const country = countries.find((c) => c.name.toLowerCase() === match.toLowerCase());
       if (!country) throw new Error("No matching country in data");
 
-      await showCountryData(country, selection);
+      await showCountryData(country, selection, { recenter: true });
     } catch (err) {
       setStatus(`Couldn't load data for ${match}. Try again.`, true);
       factCard.hidden = true;
       shownCountryName = null;
+      clearSelection();
       console.error("Failed to load country:", err);
     }
   }
 
-  async function selectCountryByCode(code) {
+  async function selectCountryByCode(code, { recenter = false } = {}) {
     if (!code) return;
 
     const selection = ++latestSelection;
@@ -465,11 +490,12 @@
       if (!country) throw new Error("No country data for code");
 
       countryInput.value = country.name;
-      await showCountryData(country, selection);
+      await showCountryData(country, selection, { recenter });
     } catch (err) {
       setStatus("Couldn't load data for that country. Try again.", true);
       factCard.hidden = true;
       shownCountryName = null;
+      clearSelection();
       console.error("Failed to load country by code:", err);
     }
   }
@@ -483,7 +509,7 @@
     }
     const link = evt.target.closest(".border-chip");
     if (!link) return;
-    selectCountryByCode(link.dataset.code);
+    selectCountryByCode(link.dataset.code, { recenter: true });
   });
 
   function clamp(value, min, max) {
@@ -638,6 +664,7 @@
     let svg = null;
     let currentViewBox = { ...NATIVE_VIEW_BOX };
     let suppressNextClick = false;
+    let selectedCode = null;
 
     function showTooltip(name) {
       if (!tooltipEl || !name) return;
@@ -917,6 +944,41 @@
       });
     }
 
+    // Marks the country picked in the fact panel. With `recenter`, pans (keeping
+    // the zoom) to bring it into view if it's currently off screen.
+    function setSelected(code, { recenter = false } = {}) {
+      selectedCode = code;
+      if (!svg) return;
+      svg.querySelectorAll(".selected").forEach((el) => el.classList.remove("selected"));
+      if (!code) return;
+      const path = svg.querySelector(`path.country[id="${code}"]`);
+      const circle = svg.querySelector(`circle.hit-target[data-code="${code}"]`);
+      if (path) path.classList.add("selected");
+      if (circle) circle.classList.add("selected");
+      if (!recenter) return;
+
+      let cx;
+      let cy;
+      if (circle) {
+        cx = Number(circle.getAttribute("cx"));
+        cy = Number(circle.getAttribute("cy"));
+      } else if (path) {
+        const box = path.getBBox();
+        // A shape spanning the antimeridian (Russia, Fiji...) has a bounding box
+        // that wraps the whole map, so its centre would be meaningless.
+        if (box.width > 180) return;
+        cx = box.x + box.width / 2;
+        cy = box.y + box.height / 2;
+      } else {
+        return;
+      }
+      const v = currentViewBox;
+      const insetX = v.w * 0.1;
+      const insetY = v.h * 0.1;
+      const visible = cx > v.x + insetX && cx < v.x + v.w - insetX && cy > v.y + insetY && cy < v.y + v.h - insetY;
+      if (!visible) applyViewBox(cx - v.w / 2, cy - v.h / 2, v.w);
+    }
+
     async function ensureLoaded() {
       if (loaded) return;
       try {
@@ -929,6 +991,7 @@
         if (enableCountryInteraction) attachMapHandlers();
         attachZoomPanHandlers();
         applyViewBox(NATIVE_VIEW_BOX.x, NATIVE_VIEW_BOX.y, NATIVE_VIEW_BOX.w);
+        setSelected(selectedCode, { recenter: true });
       } catch (err) {
         if (loadingEl) loadingEl.textContent = "Couldn't load the map. Reload the page and try again.";
         console.error("Failed to load world map:", err);
@@ -938,6 +1001,7 @@
 
     return {
       ensureLoaded,
+      setSelected,
     };
   }
 
@@ -1371,7 +1435,7 @@
     // `framing: "country"` sizes the view to the target alone, padded so its
     // neighbors and nearby seas show, with a floor so tiny countries stay
     // findable and a ceiling (the max altitude) so huge ones keep a margin.
-    function highlight(code, { contextCodes = [code], boost = 1, transitionMs = 600, framing = "context" } = {}) {
+    function highlight(code, { contextCodes = [code], boost = 1, transitionMs = 600, framing = "context", moveCamera = true } = {}) {
       if (!globe) return;
       const feature = alpha2ToFeature.get(code);
       if (!feature) return;
@@ -1386,7 +1450,7 @@
       let span = Math.max(contextBox.lngSpan, contextBox.latSpan * 2);
       if (framing === "country") span = clamp(span * COUNTRY_FRAME_PADDING, COUNTRY_FRAME_MIN_SPAN, Infinity);
       const altitude = altitudeForSpan(span) * boost;
-      globe.pointOfView({ lat: targetBox.centerLat, lng: targetBox.centerLng, altitude }, transitionMs);
+      if (moveCamera) globe.pointOfView({ lat: targetBox.centerLat, lng: targetBox.centerLng, altitude }, transitionMs);
       globe.ringsData([{ lat: targetBox.centerLat, lng: targetBox.centerLng }]);
     }
 
@@ -1445,8 +1509,9 @@
       btn.classList.toggle("active", active);
       btn.setAttribute("aria-selected", String(active));
     });
-    if (isMap) exploreMap.ensureLoaded();
-    if (isGlobe) exploreGlobe.ensureLoaded();
+    // Catch the map/globe up with a country picked while they were hidden.
+    if (isMap) exploreMap.ensureLoaded().then(() => syncSelection({ recenter: true })).catch(() => {});
+    if (isGlobe) exploreGlobe.ensureLoaded().then(() => syncSelection({ recenter: true })).catch(() => {});
   }
 
   viewToggleButtons.forEach((btn) => {

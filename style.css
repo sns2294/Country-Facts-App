@@ -50,6 +50,10 @@
   display: none !important;
 }
 
+:root {
+  --content-max: 1100px;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -97,8 +101,8 @@ html::before {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  /* Align the header's contents with <main>'s 1100px column on wide screens. */
-  padding: 1.5rem max(1.5rem, calc((100% - 1100px) / 2 + 1.5rem));
+  /* Align the header's contents with <main>'s column on wide screens. */
+  padding: 1.5rem max(1.5rem, calc((100% - var(--content-max)) / 2 + 1.5rem));
   border-bottom: 1px solid var(--border);
 }
 
@@ -139,7 +143,7 @@ html::before {
 }
 
 main {
-  max-width: 1100px;
+  max-width: var(--content-max);
   margin: 0 auto;
   padding: 2.5rem 1.5rem 4rem;
   display: flex;
@@ -228,6 +232,19 @@ main {
   align-items: center;
 }
 
+.explore-layout,
+.explore-picker,
+.fact-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.fact-placeholder {
+  display: none;
+}
+
 .search-section {
   width: 100%;
   display: flex;
@@ -293,6 +310,11 @@ main {
   cursor: pointer;
 }
 
+.map-container path.country.selected {
+  fill: var(--map-highlight);
+}
+
+.map-container circle.hit-target.selected,
 .map-container circle.hit-target.active {
   fill: var(--map-hover);
   opacity: 0.85;
@@ -1016,5 +1038,67 @@ main {
 @media (max-width: 700px) {
   .fact-card .back-to-map {
     display: inline-block;
+  }
+}
+
+/* Side-by-side Explore: picker on the left, fact card in its own scrolling
+   panel on the right. Below this width the card stacks under the picker. */
+@media (min-width: 1024px) {
+  :root {
+    --content-max: 1280px;
+    /* roughly the header + tabs above the panel, so it ends at the window bottom */
+    --fact-panel-top: 13rem;
+  }
+
+  .explore-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  .fact-panel {
+    align-items: stretch;
+    position: sticky;
+    top: 1rem;
+    max-height: max(22rem, calc(100vh - var(--fact-panel-top) - 1rem));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  @supports (height: 100dvh) {
+    .fact-panel {
+      max-height: max(22rem, calc(100dvh - var(--fact-panel-top) - 1rem));
+    }
+  }
+
+  .fact-panel .fact-card {
+    max-width: none;
+    margin-top: 0;
+    flex-shrink: 0;
+  }
+
+  .fact-card:not([hidden]) + .fact-placeholder {
+    display: none;
+  }
+
+  .fact-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 16rem;
+    margin: 0;
+    padding: 2rem 1.5rem;
+    border: 1px dashed var(--border);
+    border-radius: 0.5rem;
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    text-align: center;
+  }
+
+  .fact-placeholder span {
+    font-size: 0.85rem;
   }
 }

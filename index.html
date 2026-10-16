@@ -26,51 +26,58 @@
     </div>
 
     <section id="explore-section" class="explore-section">
-      <div class="segmented-control" id="explore-view-toggle" role="tablist" aria-label="Country selection method">
-        <button type="button" id="view-toggle-dropdown" role="tab" aria-selected="true" data-view="dropdown">Dropdown</button>
-        <button type="button" id="view-toggle-map" role="tab" aria-selected="false" data-view="map">Map</button>
-        <button type="button" id="view-toggle-globe" role="tab" aria-selected="false" data-view="globe">Globe</button>
+      <div class="explore-layout">
+        <div class="explore-picker">
+        <div class="segmented-control" id="explore-view-toggle" role="tablist" aria-label="Country selection method">
+          <button type="button" id="view-toggle-dropdown" role="tab" aria-selected="true" data-view="dropdown">Dropdown</button>
+          <button type="button" id="view-toggle-map" role="tab" aria-selected="false" data-view="map">Map</button>
+          <button type="button" id="view-toggle-globe" role="tab" aria-selected="false" data-view="globe">Globe</button>
+        </div>
+
+        <section class="search-section">
+          <label for="country-input" class="search-label">Pick a country</label>
+          <input
+            id="country-input"
+            type="text"
+            list="country-list"
+            placeholder="Start typing a country name…"
+            autocomplete="off"
+          />
+          <datalist id="country-list"></datalist>
+          <p id="search-status" class="status" role="status"></p>
+        </section>
+
+        <section id="map-section" class="map-section" hidden>
+          <div id="map-container" class="map-container">
+            <p id="map-loading" class="status">Loading map…</p>
+            <div id="map-tooltip" class="map-tooltip" hidden></div>
+            <div class="map-controls">
+              <button type="button" id="map-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+              <button type="button" id="map-zoom-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
+              <button type="button" id="map-zoom-reset" title="Reset view" aria-label="Reset view">⤾</button>
+            </div>
+          </div>
+          <p class="map-hint">Scroll or use the buttons to zoom, drag to pan.</p>
+        </section>
+
+        <section id="globe-section" class="globe-section" hidden>
+          <div id="globe-container" class="map-container globe-container">
+            <p id="globe-loading" class="status">Loading globe…</p>
+            <div class="map-controls">
+              <button type="button" id="globe-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+              <button type="button" id="globe-zoom-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
+              <button type="button" id="globe-reset" title="Reset view" aria-label="Reset view">⤾</button>
+            </div>
+          </div>
+          <p class="map-hint">Drag to rotate, scroll or pinch to zoom, click a country to select it.</p>
+        </section>
+        </div>
+
+        <aside id="fact-panel" class="fact-panel" aria-label="Country facts">
+        <section id="fact-card" class="fact-card" hidden aria-live="polite"></section>
+          <p class="fact-placeholder">Select a country<span>Pick one from the map, globe or search to see its facts here.</span></p>
+        </aside>
       </div>
-
-      <section class="search-section">
-        <label for="country-input" class="search-label">Pick a country</label>
-        <input
-          id="country-input"
-          type="text"
-          list="country-list"
-          placeholder="Start typing a country name…"
-          autocomplete="off"
-        />
-        <datalist id="country-list"></datalist>
-        <p id="search-status" class="status" role="status"></p>
-      </section>
-
-      <section id="map-section" class="map-section" hidden>
-        <div id="map-container" class="map-container">
-          <p id="map-loading" class="status">Loading map…</p>
-          <div id="map-tooltip" class="map-tooltip" hidden></div>
-          <div class="map-controls">
-            <button type="button" id="map-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
-            <button type="button" id="map-zoom-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
-            <button type="button" id="map-zoom-reset" title="Reset view" aria-label="Reset view">⤾</button>
-          </div>
-        </div>
-        <p class="map-hint">Scroll or use the buttons to zoom, drag to pan.</p>
-      </section>
-
-      <section id="globe-section" class="globe-section" hidden>
-        <div id="globe-container" class="map-container globe-container">
-          <p id="globe-loading" class="status">Loading globe…</p>
-          <div class="map-controls">
-            <button type="button" id="globe-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
-            <button type="button" id="globe-zoom-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
-            <button type="button" id="globe-reset" title="Reset view" aria-label="Reset view">⤾</button>
-          </div>
-        </div>
-        <p class="map-hint">Drag to rotate, scroll or pinch to zoom, click a country to select it.</p>
-      </section>
-
-      <section id="fact-card" class="fact-card" hidden aria-live="polite"></section>
     </section>
 
     <section id="quiz-section" class="quiz-section" hidden>

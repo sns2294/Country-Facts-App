@@ -17,16 +17,17 @@ import { fileURLToPath } from "node:url";
 // Each territory is found among its parent's parts by where the part sits
 // (bounding-box centre, degrees). `box` is [minLon, maxLon, minLat, maxLat].
 export const TERRITORIES = [
-  { parentNumeric: "250", parent: "FR", name: "French Guiana", numeric: "254", boxes: [[-56, -51, 2, 6]] },
-  { parentNumeric: "250", parent: "FR", name: "Guadeloupe", numeric: "312", boxes: [[-64, -60, 15.5, 17]], small: true },
-  { parentNumeric: "250", parent: "FR", name: "Martinique", numeric: "474", boxes: [[-61.5, -60.5, 14, 15]], small: true },
-  { parentNumeric: "250", parent: "FR", name: "Réunion", numeric: "638", boxes: [[55, 56, -22, -20]], small: true },
-  { parentNumeric: "250", parent: "FR", name: "Mayotte", numeric: "175", boxes: [[44.5, 45.5, -13.5, -12]], small: true },
+  { parentNumeric: "250", parent: "FR", name: "French Guiana", alpha2: "GF", numeric: "254", boxes: [[-56, -51, 2, 6]] },
+  { parentNumeric: "250", parent: "FR", name: "Guadeloupe", alpha2: "GP", numeric: "312", boxes: [[-64, -60, 15.5, 17]], small: true },
+  { parentNumeric: "250", parent: "FR", name: "Martinique", alpha2: "MQ", numeric: "474", boxes: [[-61.5, -60.5, 14, 15]], small: true },
+  { parentNumeric: "250", parent: "FR", name: "Réunion", alpha2: "RE", numeric: "638", boxes: [[55, 56, -22, -20]], small: true },
+  { parentNumeric: "250", parent: "FR", name: "Mayotte", alpha2: "YT", numeric: "175", boxes: [[44.5, 45.5, -13.5, -12]], small: true },
   // Svalbard, Bear Island and Jan Mayen (the mainland tops out near 71.2°N, 5°E or more).
   {
     parentNumeric: "578",
     parent: "NO",
     name: "Svalbard and Jan Mayen",
+    alpha2: "SJ",
     numeric: "744",
     boxes: [
       [-180, 180, 74, 90],
@@ -38,26 +39,29 @@ export const TERRITORIES = [
     parentNumeric: "528",
     parent: "NL",
     name: "Bonaire, Sint Eustatius and Saba",
+    alpha2: "BQ",
     numeric: "535",
     boxes: [[-70, -62, 11, 19]],
     small: true,
   },
 ];
 
-// The note shown on a territory's fact card and the country it belongs to
-// (alpha3). Stored as `parent` in countries.json; the app also uses it to list
+// The note shown on a territory's fact card, the country it belongs to (alpha3),
+// a noun phrase for its overview sentence and the possessive used where its
+// figures are folded into the parent's ("Included in France's figures").
+// Stored as `parent` in countries.json; the app also uses it to list
 // the territory's land neighbours "via" the parent. Covers the shapes split off
 // here plus Saint Martin / Sint Maarten, which already have shapes.
 export const TERRITORY_PARENTS = {
-  GF: { of: "FRA", note: "Overseas region of France" },
-  GP: { of: "FRA", note: "Overseas region of France" },
-  MQ: { of: "FRA", note: "Overseas region of France" },
-  RE: { of: "FRA", note: "Overseas region of France" },
-  YT: { of: "FRA", note: "Overseas region of France" },
-  MF: { of: "FRA", note: "Overseas collectivity of France" },
-  SJ: { of: "NOR", note: "Territory of Norway" },
-  BQ: { of: "NLD", note: "Special municipalities of the Netherlands" },
-  SX: { of: "NLD", note: "Constituent country of the Netherlands" },
+  GF: { of: "FRA", note: "Overseas region of France", phrase: "an overseas region of France", figures: "France's" },
+  GP: { of: "FRA", note: "Overseas region of France", phrase: "an overseas region of France", figures: "France's" },
+  MQ: { of: "FRA", note: "Overseas region of France", phrase: "an overseas region of France", figures: "France's" },
+  RE: { of: "FRA", note: "Overseas region of France", phrase: "an overseas region of France", figures: "France's" },
+  YT: { of: "FRA", note: "Overseas region of France", phrase: "an overseas region of France", figures: "France's" },
+  MF: { of: "FRA", note: "Overseas collectivity of France", phrase: "an overseas collectivity of France", figures: "France's" },
+  SJ: { of: "NOR", note: "Territory of Norway", phrase: "a territory of Norway", figures: "Norway's" },
+  BQ: { of: "NLD", note: "Special municipalities of the Netherlands", phrase: "a group of special municipalities of the Netherlands", figures: "the Netherlands'" },
+  SX: { of: "NLD", note: "Constituent country of the Netherlands", phrase: "a constituent country of the Netherlands", figures: "the Netherlands'" },
 };
 
 const inBoxes = (boxes, lon, lat) => boxes.some(([x0, x1, y0, y1]) => lon >= x0 && lon <= x1 && lat >= y0 && lat <= y1);

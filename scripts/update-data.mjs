@@ -17,6 +17,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { simplifyTopology } from "./simplify-topology.mjs";
 import { splitTopology, TERRITORY_PARENTS } from "./split-territories.mjs";
+import { loadTerritoryFacts, applyTerritoryFacts } from "./territory-facts.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DATA_DIR = path.join(ROOT, "data");
@@ -46,6 +47,7 @@ const USER_AGENT = "country-facts-app-data-updater/1.0 (https://github.com/sns22
 const FACTBOOK_OVERRIDES = {
   NL: "nl",
   PS: "we", // West Bank
+  SJ: "sv", // Svalbard; the Factbook files Jan Mayen separately
 };
 
 // Sovereign states for the geography quiz: the 193 UN member states plus the
@@ -313,6 +315,12 @@ async function main() {
     await downloadAndExtract(SOURCES.flagIcons, path.join(tmp, "flags"));
     const flagDir = path.join(tmp, "flags", "package", "flags", "4x3");
 
+    // The World Bank and Factbook fold the territories split out of their parent
+    // countries' shapes into the parent; these get a dated population and an area
+    // from Wikidata instead (see territory-facts.mjs).
+    log("Downloading territory population and area from Wikidata…");
+    const territoryFacts = await loadTerritoryFacts();
+
     const countries = [];
     const religionRows = [];
     const stats = { government: 0, governmentFromWikidata: 0, religion: 0, gdp: 0, populationWorldBank: 0, populationFallback: 0, missingFlags: [] };
@@ -371,7 +379,7 @@ async function main() {
         stats.missingFlags.push(iso2);
       }
 
-      countries.push({
+      const entry = {
         name: c.name,
         nativeName: c.nativeName || null,
         alpha2Code: iso2,
@@ -393,7 +401,9 @@ async function main() {
         religions,
         gdp,
         ...(TERRITORY_PARENTS[iso2] ? { parent: TERRITORY_PARENTS[iso2] } : {}),
-      });
+      };
+      applyTerritoryFacts(entry, territoryFacts);
+      countries.push(entry);
     }
 
     reportReligionCoverage(religionRows);

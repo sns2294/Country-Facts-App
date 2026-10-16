@@ -260,13 +260,19 @@
 
   function formatGovernment(country) {
     const type = country.governmentType;
-    if (!type) return "N/A";
+    // Territories the Factbook folds into their parent: say what they are.
+    if (!type) return country.parent?.note || "N/A";
     return GOVERNMENT_OVERRIDES[type]?.card || capitalize(type);
   }
 
+  // For a territory whose figures are counted in its parent country's.
+  function includedInParent(country) {
+    return country.parent?.figures ? `Included in ${country.parent.figures} figures` : "N/A";
+  }
+
   // Top religious groups, each with its share when the Factbook gives one.
-  function formatReligions(religions) {
-    if (!religions?.length) return "N/A";
+  function formatReligions(religions, country) {
+    if (!religions?.length) return includedInParent(country);
     const list = religions
       .map((r) => (r.pct === null ? r.name : `${r.name} <span class="stat-note">(${r.pct}%)</span>`))
       .join("<br />");
@@ -284,15 +290,19 @@
     return top.name;
   }
 
+  // "South America", "the Caribbean": the subregion names the place better than
+  // the broad region does, so use it alone ("Americas (South America)" reads badly).
+  function locationName(country) {
+    const place = country.subregion || country.region;
+    if (!place) return "";
+    return place === "Caribbean" || /Ocean$/.test(place) ? `the ${place}` : place;
+  }
+
   function buildOverview(country) {
-    const regionPhrase = country.region
-      ? `located in ${country.region}${country.subregion ? ` (${country.subregion})` : ""}`
-      : "";
+    const location = locationName(country);
+    const regionPhrase = location ? `located in ${location}` : "";
     const override = GOVERNMENT_OVERRIDES[country.governmentType];
     if (override?.lead) {
-      const location = country.region
-        ? `${country.region}${country.subregion ? ` (${country.subregion})` : ""}`
-        : "";
       const joiner = override.separateSentence ? ". It is" : ", and it is";
       let overview = `${override.lead(country)}${location ? `${joiner} located in ${location}` : ""}.`;
       const religion = getPredominantReligion(country);
@@ -300,7 +310,7 @@
       return overview;
     }
     const govType = override?.phrase || country.governmentType;
-    const govPhrase = govType ? withArticle(govType) : "";
+    const govPhrase = govType ? withArticle(govType) : country.parent?.phrase || "";
 
     let overview = override?.subject || country.name;
     if (govPhrase && regionPhrase) {
@@ -402,7 +412,7 @@
           </div>
           <div class="stat">
             <dt>Religion</dt>
-            <dd>${formatReligions(country.religions)}</dd>
+            <dd>${formatReligions(country.religions, country)}</dd>
           </div>
           <div class="stat">
             <dt>Currency</dt>
@@ -410,7 +420,7 @@
           </div>
           <div class="stat">
             <dt>GDP</dt>
-            <dd>${formatGdp(gdp)}${gdp ? ` <span class="stat-note">(${gdp.year})</span>` : ""}</dd>
+            <dd>${gdp ? formatGdp(gdp) : includedInParent(country)}${gdp ? ` <span class="stat-note">(${gdp.year})</span>` : ""}</dd>
           </div>
         </dl>
         ${bordersMarkup}

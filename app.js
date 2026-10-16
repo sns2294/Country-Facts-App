@@ -171,10 +171,31 @@
     return byCode.get(String(code).toUpperCase()) || null;
   }
 
-  async function getBorderCountries(borderCodes) {
-    if (!borderCodes || !borderCodes.length) return [];
-    const { byCode } = await loadCountryData();
-    return borderCodes.map((code) => byCode.get(code)).filter(Boolean).map((c) => ({ code: c.alpha3Code, name: c.name }));
+  // Bordering countries as chips. A territory's land neighbours count for its
+  // parent too, marked "via <territory>" (France borders Brazil and Suriname
+  // via French Guiana). A neighbour that is itself a territory counts as its
+  // parent (Saint Martin's border with Sint Maarten is France's border with the
+  // Netherlands).
+  async function getBorderCountries(country) {
+    const { countries, byCode } = await loadCountryData();
+    const chips = (country.borders || [])
+      .map((code) => byCode.get(code))
+      .filter(Boolean)
+      .map((c) => ({ code: c.alpha3Code, name: c.name }));
+    const listed = new Set([country.alpha3Code, ...chips.map((c) => c.code)]);
+    countries
+      .filter((t) => t.parent?.of === country.alpha3Code)
+      .forEach((territory) => {
+        (territory.borders || []).forEach((code) => {
+          const neighbour = byCode.get(code);
+          if (!neighbour) return;
+          const target = (neighbour.parent && byCode.get(neighbour.parent.of)) || neighbour;
+          if (listed.has(target.alpha3Code)) return;
+          listed.add(target.alpha3Code);
+          chips.push({ code: target.alpha3Code, name: target.name, via: territory.name.replace(/\s*\(.*\)/, "") });
+        });
+      });
+    return chips;
   }
 
   async function showDataDate() {
@@ -332,7 +353,7 @@
               (b) =>
                 `<button type="button" class="border-chip" data-code="${b.code}">${getBorderDisplayName(
                   b.name
-                )}</button>`
+                )}${b.via ? ` <span class="chip-via">via ${b.via}</span>` : ""}</button>`
             )
             .join("")}</div>
         </div>
@@ -346,6 +367,7 @@
         <div>
           <h2>${country.name}</h2>
           ${showNativeName ? `<p class="native-name">${country.nativeName}</p>` : ""}
+          ${country.parent?.note ? `<p class="parent-note">${country.parent.note}</p>` : ""}
         </div>
       </div>
       <div class="card-body">
@@ -440,7 +462,7 @@
   }
 
   async function showCountryData(country, selection, { recenter = false } = {}) {
-    const borderCountries = await getBorderCountries(country.borders);
+    const borderCountries = await getBorderCountries(country);
     if (selection !== latestSelection) return;
     renderCountry(country, borderCountries);
     selectedCode = country.alpha2Code;

@@ -11,6 +11,10 @@
 //      dissolved so the pair highlights, hovers and clicks as one country.
 //   3. A disputed shape the UN hasn't settled stays neutral: `neutral` shapes
 //      are not clickable, highlighted or labelled.
+// Overseas territories split out of their parent country's shape by
+// scripts/split-territories.mjs (Natural Earth draws them inside France, Norway
+// and the Netherlands) are rule 1 as well: they keep their own shape, linked to
+// their entry.
 // Shapes not listed here (e.g. "Indian Ocean Ter.") are left as the map data
 // has them. Territories that already have an entry (Greenland, Taiwan, ...)
 // keep their own shape too, per rule 1.
@@ -18,5 +22,12 @@ window.SHAPE_RULES = {
   "N. Cyprus": { mergeInto: "CY" }, // Cyprus
   Somaliland: { mergeInto: "SO" }, // Somalia
   Kosovo: { linkTo: "XK" }, // "Republic of Kosovo" entry; not in the quiz (not sovereign)
+  "French Guiana": { linkTo: "GF" },
+  Guadeloupe: { linkTo: "GP" },
+  Martinique: { linkTo: "MQ" },
+  "Réunion": { linkTo: "RE" },
+  Mayotte: { linkTo: "YT" },
+  "Svalbard and Jan Mayen": { linkTo: "SJ" },
+  "Bonaire, Sint Eustatius and Saba": { linkTo: "BQ" },
   "Siachen Glacier": { neutral: true }, // claimed by India and Pakistan
 };

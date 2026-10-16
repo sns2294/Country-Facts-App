@@ -16,6 +16,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { simplifyTopology } from "./simplify-topology.mjs";
+import { splitTopology, TERRITORY_PARENTS } from "./split-territories.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DATA_DIR = path.join(ROOT, "data");
@@ -291,6 +292,9 @@ async function main() {
     log("Downloading world-atlas shapes…");
     const atlas = await download(SOURCES.worldAtlas, { json: true });
     if (!atlas?.objects?.countries) throw new Error("world-atlas file has no countries object");
+    // Natural Earth draws French Guiana, Svalbard, Bonaire... inside their parent
+    // countries; give them shapes of their own (see split-territories.mjs).
+    log(`Split territory shapes: ${splitTopology(atlas).join(", ")}`);
     fs.writeFileSync(path.join(STAGING_DIR, "countries-50m-full.json"), JSON.stringify(atlas));
     const { before, after } = simplifyTopology(atlas, ATLAS_KEEP_FRACTION);
     log(`Simplified world-atlas shapes: ${before} -> ${after} points`);
@@ -388,6 +392,7 @@ async function main() {
         governmentType,
         religions,
         gdp,
+        ...(TERRITORY_PARENTS[iso2] ? { parent: TERRITORY_PARENTS[iso2] } : {}),
       });
     }
 

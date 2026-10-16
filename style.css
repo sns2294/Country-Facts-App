@@ -482,6 +482,12 @@ main {
   font-style: italic;
 }
 
+.fact-card .parent-note {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 .fact-card dl {
   margin: 0;
   display: grid;
@@ -544,6 +550,15 @@ main {
   cursor: pointer;
   white-space: nowrap;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.fact-card .border-chip .chip-via {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.fact-card .border-chip:hover .chip-via {
+  color: inherit;
 }
 
 .fact-card .border-chip:hover {

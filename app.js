@@ -1673,10 +1673,11 @@
       promptLabel: "What is the official language of",
       async preparePool() {
         const countries = await ensureQuizCountries();
-        return countries.filter((c) => c.languages?.length);
+        return countries.filter((c) => c.languages?.length && LanguageQuiz.isInhabited(c));
       },
       getPrompt: (c) => c.name,
-      getAnswer: (c) => c.languages[0].name,
+      getAnswer: (c) => LanguageQuiz.primaryLanguage(c),
+      buildQuestions: (pool) => LanguageQuiz.buildLanguageQuestions(pool, QUIZ_QUESTION_COUNT),
     },
   };
 
@@ -1764,7 +1765,7 @@
           quizStatus.classList.add("error");
           return;
         }
-        questions = buildQuizQuestions(pool, mode);
+        questions = mode.buildQuestions ? mode.buildQuestions(pool) : buildQuizQuestions(pool, mode);
       }
 
       if (geoPool && geoPool.length) {

@@ -50,6 +50,20 @@ const FACTBOOK_OVERRIDES = {
   SJ: "sv", // Svalbard; the Factbook files Jan Mayen separately
 };
 
+// countries.dev lists "(Eastern) Punjabi" for Aruba and Curaçao (a mix-up of
+// the language code for Papiamento). Keyed by alpha2 code.
+const LANGUAGE_FIXES = {
+  AW: { "(Eastern) Punjabi": "Papiamento" },
+  CW: { "(Eastern) Punjabi": "Papiamento" },
+};
+
+// Burkina Faso made its national languages official and French a working
+// language (constitutional change adopted December 2023); countries.dev still
+// lists French first. Whole-list replacements, keyed by alpha2 code.
+const LANGUAGE_LIST_OVERRIDES = {
+  BF: ["Mooré", "Fula", "French"],
+};
+
 // Sovereign states for the geography quiz: the 193 UN member states plus the
 // two UN observer states (Vatican City, Palestine). Territories, dependencies
 // and partly recognized states (Taiwan, Kosovo, Western Sahara, Cook Islands,
@@ -392,7 +406,7 @@ async function main() {
         populationYear,
         area: typeof c.area === "number" ? c.area : null,
         demonym: c.demonym || null,
-        languages: (c.languages || []).map((l) => ({ name: l.name })),
+        languages: (LANGUAGE_LIST_OVERRIDES[iso2] || (c.languages || []).map((l) => LANGUAGE_FIXES[iso2]?.[l.name] || l.name)).map((name) => ({ name })),
         currencies: (c.currencies || []).map((cur) => ({ code: cur.code, name: cur.name, symbol: cur.symbol })),
         borders,
         flags: flag ? { svg: flag } : {},

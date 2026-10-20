@@ -1109,3 +1109,14 @@ main {
 .status-choice:focus-visible {
   text-decoration: underline;
 }
+
+/* Circle around a small target country on the quiz globe (fixed pixel size) */
+.geo-marker {
+  width: 26px;
+  height: 26px;
+  border: 3px solid var(--map-highlight);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--map-highlight) 18%, transparent);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+}

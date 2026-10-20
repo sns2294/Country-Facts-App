@@ -1182,6 +1182,12 @@
   const GLOBE_CAMERA_FAR = 1200;
   const COUNTRY_FRAME_PADDING = 1.9;
   const COUNTRY_FRAME_MIN_SPAN = 9;
+  // Geography quiz: a highlighted "small" country (under this area, in km²) is
+  // framed close up with its neighbours, and gets a solid marker dot, instead
+  // of being a speck in a whole-region view.
+  const SMALL_COUNTRY_AREA_KM2 = 12000;
+  const SMALL_COUNTRY_NEIGHBOURHOOD_SPAN = 14; // degrees across the close-up view
+  const isSmallCountry = (country) => typeof country.area === "number" && country.area < SMALL_COUNTRY_AREA_KM2;
 
   let globeFeaturesPromise = null;
   let globeNumericToAlpha2Promise = null;
@@ -1444,6 +1450,13 @@
           .polygonsData(features)
           .polygonsTransitionDuration(200)
           .ringsData([])
+          .htmlElementsData([])
+          .htmlAltitude(0.03)
+          .htmlElement(() => {
+            const el = document.createElement("div");
+            el.className = "geo-marker";
+            return el;
+          })
           .ringAltitude(0.02)
           .ringMaxRadius(3.5)
           .ringPropagationSpeed(2.5)
@@ -1581,7 +1594,10 @@
     // `framing: "country"` sizes the view to the target alone, padded so its
     // neighbors and nearby seas show, with a floor so tiny countries stay
     // findable and a ceiling (the max altitude) so huge ones keep a margin.
-    function highlight(code, { contextCodes = [code], boost = 1, transitionMs = 600, framing = "context", moveCamera = true } = {}) {
+    // `small` (a microstate) frames the target close up with its neighbours,
+    // never wider than the context, and circles it with a fixed-size marker
+    // that stays visible however far out the view is.
+    function highlight(code, { contextCodes = [code], boost = 1, transitionMs = 600, framing = "context", moveCamera = true, small = false } = {}) {
       if (!globe) return;
       const feature = alpha2ToFeature.get(code);
       if (!feature) return;
@@ -1595,15 +1611,22 @@
 
       let span = Math.max(contextBox.lngSpan, contextBox.latSpan * 2);
       if (framing === "country") span = clamp(span * COUNTRY_FRAME_PADDING, COUNTRY_FRAME_MIN_SPAN, Infinity);
+      if (small && framing === "context") {
+        span = Math.min(span, SMALL_COUNTRY_NEIGHBOURHOOD_SPAN);
+        boost = 1;
+      }
       const altitude = altitudeForSpan(span) * boost;
       if (moveCamera) globe.pointOfView({ lat: targetBox.centerLat, lng: targetBox.centerLng, altitude }, transitionMs);
-      globe.ringsData([{ lat: targetBox.centerLat, lng: targetBox.centerLng }]);
+      const center = { lat: targetBox.centerLat, lng: targetBox.centerLng };
+      globe.ringsData([center]);
+      globe.htmlElementsData(small ? [center] : []);
     }
 
     function clearHighlight() {
       targetFeature = null;
       if (!globe) return;
       globe.ringsData([]);
+      globe.htmlElementsData([]);
       refreshPolygonStyles();
     }
 
@@ -2093,7 +2116,7 @@
     const highlightOptions = quizState.region
       ? { contextCodes: quizState.geoPool.map((c) => c.alpha2Code), boost: QUIZ_GEO_ZOOM_BOOST }
       : { framing: "country" };
-    quizGlobe.highlight(question.country.alpha2Code, highlightOptions);
+    quizGlobe.highlight(question.country.alpha2Code, { ...highlightOptions, small: isSmallCountry(question.country) });
 
     quizState.countryAnswered = false;
     quizState.bonusActive = false;

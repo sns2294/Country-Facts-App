@@ -773,6 +773,18 @@
   }
 
   function applyFlatMapShapeRules(svg) {
+    // Several shapes can carry one country's id (Ashmore and Cartier Is. shares
+    // Australia's). Fold them into the first so a country is one path.
+    const firstPathById = new Map();
+    svg.querySelectorAll("path.country[id]").forEach((path) => {
+      const first = firstPathById.get(path.id);
+      if (!first) {
+        firstPathById.set(path.id, path);
+        return;
+      }
+      first.setAttribute("d", first.getAttribute("d") + path.getAttribute("d"));
+      path.remove();
+    });
     svg.querySelectorAll("path.country:not([id])").forEach((path) => {
       const rule = window.SHAPE_RULES[path.dataset.name];
       if (!rule) return;
@@ -1095,16 +1107,16 @@
       svg.querySelectorAll(".selected").forEach((el) => el.classList.remove("selected"));
       if (!code) return;
       const path = svg.querySelector(`path.country[id="${code}"]`);
-      const circle = svg.querySelector(`circle.hit-target[data-code="${code}"]`);
+      const circles = svg.querySelectorAll(`circle.hit-target[data-code="${code}"]`);
       if (path) path.classList.add("selected");
-      if (circle) circle.classList.add("selected");
+      circles.forEach((circle) => circle.classList.add("selected"));
       if (!recenter) return;
 
       let cx;
       let cy;
-      if (circle) {
-        cx = Number(circle.getAttribute("cx"));
-        cy = Number(circle.getAttribute("cy"));
+      if (!path && circles.length) {
+        cx = Number(circles[0].getAttribute("cx"));
+        cy = Number(circles[0].getAttribute("cy"));
       } else if (path) {
         const box = path.getBBox();
         // A shape spanning the antimeridian (Russia, Fiji...) has a bounding box
@@ -1250,6 +1262,21 @@
         features[parentIndex] = { ...features[parentIndex], geometry: merged };
         mergedAway.add(i);
       }
+    });
+    // Several shapes can carry one country's id (Ashmore and Cartier Is. shares
+    // Australia's). Fold them into the first so a country is always one feature
+    // for highlighting, framing and hover.
+    const indicesById = new Map();
+    features.forEach((feature, i) => {
+      if (mergedAway.has(i) || !feature.id) return;
+      if (!indicesById.has(feature.id)) indicesById.set(feature.id, []);
+      indicesById.get(feature.id).push(i);
+    });
+    indicesById.forEach((indices) => {
+      if (indices.length < 2) return;
+      const merged = topojson.merge(topology, indices.map((i) => geometries[i]));
+      features[indices[0]] = { ...features[indices[0]], geometry: merged };
+      indices.slice(1).forEach((i) => mergedAway.add(i));
     });
     return features.filter((_, i) => !mergedAway.has(i));
   }

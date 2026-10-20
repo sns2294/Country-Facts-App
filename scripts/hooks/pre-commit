@@ -1,0 +1,20 @@
+#!/bin/sh
+# Keeps the cache-busting version strings (see scripts/stamp-version.mjs) in
+# step with the files being committed. Enable once per clone with:
+#   git config core.hooksPath scripts/hooks
+set -e
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT"
+
+# Nothing to do unless a file the stamp reads is part of this commit.
+git diff --cached --name-only | grep -qE '^(app\.js|index\.html|style\.css|shape-rules\.js|language-quiz\.js|world-map\.svg|data/(countries|meta|countries-50m|countries-50m-full)\.json)$' || exit 0
+
+# The stamp rewrites app.js and index.html. If either has changes that aren't
+# staged, adding them here would sneak those changes into the commit, so stop.
+if ! git diff --quiet -- app.js index.html; then
+  echo "pre-commit: app.js/index.html have unstaged changes; stage them (git add app.js index.html), then commit again." >&2
+  exit 1
+fi
+
+node scripts/stamp-version.mjs >/dev/null
+git add app.js index.html

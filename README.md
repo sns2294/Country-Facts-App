@@ -48,7 +48,21 @@ I've always liked flipping through the CIA World Factbook, and wanted an interac
 Browsers block loading local data files from `file://`, so serve the folder with any static server, for example:
 
 ```
-python3 -m http.server 8000
+node scripts/serve.mjs
 ```
 
-then open http://localhost:8000. Or visit the live version via GitHub Pages.
+then open http://localhost:8000. This server sends no-cache headers so edits always show up; `python3 -m http.server 8000` also works but lets browsers reuse old copies of `app.js` and the data files.
+
+### Cache-busting
+`index.html` and `app.js` carry content-hash version strings (`app.js?v=…`, `DATA_VERSION`) so a deployed change loads immediately instead of waiting for browser caches to expire; unchanged files keep their URL and stay cached. After changing `style.css`, any script, `world-map.svg` or anything in `data/`, run this before committing:
+
+```
+node scripts/stamp-version.mjs          # --check to only verify
+```
+
+A pre-commit hook does this for you. Enable it once per clone:
+
+```
+git config core.hooksPath scripts/hooks
+```
+ Or visit the live version via GitHub Pages.

@@ -1,6 +1,10 @@
 (() => {
-  const COUNTRIES_URL = "data/countries.json";
-  const META_URL = "data/meta.json";
+  // Content hash of the data and map files, stamped by scripts/stamp-version.mjs.
+  // Added to their URLs so a changed file is never served from an old cache.
+  const DATA_VERSION = "9ec520b4";
+  const versioned = (url) => `${url}?v=${DATA_VERSION}`;
+  const COUNTRIES_URL = versioned("data/countries.json");
+  const META_URL = versioned("data/meta.json");
   const DARK_MODE_KEY = "countryFactsApp.darkMode";
 
   const countryInput = document.getElementById("country-input");
@@ -607,7 +611,7 @@
   let mapMarkupPromise = null;
   function fetchMapMarkup() {
     if (!mapMarkupPromise) {
-      mapMarkupPromise = fetch("world-map.svg").then((res) => {
+      mapMarkupPromise = fetch(versioned("world-map.svg")).then((res) => {
         if (!res.ok) throw new Error(`Request failed: ${res.status}`);
         return res.text();
       });
@@ -1079,8 +1083,8 @@
   // Country polygon data + the ISO numeric<->alpha2 lookup are fetched once
   // and shared by every Globe() instance (Explore's and the quiz's) rather
   // than being re-fetched per instance.
-  const GLOBE_GEO_URL = "data/countries-50m.json";
-  const GLOBE_FULL_GEO_URL = "data/countries-50m-full.json";
+  const GLOBE_GEO_URL = versioned("data/countries-50m.json");
+  const GLOBE_FULL_GEO_URL = versioned("data/countries-50m-full.json");
   // Below this camera altitude the simplified shapes start to look rough, so
   // the countries in view are swapped for full-detail ones (see syncDetail).
   const GLOBE_DETAIL_ALTITUDE = 0.25;

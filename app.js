@@ -290,15 +290,38 @@
     return top.name;
   }
 
+  // Entries whose own name is the subregion's, so "located in <subregion>"
+  // would just repeat it. Keyed by alpha2 code.
+  const LOCATION_OVERRIDES = {
+    FM: "the western Pacific Ocean",
+  };
+
+  // Entries that can't be described by where they are: the continent itself.
+  const OVERVIEW_OVERRIDES = {
+    AQ: "Antarctica is the continent surrounding the South Pole.",
+  };
+
   // "South America", "the Caribbean": the subregion names the place better than
   // the broad region does, so use it alone ("Americas (South America)" reads badly).
   function locationName(country) {
-    const place = country.subregion || country.region;
+    if (LOCATION_OVERRIDES[country.alpha2Code]) return LOCATION_OVERRIDES[country.alpha2Code];
+    let place = country.subregion || country.region;
     if (!place) return "";
+    // "Australia and New Zealand" reads oddly as the place Australia is in.
+    if (place === "Australia and New Zealand") place = "Oceania";
     return place === "Caribbean" || /Ocean$/.test(place) ? `the ${place}` : place;
   }
 
+  // "Asia (Southern Asia)", or just the one name when there is no subregion or
+  // it repeats the region.
+  function formatRegion(country) {
+    const { region, subregion } = country;
+    if (!region) return "N/A";
+    return subregion && subregion !== region ? `${region} (${subregion})` : region;
+  }
+
   function buildOverview(country) {
+    if (OVERVIEW_OVERRIDES[country.alpha2Code]) return OVERVIEW_OVERRIDES[country.alpha2Code];
     const location = locationName(country);
     const regionPhrase = location ? `located in ${location}` : "";
     const override = GOVERNMENT_OVERRIDES[country.governmentType];
@@ -392,7 +415,7 @@
           </div>
           <div class="stat">
             <dt>Region</dt>
-            <dd>${country.region || "N/A"}${country.subregion ? ` (${country.subregion})` : ""}</dd>
+            <dd>${formatRegion(country)}</dd>
           </div>
           <div class="stat">
             <dt>Area</dt>

@@ -64,6 +64,28 @@ const LANGUAGE_LIST_OVERRIDES = {
   BF: ["Mooré", "Fula", "French"],
 };
 
+// countries.dev files a few remote islands under a continent they aren't on
+// (Bouvet under "Antarctic Ocean", French Southern Territories under "Southern
+// Africa", South Georgia under "South America") and gives Antarctica both a
+// region and a subregion of the same name. These replace its region/subregion
+// so the fact card's Region row and location sentence say where the place is.
+// Keyed by alpha2 code; subregion null means the Region row shows one name.
+const PLACE_OVERRIDES = {
+  AQ: { region: "Antarctica", subregion: null },
+  BV: { region: "South Atlantic Ocean", subregion: null },
+  GS: { region: "South Atlantic Ocean", subregion: null },
+  HM: { region: "Southern Indian Ocean", subregion: null },
+  TF: { region: "Southern Indian Ocean", subregion: null },
+  IO: { region: "Indian Ocean", subregion: null },
+  UM: { region: "Pacific Ocean", subregion: null },
+  CX: { region: "Oceania", subregion: "Indian Ocean" },
+  CC: { region: "Oceania", subregion: "Indian Ocean" },
+};
+
+// Subregion names shown differently from the source's ("Northern America" is
+// an unusual name for North America).
+const SUBREGION_RENAMES = { "Northern America": "North America" };
+
 // Sovereign states for the geography quiz: the 193 UN member states plus the
 // two UN observer states (Vatican City, Palestine). Territories, dependencies
 // and partly recognized states (Taiwan, Kosovo, Western Sahara, Cook Islands,
@@ -400,8 +422,10 @@ async function main() {
         alpha3Code: c.alpha3Code || null,
         numericCode: c.numericCode || null,
         capital: c.capital || null,
-        region: c.region || null,
-        subregion: c.subregion || null,
+        region: PLACE_OVERRIDES[iso2] ? PLACE_OVERRIDES[iso2].region : c.region || null,
+        subregion: PLACE_OVERRIDES[iso2]
+          ? PLACE_OVERRIDES[iso2].subregion
+          : SUBREGION_RENAMES[c.subregion] || c.subregion || null,
         population,
         populationYear,
         area: typeof c.area === "number" ? c.area : null,

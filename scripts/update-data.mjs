@@ -86,6 +86,69 @@ const PLACE_OVERRIDES = {
 // an unusual name for North America).
 const SUBREGION_RENAMES = { "Northern America": "North America" };
 
+// The data source uses UN-style names ("Russian Federation", "Iran (Islamic
+// Republic of)"). The app shows the common English name; the source's name is
+// kept as `officialName` and stays searchable. Keyed by alpha2 code.
+const COMMON_NAMES = {
+  BO: "Bolivia",
+  BN: "Brunei",
+  CD: "DR Congo",
+  CG: "Republic of the Congo",
+  CV: "Cape Verde",
+  FK: "Falkland Islands",
+  FM: "Micronesia",
+  GB: "United Kingdom",
+  IR: "Iran",
+  KP: "North Korea",
+  KR: "South Korea",
+  LA: "Laos",
+  MD: "Moldova",
+  MF: "Saint Martin",
+  PN: "Pitcairn Islands",
+  PS: "Palestine",
+  RU: "Russia",
+  ST: "São Tomé and Príncipe",
+  SX: "Sint Maarten",
+  SY: "Syria",
+  SZ: "Eswatini",
+  TZ: "Tanzania",
+  US: "United States",
+  VE: "Venezuela",
+  VG: "British Virgin Islands",
+  VI: "U.S. Virgin Islands",
+  XK: "Kosovo",
+};
+
+// Other names people search by, beyond the common and official names. Matching
+// ignores case and accents. Keyed by alpha2 code.
+const SEARCH_ALIASES = {
+  CI: ["Côte d'Ivoire"],
+  CV: ["Cabo Verde"],
+  CD: ["Congo", "Congo-Kinshasa", "Democratic Republic of the Congo"],
+  CG: ["Congo-Brazzaville"],
+  CZ: ["Czechia"],
+  FK: ["Malvinas", "Islas Malvinas"],
+  MM: ["Burma"],
+  SZ: ["Swaziland"],
+  TR: ["Türkiye"],
+  US: ["United States of America", "USA"],
+  GB: ["UK", "Great Britain"],
+  RU: ["Russian Federation"],
+};
+
+// Swaps in the common name, keeping the source's as `officialName`, and adds
+// the extra search names as `altNames`.
+function applyCommonName(entry) {
+  const common = COMMON_NAMES[entry.alpha2Code];
+  if (common && common !== entry.name) {
+    entry.officialName = entry.name;
+    entry.name = common;
+  }
+  const alt = SEARCH_ALIASES[entry.alpha2Code];
+  const extra = (alt || []).filter((n) => n !== entry.name && n !== entry.officialName);
+  if (extra.length) entry.altNames = extra;
+}
+
 // Sovereign states for the geography quiz: the 193 UN member states plus the
 // two UN observer states (Vatican City, Palestine). Territories, dependencies
 // and partly recognized states (Taiwan, Kosovo, Western Sahara, Cook Islands,
@@ -441,6 +504,7 @@ async function main() {
         ...(TERRITORY_PARENTS[iso2] ? { parent: TERRITORY_PARENTS[iso2] } : {}),
       };
       applyTerritoryFacts(entry, territoryFacts);
+      applyCommonName(entry);
       countries.push(entry);
     }
 

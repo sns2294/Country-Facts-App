@@ -1093,3 +1093,19 @@ main {
     font-size: 0.85rem;
   }
 }
+
+/* "Did you mean…" buttons in the search status line */
+.status-choice {
+  margin: 0 0.35rem 0 0;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.status-choice:hover,
+.status-choice:focus-visible {
+  text-decoration: underline;
+}

@@ -1,7 +1,7 @@
 (() => {
   // Content hash of the data and map files, stamped by scripts/stamp-version.mjs.
   // Added to their URLs so a changed file is never served from an old cache.
-  const DATA_VERSION = "9ec520b4";
+  const DATA_VERSION = "8f4f575d";
   const versioned = (url) => `${url}?v=${DATA_VERSION}`;
   const COUNTRIES_URL = versioned("data/countries.json");
   const META_URL = versioned("data/meta.json");
@@ -144,6 +144,9 @@
   // All country data is read from local files written by scripts/update-data.mjs.
   // Loaded once; every lookup below works off these in-memory indexes.
   let countryDataPromise = null;
+  // alpha2 -> common name. The map and globe files carry their own shape names
+  // ("Dem. Rep. Congo", "Falkland Is."), so tooltips use this instead.
+  const displayNameByCode = new Map();
   function loadCountryData() {
     if (!countryDataPromise) {
       countryDataPromise = fetch(COUNTRIES_URL)
@@ -157,6 +160,9 @@
             if (c.alpha2Code) byCode.set(c.alpha2Code, c);
             if (c.alpha3Code) byCode.set(c.alpha3Code, c);
           });
+          countries.forEach((c) => {
+            if (c.alpha2Code && c.name) displayNameByCode.set(c.alpha2Code, c.name);
+          });
           return { countries, byCode };
         });
       countryDataPromise.catch(() => {
@@ -164,6 +170,47 @@
       });
     }
     return countryDataPromise;
+  }
+
+  // Case- and accent-insensitive form used to compare typed names ("turkiye"
+  // finds Türkiye, "sao tome" finds São Tomé).
+  function normalizeName(text) {
+    return String(text).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
+  }
+
+  // The common name shown everywhere, then the official and alternate names
+  // people may type (data/countries.json: officialName, altNames).
+  function otherNames(country) {
+    return [country.officialName, ...(country.altNames || [])].filter(Boolean);
+  }
+
+  function countryHasName(country, rawValue) {
+    const value = normalizeName(rawValue);
+    return !!value && [country.name, ...otherNames(country)].some((n) => normalizeName(n) === value);
+  }
+
+  // Every country a typed name could mean. A common name wins outright ("Niger");
+  // otherwise all countries with that official or alternate name match, so a
+  // name two countries share ("Congo") returns both.
+  function findCountriesByName(countries, rawValue) {
+    const common = countries.filter((c) => normalizeName(c.name) === normalizeName(rawValue));
+    return common.length ? common : countries.filter((c) => countryHasName(c, rawValue));
+  }
+
+  // <option>s for a country search list: common names only. Official and
+  // alternate names still work when typed in full.
+  function buildNameOptions(countries) {
+    const esc = (t) => t.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+    return countries
+      .map((c) => c.name)
+      .sort((a, b) => a.localeCompare(b))
+      .map((name) => `<option value="${esc(name)}"></option>`)
+      .join("");
+  }
+
+  // "Congo" could be DR Congo or the Republic of the Congo: "DR Congo or Republic of the Congo".
+  function joinNames(names) {
+    return names.length > 2 ? `${names.slice(0, -1).join(", ")}, or ${names.at(-1)}` : names.join(" or ");
   }
 
   async function getCountries() {
@@ -464,9 +511,7 @@
       const countries = await getCountries();
       countryNames = countries.map((c) => c.name).sort((a, b) => a.localeCompare(b));
 
-      countryList.innerHTML = countryNames
-        .map((name) => `<option value="${name}"></option>`)
-        .join("");
+      countryList.innerHTML = buildNameOptions(countries);
 
       setStatus(`${countryNames.length} countries loaded. Pick one to see its facts.`);
     } catch (err) {
@@ -509,18 +554,57 @@
     setStatus(`Showing facts for ${country.name}.`);
   }
 
+  // The typed name fits more than one country: ask which, with a button each.
+  function showSearchChoices(typed, matches) {
+    setStatus(`"${typed}" could be ${joinNames(matches.map((c) => c.name))}. Pick one: `);
+    matches.forEach((c) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "status-choice";
+      btn.textContent = c.name;
+      // Keep focus in the input: a blur fires "change", which would rebuild
+      // these buttons before the click lands.
+      btn.addEventListener("mousedown", (evt) => evt.preventDefault());
+      btn.addEventListener("click", () => {
+        countryInput.value = c.name;
+        selectCountry(c.name);
+      });
+      searchStatus.append(btn);
+    });
+  }
+
   async function selectCountry(rawName) {
     const name = rawName.trim();
     if (!name) return;
 
-    const match = countryNames.find((n) => n.toLowerCase() === name.toLowerCase());
-    if (!match) {
+    let countries;
+    try {
+      countries = await getCountries();
+    } catch (err) {
+      setStatus("Couldn't load the country data. Reload the page and try again.", true);
+      console.error("Failed to load country:", err);
+      return;
+    }
+
+    // Matches the common name, or the official/alternate name ("Russian Federation").
+    const matches = findCountriesByName(countries, name);
+    if (matches.length > 1) {
+      showSearchChoices(name, matches);
+      factCard.hidden = true;
+      shownCountryName = null;
+      clearSelection();
+      return;
+    }
+    const country = matches[0];
+    if (!country) {
       setStatus(`"${name}" isn't in the country list — pick one from the suggestions.`, true);
       factCard.hidden = true;
       shownCountryName = null;
       clearSelection();
       return;
     }
+    const match = country.name;
+    countryInput.value = match;
 
     // Already showing it (e.g. the input blurred mid-click on a border chip):
     // re-rendering would replace the card the user is interacting with.
@@ -529,10 +613,6 @@
     const selection = ++latestSelection;
     setStatus(`Loading ${match}…`);
     try {
-      const countries = await getCountries();
-      const country = countries.find((c) => c.name.toLowerCase() === match.toLowerCase());
-      if (!country) throw new Error("No matching country in data");
-
       await showCountryData(country, selection, { recenter: true });
     } catch (err) {
       setStatus(`Couldn't load data for ${match}. Try again.`, true);
@@ -977,7 +1057,7 @@
       svg.querySelectorAll("path.country").forEach((path) => {
         path.addEventListener("mouseenter", () => {
           path.classList.add("hovered");
-          showTooltip(path.dataset.name);
+          showTooltip(displayNameByCode.get(path.id) || path.dataset.name);
         });
         path.addEventListener("mousemove", positionTooltip);
         path.addEventListener("mouseleave", () => {
@@ -995,7 +1075,7 @@
         circle.addEventListener("mouseenter", () => {
           circle.classList.add("active");
           if (realPath) realPath.classList.add("hovered");
-          showTooltip(circle.dataset.name);
+          showTooltip(displayNameByCode.get(code) || circle.dataset.name);
         });
         circle.addEventListener("mousemove", positionTooltip);
         circle.addEventListener("mouseleave", () => {
@@ -1371,7 +1451,10 @@
 
         if (enableCountryInteraction) {
           globe
-            .polygonLabel(({ properties }) => (properties && properties.name) || "")
+            .polygonLabel(({ id, properties }) => {
+              const code = id && numericToAlpha2.get(id);
+              return (code && displayNameByCode.get(code)) || (properties && properties.name) || "";
+            })
             .onPolygonHover((feat) => {
               hoverFeature = feat?.properties?.neutral ? null : canon.get(feat) || feat;
               refreshPolygonStyles();
@@ -1796,9 +1879,8 @@
       }
 
       if (geoPool && geoPool.length) {
-        const namesInPool = geoPool.map((c) => c.name).sort((a, b) => a.localeCompare(b));
         const capitalsInPool = Array.from(new Set(geoPool.map((c) => c.capital))).sort((a, b) => a.localeCompare(b));
-        populateDatalist(quizCountryGuessList, namesInPool);
+        quizCountryGuessList.innerHTML = buildNameOptions(geoPool);
         populateDatalist(quizCapitalGuessList, capitalsInPool);
       }
 
@@ -1981,9 +2063,8 @@
         return;
       }
 
-      const countryNamesInRegion = pool.map((c) => c.name).sort((a, b) => a.localeCompare(b));
       const capitalsInRegion = Array.from(new Set(pool.map((c) => c.capital))).sort((a, b) => a.localeCompare(b));
-      populateDatalist(quizCountryGuessList, countryNamesInRegion);
+      quizCountryGuessList.innerHTML = buildNameOptions(pool);
       populateDatalist(quizCapitalGuessList, capitalsInRegion);
 
       quizState = {
@@ -2041,7 +2122,13 @@
   function handleCountryGuess() {
     if (!quizState || quizState.countryAnswered) return;
     const question = quizState.questions[quizState.index];
-    const match = matchPoolItem(quizState.geoPool, quizCountryGuessInput.value, "name");
+    const matches = findCountriesByName(quizState.geoPool, quizCountryGuessInput.value);
+    if (matches.length > 1) {
+      quizGeoInputStatus.textContent = `"${quizCountryGuessInput.value.trim()}" could be ${joinNames(matches.map((c) => c.name))}. Pick one from the suggestions.`;
+      quizGeoInputStatus.classList.add("error");
+      return;
+    }
+    const match = matches[0];
 
     if (!match) {
       quizGeoInputStatus.textContent = "Pick a country from the suggestions.";

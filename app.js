@@ -1201,6 +1201,24 @@
   const SMALL_COUNTRY_NEIGHBOURHOOD_SPAN = 14; // degrees across the close-up view
   const isSmallCountry = (country) => typeof country.area === "number" && country.area < SMALL_COUNTRY_AREA_KM2;
 
+  // Small countries are framed so land other than themselves is in view: at
+  // least this many landmasses of larger countries, each reaching inside
+  // LANDMARK_FIT_FILL of the way to the frame's edge.
+  const SMALL_COUNTRY_LANDMASSES_SHOWN = 4;
+  const LANDMARK_FIT_FILL = 0.85;
+  const LANDMARK_MIN_RING_POINTS = 150;
+  // Landmark context never zooms out past this altitude (the globe still shows its curve).
+  const LANDMARK_MAX_ALTITUDE = 1.6;
+  const MARKER_MIN_PX = 26;
+  const MARKER_PAD_PX = 14;
+  // A pulsing ring only makes sense on a country narrower than this (degrees).
+  const PULSE_MAX_SPAN = 10;
+  // Share of the camera's half field of view a country may fill (the rest is margin).
+  const COUNTRY_FIT_FILL = 0.78;
+  // Extra camera altitude, on top of the tight fit, that shows a country's surroundings.
+  const COUNTRY_CONTEXT_ALTITUDE = 0.5;
+  const GLOBE_CAMERA_FOV = 50; // globe.gl's default vertical field of view, degrees
+
   let globeFeaturesPromise = null;
   let globeNumericToAlpha2Promise = null;
   let globeLibraryPromise = null;
@@ -1369,6 +1387,87 @@
     return { centerLat: (minLat + maxLat) / 2, centerLng, latSpan: maxLat - minLat, lngSpan: arc.span };
   }
 
+  // Where a lat/lng falls on screen when the camera looks straight down at
+  // (povLat, povLng) from `distance` globe radii away (north up). Returns the
+  // tangent of its angle off the camera axis, sideways (tx) and upwards (ty),
+  // and z, how far toward the camera it sits (z <= 1/distance is round the back).
+  function projectToView(lat, lng, povLat, povLng, distance) {
+    const rad = Math.PI / 180;
+    const dLng = (lng - povLng) * rad;
+    const x = Math.cos(lat * rad) * Math.sin(dLng);
+    const y = Math.cos(povLat * rad) * Math.sin(lat * rad) - Math.sin(povLat * rad) * Math.cos(lat * rad) * Math.cos(dLng);
+    const z = Math.sin(povLat * rad) * Math.sin(lat * rad) + Math.cos(povLat * rad) * Math.cos(lat * rad) * Math.cos(dLng);
+    return { tx: x / (distance - z), ty: y / (distance - z), z };
+  }
+
+  // Smallest camera distance (globe radii) at which a point sits inside the
+  // frame, within `fill` of the way from the centre to the tighter edge of a
+  // frame `aspect` (width/height) wide. Infinity if it can't be shown.
+  function distanceToShow(lat, lng, povLat, povLng, aspect, fill) {
+    const rad = Math.PI / 180;
+    const dLng = (lng - povLng) * rad;
+    const x = Math.cos(lat * rad) * Math.sin(dLng);
+    const y = Math.cos(povLat * rad) * Math.sin(lat * rad) - Math.sin(povLat * rad) * Math.cos(lat * rad) * Math.cos(dLng);
+    const z = Math.sin(povLat * rad) * Math.sin(lat * rad) + Math.cos(povLat * rad) * Math.cos(lat * rad) * Math.cos(dLng);
+    if (z <= 0) return Infinity;
+    const halfV = Math.tan((GLOBE_CAMERA_FOV / 2) * rad) * fill;
+    // The point is on the near side of the globe only while z > 1 / distance.
+    return Math.max(1 / z, z + Math.max(Math.abs(x) / (halfV * aspect), Math.abs(y) / halfV));
+  }
+
+  // The points of a bounding box that bound it on screen: corners, edge midpoints.
+  function bboxProbePoints(box) {
+    const pts = [];
+    [-0.5, 0, 0.5].forEach((fx) =>
+      [-0.5, 0, 0.5].forEach((fy) => {
+        pts.push([box.centerLat + fy * box.latSpan, box.centerLng + fx * box.lngSpan]);
+      })
+    );
+    return pts;
+  }
+
+  // Camera altitude that shows a whole bounding box, centred, with margin: the
+  // tighter of the frame's two dimensions decides (usually its height).
+  function altitudeToFit(box, aspect, fill = COUNTRY_FIT_FILL) {
+    const d = Math.max(...bboxProbePoints(box).map(([lat, lng]) => distanceToShow(lat, lng, box.centerLat, box.centerLng, aspect, fill)));
+    return d - 1;
+  }
+
+  // Altitude at which real land other than the target is on screen: the nearest
+  // `minLandmasses` landmasses (outlines of at least LANDMARK_MIN_RING_POINTS
+  // points, so specks of islands don't count) each have their middle inside the frame.
+  function altitudeToShowLand(box, landmarkFeatures, aspect, minLandmasses) {
+    const needed = [];
+    landmarkFeatures.forEach((feature) => {
+      const geom = feature?.geometry;
+      const rings = !geom ? [] : geom.type === "Polygon" ? geom.coordinates : geom.type === "MultiPolygon" ? geom.coordinates.flat() : [];
+      rings.forEach((ring) => {
+        if (ring.length < LANDMARK_MIN_RING_POINTS) return;
+        // Judged by the landmass's middle, so most of it is on screen, not just a corner.
+        const lat = ring.reduce((sum, pt) => sum + pt[1], 0) / ring.length;
+        const lng = ring.reduce((sum, pt) => sum + pt[0], 0) / ring.length;
+        const d = distanceToShow(lat, lng, box.centerLat, box.centerLng, aspect, LANDMARK_FIT_FILL);
+        if (isFinite(d)) needed.push(d);
+      });
+    });
+    if (!needed.length) return 0;
+    needed.sort((p, q) => p - q);
+    return needed[Math.min(minLandmasses, needed.length) - 1] - 1;
+  }
+
+  // Size in pixels of an open ring drawn round a bounding box (an ellipse, so a
+  // wide island chain gets a wide ring), for a frame `width` x `height` px.
+  function markerSizePx(box, altitude, width, height) {
+    const distance = 1 + altitude;
+    const pxPerTan = height / 2 / Math.tan((GLOBE_CAMERA_FOV / 2) * (Math.PI / 180));
+    const east = projectToView(box.centerLat, box.centerLng + box.lngSpan / 2, box.centerLat, box.centerLng, distance);
+    const north = projectToView(box.centerLat + box.latSpan / 2, box.centerLng, box.centerLat, box.centerLng, distance);
+    return {
+      w: Math.max(MARKER_MIN_PX, 2 * Math.abs(east.tx) * pxPerTan + MARKER_PAD_PX),
+      h: Math.max(MARKER_MIN_PX, 2 * Math.abs(north.ty) * pxPerTan + MARKER_PAD_PX),
+    };
+  }
+
   // Empirical mapping from a region's angular span (degrees) to a globe.gl
   // camera altitude that frames it reasonably. globe.gl's perspective camera
   // has no exact equivalent to the flat map's orthographic viewBox width, so
@@ -1479,9 +1578,11 @@
           .ringsData([])
           .htmlElementsData([])
           .htmlAltitude(0.03)
-          .htmlElement(() => {
+          .htmlElement((d) => {
             const el = document.createElement("div");
             el.className = "geo-marker";
+            el.style.width = `${d.w}px`;
+            el.style.height = `${d.h}px`;
             return el;
           })
           .ringAltitude(0.02)
@@ -1624,7 +1725,7 @@
     // `small` (a microstate) frames the target close up with its neighbours,
     // never wider than the context, and circles it with a fixed-size marker
     // that stays visible however far out the view is.
-    function highlight(code, { contextCodes = [code], boost = 1, transitionMs = 600, framing = "context", moveCamera = true, small = false } = {}) {
+    function highlight(code, { contextCodes = [code], boost = 1, transitionMs = 600, framing = "context", moveCamera = true, small = false, landmarkCodes = null } = {}) {
       if (!globe) return;
       const feature = alpha2ToFeature.get(code);
       if (!feature) return;
@@ -1636,17 +1737,39 @@
       const contextBox = getFeatureSetBBox(contextFeatures.length ? contextFeatures : [feature]) || targetBox;
       if (!targetBox || !contextBox) return;
 
+      // The panel may have been hidden when the globe was created, so make sure
+      // the canvas matches it before fitting anything to its shape.
+      resize();
+      const rect = container.getBoundingClientRect();
+      const aspect = rect.width && rect.height ? rect.width / rect.height : 1.5;
+
       let span = Math.max(contextBox.lngSpan, contextBox.latSpan * 2);
       if (framing === "country") span = clamp(span * COUNTRY_FRAME_PADDING, COUNTRY_FRAME_MIN_SPAN, Infinity);
-      if (small && framing === "context") {
-        span = Math.min(span, SMALL_COUNTRY_NEIGHBOURHOOD_SPAN);
-        boost = 1;
+      let altitude;
+      if (small) {
+        // Close up, whole country in frame, and wide enough that real land (not
+        // just open ocean) shows alongside it.
+        altitude = Math.max(altitudeForSpan(SMALL_COUNTRY_NEIGHBOURHOOD_SPAN), altitudeToFit(targetBox, aspect));
+        if (landmarkCodes) {
+          const landmarks = [...landmarkCodes].filter((c) => c !== code).map((c) => alpha2ToFeature.get(c)).filter(Boolean);
+          const landAltitude = altitudeToShowLand(targetBox, landmarks, aspect, SMALL_COUNTRY_LANDMASSES_SHOWN);
+          altitude = Math.max(altitude, Math.min(landAltitude, LANDMARK_MAX_ALTITUDE));
+        }
+      } else {
+        const fit = altitudeToFit(targetBox, aspect);
+        altitude = altitudeForSpan(span) * boost;
+        // A big country fills the frame with a margin and a little of its surroundings,
+        // however wide its padded span says to pull back.
+        if (framing === "country") altitude = Math.min(altitude, fit + COUNTRY_CONTEXT_ALTITUDE);
+        altitude = Math.max(altitude, fit);
       }
-      const altitude = altitudeForSpan(span) * boost;
+      altitude = clamp(altitude, GLOBE_MIN_ALTITUDE, GLOBE_MAX_ALTITUDE);
       if (moveCamera) globe.pointOfView({ lat: targetBox.centerLat, lng: targetBox.centerLng, altitude }, transitionMs);
       const center = { lat: targetBox.centerLat, lng: targetBox.centerLng };
-      globe.ringsData([center]);
-      globe.htmlElementsData(small ? [center] : []);
+      const pulses = Math.max(targetBox.latSpan, targetBox.lngSpan) < PULSE_MAX_SPAN;
+      globe.ringsData(pulses ? [center] : []);
+      const marker = small && rect.width ? markerSizePx(targetBox, altitude, rect.width, rect.height) : null;
+      globe.htmlElementsData(marker ? [{ ...center, ...marker }] : []);
     }
 
     function clearHighlight() {
@@ -2143,7 +2266,8 @@
     const highlightOptions = quizState.region
       ? { contextCodes: quizState.geoPool.map((c) => c.alpha2Code), boost: QUIZ_GEO_ZOOM_BOOST }
       : { framing: "country" };
-    quizGlobe.highlight(question.country.alpha2Code, { ...highlightOptions, small: isSmallCountry(question.country) });
+    const landmarkCodes = new Set(geoCountriesCache.filter((c) => !isSmallCountry(c)).map((c) => c.alpha2Code));
+    quizGlobe.highlight(question.country.alpha2Code, { ...highlightOptions, small: isSmallCountry(question.country), landmarkCodes });
 
     quizState.countryAnswered = false;
     quizState.bonusActive = false;

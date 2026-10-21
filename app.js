@@ -1457,15 +1457,29 @@
 
   // Size in pixels of an open ring drawn round a bounding box (an ellipse, so a
   // wide island chain gets a wide ring), for a frame `width` x `height` px.
-  function markerSizePx(box, altitude, width, height, padPx = MARKER_PAD_PX, minPx = MARKER_MIN_PX) {
+  // The ring keeps the box's proportions but is stretched until every one of
+  // `points` ([lat, lng], e.g. each island's corners) falls inside it, so
+  // islands in the corners of the box aren't left outside.
+  function markerSizePx(box, points, altitude, width, height, padPx = MARKER_PAD_PX, minPx = MARKER_MIN_PX) {
     const distance = 1 + altitude;
     const pxPerTan = height / 2 / Math.tan((GLOBE_CAMERA_FOV / 2) * (Math.PI / 180));
     const east = projectToView(box.centerLat, box.centerLng + box.lngSpan / 2, box.centerLat, box.centerLng, distance);
     const north = projectToView(box.centerLat + box.latSpan / 2, box.centerLng, box.centerLat, box.centerLng, distance);
-    return {
-      w: Math.max(minPx, 2 * Math.abs(east.tx) * pxPerTan + padPx),
-      h: Math.max(minPx, 2 * Math.abs(north.ty) * pxPerTan + padPx),
-    };
+    const halfW = Math.max(minPx / 2, Math.abs(east.tx) * pxPerTan);
+    const halfH = Math.max(minPx / 2, Math.abs(north.ty) * pxPerTan);
+    let scale = 1;
+    points.forEach(([lat, lng]) => {
+      const p = projectToView(lat, lng, box.centerLat, box.centerLng, distance);
+      scale = Math.max(scale, Math.hypot((p.tx * pxPerTan) / halfW, (p.ty * pxPerTan) / halfH));
+    });
+    return { w: 2 * halfW * scale + padPx, h: 2 * halfH * scale + padPx };
+  }
+
+  // The corners of every landmass's bounding box: what the open ring must enclose.
+  function landmassCorners(feature) {
+    return landmassBoxes(feature).flatMap((b) =>
+      [-0.5, 0.5].flatMap((fx) => [-0.5, 0.5].map((fy) => [b.centerLat + fy * b.latSpan, b.centerLng + fx * b.lngSpan]))
+    );
   }
 
   // Bounding boxes of a country's separate landmasses (outer rings of its
@@ -1557,6 +1571,7 @@
     // The quiz's open ring (sized to the country, rescaled as the globe zooms) and
     // the dots on islands too small to see (refreshed after a zoom).
     let markerBox = null;
+    let markerPoints = [];
     let markerEls = new Set();
     let dotsFeature = null;
     let dotsTimer = null;
@@ -1574,7 +1589,7 @@
           return base === targetFeature ? targetColor : base === hoverFeature ? hoverColor : fillColor;
         })
         .pointColor(() => targetColor)
-        .polygonSideColor(() => fillColor)
+        .polygonSideColor((d) => ((canon.get(d) || d) === targetFeature ? targetColor : fillColor))
         .polygonStrokeColor(() => strokeColor)
         .polygonAltitude((d) => {
           const base = canon.get(d) || d;
@@ -1790,7 +1805,7 @@
       if (!markerBox || !markerEls.size) return;
       const rect = container.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
-      const { w, h } = markerSizePx(markerBox, altitude, rect.width, rect.height);
+      const { w, h } = markerSizePx(markerBox, markerPoints, altitude, rect.width, rect.height);
       const outgrown = w > rect.width * MARKER_FADE_FRAME_RATIO || h > rect.height * MARKER_FADE_FRAME_RATIO;
       markerEls.forEach((el) => {
         el.style.width = `${w}px`;
@@ -1827,10 +1842,12 @@
       if (moveCamera) globe.pointOfView({ lat: box.centerLat, lng: box.centerLng, altitude }, transitionMs);
       const shownAltitude = moveCamera ? altitude : globe.pointOfView().altitude;
       const center = { lat: box.centerLat, lng: box.centerLng };
-      globe.ringsData(Math.max(box.latSpan, box.lngSpan) < PULSE_MAX_SPAN ? [center] : []);
+      // The quiz has the open ring instead of the pulsing one.
+      globe.ringsData(!markSmall && Math.max(box.latSpan, box.lngSpan) < PULSE_MAX_SPAN ? [center] : []);
       markerEls.clear();
       markerBox = small && rect.width ? box : null;
-      const marker = markerBox && markerSizePx(box, shownAltitude, rect.width, rect.height);
+      markerPoints = markerBox ? landmassCorners(feature) : [];
+      const marker = markerBox && markerSizePx(box, markerPoints, shownAltitude, rect.width, rect.height);
       globe.htmlElementsData(marker ? [{ ...center, ...marker }] : []);
       // Islands too small to see get a dot in Explore as well as the quiz.
       dotsFeature = hasSmallLand(feature, box) ? feature : null;

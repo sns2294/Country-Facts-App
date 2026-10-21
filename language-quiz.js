@@ -137,6 +137,7 @@
 
     return {
       kind: "mcq",
+      code: country.alpha2Code,
       promptType: "text",
       promptLabel: "What is the official language of",
       prompt: country.name,
@@ -147,11 +148,13 @@
 
   // pool: countries with at least one language. Returns `count` questions,
   // each about a different country and (where possible) a different answer.
-  function buildLanguageQuestions(allCountries, count) {
+  // `order(list)` arranges a candidate list for picking (default: shuffled), so
+  // the app can put recently asked countries last.
+  function buildLanguageQuestions(allCountries, count, order = shuffle) {
     const pool = allCountries.filter(isInhabited);
     const index = buildRegionIndex(pool);
-    const giveaways = shuffle(pool.filter(isGiveaway));
-    const regular = shuffle(pool.filter((c) => !isGiveaway(c)));
+    const giveaways = order(pool.filter(isGiveaway));
+    const regular = order(pool.filter((c) => !isGiveaway(c)));
     const giveawayCount = Math.random() < GIVEAWAY_QUIZ_CHANCE ? MAX_GIVEAWAYS : 0;
 
     const picks = [];

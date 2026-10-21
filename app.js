@@ -1992,6 +1992,62 @@
     return copy;
   }
 
+  // Repeat avoidance. The countries asked recently are remembered in the
+  // browser per mode and scope (a region, or "all"), most recent first, and the
+  // next quiz favours countries outside that memory. Only as much as the pool
+  // can spare is remembered (see recentCap), so a small pool never runs dry:
+  // once the unseen countries run low, the longest-unseen fill in.
+  const RECENT_STORAGE_PREFIX = "quizRecent:";
+  const RECENT_QUIZ_COUNT = 3;
+  // Of the countries a pool has beyond one quiz's worth, this share may be
+  // remembered; the rest stay unremembered so each quiz still has a real choice.
+  const RECENT_SPARE_SHARE = 0.75;
+
+  function recentCap(poolSize) {
+    const spare = Math.max(0, poolSize - QUIZ_QUESTION_COUNT);
+    return Math.min(RECENT_QUIZ_COUNT * QUIZ_QUESTION_COUNT, Math.floor(spare * RECENT_SPARE_SHARE));
+  }
+
+  function loadRecent(key) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(RECENT_STORAGE_PREFIX + key));
+      return Array.isArray(stored) ? stored.filter((code) => typeof code === "string") : [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function saveRecent(key, codes) {
+    try {
+      const merged = [...new Set([...codes, ...loadRecent(key)])].slice(0, RECENT_QUIZ_COUNT * QUIZ_QUESTION_COUNT);
+      localStorage.setItem(RECENT_STORAGE_PREFIX + key, JSON.stringify(merged));
+    } catch (err) {
+      // Storage unavailable (private window, blocked): quizzes just don't remember.
+    }
+  }
+
+  // The pool in the order to ask it: countries not asked recently first, in
+  // random order, then the recent ones, longest ago first.
+  function recencyOrder(pool, key) {
+    const recent = loadRecent(key).slice(0, recentCap(pool.length));
+    const position = new Map(recent.map((code, i) => [code, i]));
+    const fresh = shuffleArray(pool.filter((c) => !position.has(c.alpha2Code)));
+    const stale = pool.filter((c) => position.has(c.alpha2Code)).sort((p, q) => position.get(q.alpha2Code) - position.get(p.alpha2Code));
+    return [...fresh, ...stale];
+  }
+
+  // Notes the countries a freshly built quiz asks, under each question's `recentKey`.
+  function rememberQuestions(questions) {
+    const byKey = new Map();
+    questions.forEach((q) => {
+      const code = q.code || q.country?.alpha2Code;
+      if (!q.recentKey || !code) return;
+      if (!byKey.has(q.recentKey)) byKey.set(q.recentKey, []);
+      byKey.get(q.recentKey).push(code);
+    });
+    byKey.forEach((codes, key) => saveRecent(key, codes));
+  }
+
   function buildOneMcqQuestion(item, pool, mode) {
     const correctAnswer = mode.getAnswer(item);
     const distractorPool = pool.filter((p) => p !== item && mode.getAnswer(p) !== correctAnswer);
@@ -2007,6 +2063,7 @@
 
     return {
       kind: "mcq",
+      code: item.alpha2Code,
       promptType: mode.promptType,
       promptLabel: mode.promptLabel,
       prompt: mode.getPrompt(item),
@@ -2015,26 +2072,26 @@
     };
   }
 
-  function buildQuizQuestions(pool, mode) {
-    const shuffledPool = shuffleArray(pool);
+  function buildQuizQuestions(pool, mode, recentKey) {
+    const ordered = recencyOrder(pool, recentKey);
     const picks = [];
     for (let i = 0; i < QUIZ_QUESTION_COUNT; i++) {
-      picks.push(shuffledPool[i % shuffledPool.length]);
+      picks.push(ordered[i % ordered.length]);
     }
-    return picks.map((item) => buildOneMcqQuestion(item, pool, mode));
+    return picks.map((item) => ({ ...buildOneMcqQuestion(item, pool, mode), recentKey }));
   }
 
   function buildOneGeoQuestion(country) {
     return { kind: "geography", country };
   }
 
-  function buildGeoQuestions(pool) {
-    const shuffledPool = shuffleArray(pool);
+  function buildGeoQuestions(pool, recentKey) {
+    const ordered = recencyOrder(pool, recentKey);
     const picks = [];
     for (let i = 0; i < QUIZ_QUESTION_COUNT; i++) {
-      picks.push(shuffledPool[i % shuffledPool.length]);
+      picks.push(ordered[i % ordered.length]);
     }
-    return picks.map(buildOneGeoQuestion);
+    return picks.map((country) => ({ ...buildOneGeoQuestion(country), recentKey }));
   }
 
   const QUIZ_MODES = {
@@ -2082,7 +2139,7 @@
       },
       getPrompt: (c) => c.name,
       getAnswer: (c) => LanguageQuiz.primaryLanguage(c),
-      buildQuestions: (pool) => LanguageQuiz.buildLanguageQuestions(pool, QUIZ_QUESTION_COUNT),
+      buildQuestions: (pool, order) => LanguageQuiz.buildLanguageQuestions(pool, QUIZ_QUESTION_COUNT, order),
     },
   };
 
@@ -2130,17 +2187,23 @@
     const kinds = Object.keys(mcqPools);
     if (geoPool.length >= 4) kinds.push("geography");
 
+    // Each kind draws down its own recency-ordered list, so a quiz doesn't
+    // repeat a country within a kind either.
+    const orders = new Map();
+    const nextOf = (kind, pool) => {
+      if (!orders.has(kind)) orders.set(kind, { list: recencyOrder(pool, `${kind}:all`), used: 0 });
+      const order = orders.get(kind);
+      return order.list[order.used++ % order.list.length];
+    };
+
     const questions = [];
     for (let i = 0; i < QUIZ_QUESTION_COUNT; i++) {
       const kind = kinds[Math.floor(Math.random() * kinds.length)];
       if (kind === "geography") {
-        const country = geoPool[Math.floor(Math.random() * geoPool.length)];
-        questions.push(buildOneGeoQuestion(country));
+        questions.push({ ...buildOneGeoQuestion(nextOf(kind, geoPool)), recentKey: `${kind}:all` });
       } else {
-        const mode = QUIZ_MODES[kind];
         const pool = mcqPools[kind];
-        const item = pool[Math.floor(Math.random() * pool.length)];
-        questions.push(buildOneMcqQuestion(item, pool, mode));
+        questions.push({ ...buildOneMcqQuestion(nextOf(kind, pool), pool, QUIZ_MODES[kind]), recentKey: `${kind}:all` });
       }
     }
     return questions;
@@ -2162,6 +2225,7 @@
         }
         geoPool = pools.geoPool;
         questions = buildMixedQuestions(pools.mcqPools, pools.geoPool);
+        rememberQuestions(questions);
       } else {
         const mode = QUIZ_MODES[modeKey];
         const pool = await mode.preparePool();
@@ -2170,7 +2234,11 @@
           quizStatus.classList.add("error");
           return;
         }
-        questions = mode.buildQuestions ? mode.buildQuestions(pool) : buildQuizQuestions(pool, mode);
+        const recentKey = `${modeKey}:all`;
+        questions = mode.buildQuestions
+          ? mode.buildQuestions(pool, (list) => recencyOrder(list, recentKey)).map((q) => ({ ...q, recentKey }))
+          : buildQuizQuestions(pool, mode, recentKey);
+        rememberQuestions(questions);
       }
 
       if (geoPool && geoPool.length) {
@@ -2362,10 +2430,12 @@
       quizCountryGuessList.innerHTML = buildNameOptions(pool);
       populateDatalist(quizCapitalGuessList, capitalsInRegion);
 
+      const questions = buildGeoQuestions(pool, `geography:${region}`);
+      rememberQuestions(questions);
       quizState = {
         region,
         geoPool: pool,
-        questions: buildGeoQuestions(pool),
+        questions,
         index: 0,
         score: 0,
         countryAnswered: false,

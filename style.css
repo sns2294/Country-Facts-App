@@ -1110,6 +1110,16 @@ main {
   text-decoration: underline;
 }
 
+/* Dot on an island too small to see (fixed pixel size, round from any angle) */
+.geo-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--map-highlight);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+
 /* Circle around a small target country on the quiz globe (fixed pixel size) */
 .geo-marker {
   border: 3px solid var(--map-highlight);

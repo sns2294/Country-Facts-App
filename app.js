@@ -1197,7 +1197,6 @@
   const SMALL_LANDMASS_DEGREES = 2.5;
   const SMALL_COUNTRY_NEIGHBOURHOOD_SPAN = 14; // degrees across the close-up view
   const ISLAND_VISIBLE_PX = 4; // an island under this on screen is too small to see
-  const ISLAND_DOT_PX = 5;
   const ISLAND_DOT_MAX_COUNT = 80;
   // Small countries are framed so land other than themselves is in view: at
   // least this many landmasses of larger countries, each reaching inside
@@ -1208,7 +1207,10 @@
   // Landmark context never zooms out past this altitude (the globe still shows its curve).
   const LANDMARK_MAX_ALTITUDE = 1.2;
   const MARKER_MIN_PX = 26;
-  const MARKER_PAD_PX = 14;
+  const MARKER_PAD_PX = 24;
+  // The ring fades out once it is wider or taller than this share of the globe's width.
+  const MARKER_FADE_GLOBE_RATIO = 0.85;
+  const MARKER_ALTITUDE = 0.03; // globe.gl altitude the ring and dots float at
   // The ring fades out once it is wider or taller than this many frames.
   const MARKER_FADE_FRAME_RATIO = 1.2;
   // A pulsing ring only makes sense on a country narrower than this (degrees).
@@ -1459,18 +1461,33 @@
   // wide island chain gets a wide ring), for a frame `width` x `height` px.
   // The ring keeps the box's proportions but is stretched until every one of
   // `points` ([lat, lng], e.g. each island's corners) falls inside it, so
-  // islands in the corners of the box aren't left outside.
-  function markerSizePx(box, points, altitude, width, height, padPx = MARKER_PAD_PX, minPx = MARKER_MIN_PX) {
+  // islands in the corners of the box aren't left outside. With `screen`
+  // (lat, lng -> {x, y} on screen, or null if out of sight) the islands are
+  // placed where the camera really sees them, wherever it has been panned to;
+  // without it they are judged as seen from straight above the box's centre.
+  function markerSizePx(box, points, altitude, width, height, screen = null, padPx = MARKER_PAD_PX, minPx = MARKER_MIN_PX) {
     const distance = 1 + altitude;
     const pxPerTan = height / 2 / Math.tan((GLOBE_CAMERA_FOV / 2) * (Math.PI / 180));
     const east = projectToView(box.centerLat, box.centerLng + box.lngSpan / 2, box.centerLat, box.centerLng, distance);
     const north = projectToView(box.centerLat + box.latSpan / 2, box.centerLng, box.centerLat, box.centerLng, distance);
     const halfW = Math.max(minPx / 2, Math.abs(east.tx) * pxPerTan);
     const halfH = Math.max(minPx / 2, Math.abs(north.ty) * pxPerTan);
+    const middle = screen && screen(box.centerLat, box.centerLng);
     let scale = 1;
     points.forEach(([lat, lng]) => {
-      const p = projectToView(lat, lng, box.centerLat, box.centerLng, distance);
-      scale = Math.max(scale, Math.hypot((p.tx * pxPerTan) / halfW, (p.ty * pxPerTan) / halfH));
+      let dx;
+      let dy;
+      if (middle) {
+        const p = screen(lat, lng);
+        if (!p) return;
+        dx = p.x - middle.x;
+        dy = p.y - middle.y;
+      } else {
+        const p = projectToView(lat, lng, box.centerLat, box.centerLng, distance);
+        dx = p.tx * pxPerTan;
+        dy = p.ty * pxPerTan;
+      }
+      scale = Math.max(scale, Math.hypot(dx / halfW, dy / halfH));
     });
     return { w: 2 * halfW * scale + padPx, h: 2 * halfH * scale + padPx };
   }
@@ -1501,14 +1518,14 @@
   }
 
   // A dot for each island too small to see at this zoom (the others show their
-  // real shape), ISLAND_DOT_PX across.
+  // real shape), drawn as a round page element (see .geo-dot).
   function islandDots(feature, altitude, height) {
     const pxPerTan = height / 2 / Math.tan((GLOBE_CAMERA_FOV / 2) * (Math.PI / 180));
     const pxPerDegree = (pxPerTan * (Math.PI / 180)) / altitude;
     return landmassBoxes(feature)
       .filter((box) => Math.max(box.latSpan, box.lngSpan) * pxPerDegree < ISLAND_VISIBLE_PX)
       .slice(0, ISLAND_DOT_MAX_COUNT)
-      .map((box) => ({ lat: box.centerLat, lng: box.centerLng, radius: ISLAND_DOT_PX / 2 / pxPerDegree }));
+      .map((box) => ({ kind: "dot", lat: box.centerLat, lng: box.centerLng }));
   }
 
   // The starting view for a country in a `width` x `height` px frame: the whole
@@ -1574,6 +1591,8 @@
     let markerPoints = [];
     let markerEls = new Set();
     let dotsFeature = null;
+    let ringDatum = null;
+    let dotData = [];
     let dotsTimer = null;
     const bboxCache = new Map();
 
@@ -1588,7 +1607,6 @@
           const base = canon.get(d) || d;
           return base === targetFeature ? targetColor : base === hoverFeature ? hoverColor : fillColor;
         })
-        .pointColor(() => targetColor)
         .polygonSideColor((d) => ((canon.get(d) || d) === targetFeature ? targetColor : fillColor))
         .polygonStrokeColor(() => strokeColor)
         .polygonAltitude((d) => {
@@ -1649,16 +1667,15 @@
           .polygonsData(features)
           .polygonsTransitionDuration(200)
           .ringsData([])
-          .pointsData([])
-          .pointLat((d) => d.lat)
-          .pointLng((d) => d.lng)
-          .pointRadius((d) => d.radius)
-          .pointAltitude(0.022)
-          .pointResolution(8)
           .htmlElementsData([])
-          .htmlAltitude(0.03)
+          .htmlAltitude(MARKER_ALTITUDE)
           .htmlElement((d) => {
             const el = document.createElement("div");
+            // Dots are flat page elements, so they stay round from any angle.
+            if (d.kind === "dot") {
+              el.className = "geo-dot";
+              return el;
+            }
             el.className = "geo-marker";
             el.style.width = `${d.w}px`;
             el.style.height = `${d.h}px`;
@@ -1805,8 +1822,18 @@
       if (!markerBox || !markerEls.size) return;
       const rect = container.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
-      const { w, h } = markerSizePx(markerBox, markerPoints, altitude, rect.width, rect.height);
-      const outgrown = w > rect.width * MARKER_FADE_FRAME_RATIO || h > rect.height * MARKER_FADE_FRAME_RATIO;
+      const pov = globe.pointOfView();
+      const distance = 1 + altitude;
+      const screen = (lat, lng) =>
+        projectToView(lat, lng, pov.lat, pov.lng, distance).z > 1 / distance ? globe.getScreenCoords(lat, lng, MARKER_ALTITUDE) : null;
+      const { w, h } = markerSizePx(markerBox, markerPoints, altitude, rect.width, rect.height, screen);
+      // The globe's width on screen: a ring this close to it no longer says anything.
+      const pxPerTan = rect.height / 2 / Math.tan((GLOBE_CAMERA_FOV / 2) * (Math.PI / 180));
+      const globeWidth = (2 * pxPerTan) / Math.sqrt(distance * distance - 1);
+      const outgrown =
+        w > rect.width * MARKER_FADE_FRAME_RATIO ||
+        h > rect.height * MARKER_FADE_FRAME_RATIO ||
+        Math.max(w, h) > globeWidth * MARKER_FADE_GLOBE_RATIO;
       markerEls.forEach((el) => {
         el.style.width = `${w}px`;
         el.style.height = `${h}px`;
@@ -1814,12 +1841,18 @@
       });
     }
 
+    // The open ring and the island dots are all page elements floating on the globe.
+    function syncOverlay() {
+      globe.htmlElementsData(ringDatum ? [ringDatum, ...dotData] : dotData);
+    }
+
     // Dots for the highlighted country's islands too small to see at this zoom.
     function refreshDots(altitude) {
       if (!globe || !dotsFeature) return;
       const rect = container.getBoundingClientRect();
       if (!rect.height) return;
-      globe.pointsData(islandDots(dotsFeature, altitude, rect.height));
+      dotData = islandDots(dotsFeature, altitude, rect.height);
+      syncOverlay();
     }
 
     // Highlights a country and (with `moveCamera`) flies to its starting view,
@@ -1848,10 +1881,11 @@
       markerBox = small && rect.width ? box : null;
       markerPoints = markerBox ? landmassCorners(feature) : [];
       const marker = markerBox && markerSizePx(box, markerPoints, shownAltitude, rect.width, rect.height);
-      globe.htmlElementsData(marker ? [{ ...center, ...marker }] : []);
+      ringDatum = marker ? { kind: "ring", ...center, ...marker } : null;
       // Islands too small to see get a dot in Explore as well as the quiz.
       dotsFeature = hasSmallLand(feature, box) ? feature : null;
-      globe.pointsData(dotsFeature && rect.height ? islandDots(feature, shownAltitude, rect.height) : []);
+      dotData = dotsFeature && rect.height ? islandDots(feature, shownAltitude, rect.height) : [];
+      syncOverlay();
       // The camera is still flying in; settle the ring on where it ends up.
       if (moveCamera) setTimeout(() => globe && updateMarker(globe.pointOfView().altitude), transitionMs + 50);
     }
@@ -1860,8 +1894,9 @@
       targetFeature = null;
       if (!globe) return;
       globe.ringsData([]);
-      globe.htmlElementsData([]);
-      globe.pointsData([]);
+      ringDatum = null;
+      dotData = [];
+      syncOverlay();
       markerBox = null;
       dotsFeature = null;
       refreshPolygonStyles();

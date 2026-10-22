@@ -1173,7 +1173,8 @@ main {
   box-sizing: border-box;
   justify-content: flex-start;
   gap: 0.4rem;
-  margin-top: 0.4rem;
+  margin-top: 0.1rem;
+  padding: 0.3rem 0.15rem 0.35rem;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -1201,4 +1202,10 @@ main {
 
 .suggestion-strip button:active {
   background: rgba(47, 111, 237, 0.15);
+}
+
+/* Soft fade at the right edge while more buttons are off-screen */
+.suggestion-strip.has-more {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
 }

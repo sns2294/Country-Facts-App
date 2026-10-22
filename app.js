@@ -2463,6 +2463,11 @@
       listEl.style.maxHeight = `${Math.max(48, Math.min(listHeight(), room))}px`;
     }
 
+    function updateFade() {
+      strip.classList.toggle("has-more", strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 2);
+    }
+    strip.addEventListener("scroll", updateFade, { passive: true });
+
     function close() {
       listEl.hidden = true;
       strip.hidden = true;
@@ -2509,6 +2514,7 @@
           strip.scrollLeft = 0;
         }
         strip.hidden = false;
+        updateFade();
         return;
       }
       strip.hidden = true;

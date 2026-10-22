@@ -739,7 +739,18 @@ const robots = () => `User-agent: *\nAllow: /\n${INDEXABLE ? `\nSitemap: ${BASE_
 
 // ---------- write ----------
 
+let outputs_index; // index.html with its robots block updated
+
+// index.html is hand-written, so the build only rewrites its robots block, keeping
+// the whole site's indexing on the one `indexable` setting.
+{
+  const html = read("index.html");
+  const block = /(<!-- robots:start[^>]*-->\n)[\s\S]*?(  <!-- robots:end -->)/;
+  if (!block.test(html)) throw new Error("index.html is missing its <!-- robots:start --> / <!-- robots:end --> block");
+  outputs_index = html.replace(block, `$1${INDEXABLE ? "" : '  <meta name="robots" content="noindex" />\n'}$2`);
+}
 const outputs = new Map();
+outputs.set("index.html", outputs_index);
 outputs.set("country/index.html", indexPage());
 for (const c of built) outputs.set(`country/${slugOf.get(c.alpha3Code)}/index.html`, countryPage(c));
 outputs.set("country/world-land.svg", worldLandSvg());

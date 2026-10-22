@@ -1443,25 +1443,41 @@
     let touchInput = false;
     let tap = null;
     let tapHandled = false;
+    let suppressTouchClick = false;
+    const activeTouches = new Set();
     container.addEventListener(
       "pointerdown",
       (evt) => {
         touchInput = evt.pointerType === "touch";
         container.classList.toggle("touch-input", touchInput);
-        if (touchInput) {
-          tap = { x: evt.clientX, y: evt.clientY, t: performance.now(), ok: !tap };
-          // The globe only knows what is under the pointer from pointermove,
-          // which a plain tap may never send, so give it one at the tap point.
-          const canvas = container.querySelector("canvas");
-          if (canvas) {
-            canvas.dispatchEvent(
-              new PointerEvent("pointermove", { clientX: evt.clientX, clientY: evt.clientY, pointerType: "touch", bubbles: true })
-            );
-          }
-          if (hoverFeature) {
-            hoverFeature = null;
-            refreshPolygonStyles();
-          }
+        if (!touchInput) return;
+        activeTouches.add(evt.pointerId);
+        if (activeTouches.size > 1) {
+          // A second finger makes it a pinch: never a tap, and no synthetic
+          // events, which the camera controls would read as a third finger.
+          if (tap) tap.ok = false;
+          return;
+        }
+        tap = { x: evt.clientX, y: evt.clientY, t: performance.now(), ok: true };
+        // The globe only knows what is under the pointer from pointermove,
+        // which a plain tap may never send, so give it one at the tap point
+        // (under this finger's own id so the controls see no new pointer).
+        const canvas = container.querySelector("canvas");
+        if (canvas) {
+          canvas.dispatchEvent(
+            new PointerEvent("pointermove", {
+              pointerId: evt.pointerId,
+              pointerType: "touch",
+              isPrimary: evt.isPrimary,
+              clientX: evt.clientX,
+              clientY: evt.clientY,
+              bubbles: true,
+            })
+          );
+        }
+        if (hoverFeature) {
+          hoverFeature = null;
+          refreshPolygonStyles();
         }
       },
       true
@@ -1477,30 +1493,28 @@
       },
       true
     );
-    // A second finger (pinch) or a long press is not a tap.
-    container.addEventListener(
-      "pointerup",
-      (evt) => {
-        if (evt.pointerType !== "touch" || !tap) return;
-        const isTap = tap.ok && performance.now() - tap.t < TAP_MAX_MS;
-        tap = null;
+    function endTouch(evt) {
+      if (evt.pointerType !== "touch") return;
+      activeTouches.delete(evt.pointerId);
+      if (activeTouches.size > 0 || !tap) return;
+      const isTap = evt.type === "pointerup" && tap.ok && performance.now() - tap.t < TAP_MAX_MS;
+      tap = null;
+      tapHandled = false;
+      if (!isTap) {
+        touchInput = true;
+        suppressTouchClick = true;
+        return;
+      }
+      suppressTouchClick = false;
+      // The polygon click, if any, fires right after pointerup; if none did,
+      // the tap landed on empty ocean or space.
+      setTimeout(() => {
+        if (!tapHandled && onEmptyTap) onEmptyTap();
         tapHandled = false;
-        if (!isTap) {
-          touchInput = true;
-          suppressTouchClick = true;
-          return;
-        }
-        suppressTouchClick = false;
-        // The polygon click, if any, fires right after pointerup; if none did,
-        // the tap landed on empty ocean or space.
-        setTimeout(() => {
-          if (!tapHandled && onEmptyTap) onEmptyTap();
-          tapHandled = false;
-        }, 60);
-      },
-      true
-    );
-    let suppressTouchClick = false;
+      }, 60);
+    }
+    container.addEventListener("pointerup", endTouch, true);
+    container.addEventListener("pointercancel", endTouch, true);
     let alpha2ToFeature = new Map();
     let hoverFeature = null;
     let targetFeature = null;

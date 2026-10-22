@@ -2307,7 +2307,7 @@
     quizBonusFeedback.classList.remove("correct", "wrong");
     quizGeoNextBtn.hidden = true;
 
-    quizCountryGuessInput.focus({ preventScroll: true });
+    if (!isPhone()) quizCountryGuessInput.focus({ preventScroll: true });
   }
 
   function handleCountryGuess() {
@@ -2347,7 +2347,7 @@
       // Bring the bonus box fully on screen before focusing so the browser
       // doesn't scroll on its own and the Country answer stays visible.
       quizBonusRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      quizCapitalGuessInput.focus({ preventScroll: true });
+      if (!isPhone()) quizCapitalGuessInput.focus({ preventScroll: true });
     } else {
       quizGeoFeedback.textContent = `Not quite — the highlighted country is ${question.country.name}.`;
       quizGeoFeedback.classList.add("wrong");
@@ -2395,8 +2395,17 @@
   // popup can't be repositioned, so it got clipped at the bottom of the screen
   // and re-laid itself out while the page scrolled (the flicker). This one
   // opens below the box, scrolling the page so it fits without covering the globe.
+  // Phones get a swipeable row of buttons under the box instead of a dropdown,
+  // so the map stays visible above the keyboard.
+  const touchPhoneQuery = window.matchMedia("(pointer: coarse) and (max-width: 820px)");
+  const isPhone = () => touchPhoneQuery.matches;
+
   function attachSuggestions(input, datalist) {
     input.removeAttribute("list");
+    const strip = document.createElement("div");
+    strip.className = "suggestion-strip";
+    strip.hidden = true;
+    input.insertAdjacentElement("afterend", strip);
     const listEl = document.createElement("ul");
     listEl.className = "quiz-suggestions";
     listEl.setAttribute("role", "listbox");
@@ -2456,13 +2465,21 @@
 
     function close() {
       listEl.hidden = true;
+      strip.hidden = true;
       renderedKey = null;
       active = -1;
+    }
+
+    function rank(v, q) {
+      const l = v.toLowerCase();
+      if (l.startsWith(q)) return 0;
+      return l.split(/[\s\-'(]+/).some((w) => w.startsWith(q)) ? 1 : 2;
     }
 
     function pick(value) {
       input.value = value;
       close();
+      if (isPhone()) input.blur();
       input.dispatchEvent(new Event("change"));
     }
 
@@ -2472,9 +2489,29 @@
       const matches = Array.from(datalist.options)
         .map((o) => o.value)
         .filter((v) => v.toLowerCase().includes(q))
-        .sort((a, b) => Number(b.toLowerCase().startsWith(q)) - Number(a.toLowerCase().startsWith(q)));
-      const key = `${datalist.options.length}|${q}`;
+        .sort((a, b) => rank(a, q) - rank(b, q));
+      const key = `${datalist.options.length}|${q}|${isPhone()}`;
       if (!matches.length || (matches.length === 1 && matches[0].toLowerCase() === q)) return close();
+      if (isPhone()) {
+        listEl.hidden = true;
+        if (key !== renderedKey) {
+          strip.replaceChildren(
+            ...matches.map((v) => {
+              const b = document.createElement("button");
+              b.type = "button";
+              b.textContent = v;
+              b.addEventListener("mousedown", (e) => e.preventDefault());
+              b.addEventListener("click", () => pick(v));
+              return b;
+            })
+          );
+          renderedKey = key;
+          strip.scrollLeft = 0;
+        }
+        strip.hidden = false;
+        return;
+      }
+      strip.hidden = true;
       if (key !== renderedKey) {
         listEl.replaceChildren(
           ...matches.map((v) => {
@@ -2501,7 +2538,10 @@
     }
 
     input.addEventListener("input", open);
-    input.addEventListener("blur", close);
+    input.addEventListener("blur", () => {
+      if (!isPhone()) close();
+    });
+    input.addEventListener("change", close);
     input.addEventListener("keydown", (e) => {
       if (listEl.hidden) return;
       if (e.key === "ArrowDown") {
@@ -2529,6 +2569,7 @@
   }
   attachSuggestions(quizCountryGuessInput, quizCountryGuessList);
   attachSuggestions(quizCapitalGuessInput, quizCapitalGuessList);
+  attachSuggestions(countryInput, countryList);
 
   quizCountryGuessInput.addEventListener("change", handleCountryGuess);
   quizCapitalGuessInput.addEventListener("change", handleCapitalGuess);

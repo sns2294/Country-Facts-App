@@ -80,6 +80,9 @@
   const WHEEL_ZOOM_FACTOR = 1.15;
   const BUTTON_ZOOM_FACTOR = 1.4;
   const DRAG_THRESHOLD_PX = 3;
+  // A touch that moves farther than this is a drag, not a tap (fingers jitter).
+  const TAP_SLOP_PX = 10;
+  const TAP_MAX_MS = 800;
   const QUIZ_QUESTION_COUNT = 10;
   const REGIONS = ["Europe", "Africa", "Asia", "Americas", "Oceania"];
 
@@ -370,6 +373,15 @@
     syncSelection();
   }
 
+  // Tapping empty ocean on a touch screen clears the pick, fact card included.
+  function clearSelectionAndCard() {
+    latestSelection += 1;
+    countryInput.value = "";
+    factCard.hidden = true;
+    shownCountryName = null;
+    clearSelection();
+  }
+
   async function showCountryData(country, selection, { recenter = false } = {}) {
     const borderCountries = await getBorderCountries(country);
     if (selection !== latestSelection) return;
@@ -641,8 +653,15 @@
     isVisible,
     enableCountryInteraction = true,
     onCountryClick = null,
+    onEmptyTap = null,
   }) {
     let loaded = false;
+    // Phones emulate mouse events after a touch; those must not count as hover.
+    let lastTouchAt = -Infinity;
+    const recentTouch = () => performance.now() - lastTouchAt < 1000;
+    ["touchstart", "touchend"].forEach((type) =>
+      container.addEventListener(type, () => (lastTouchAt = performance.now()), { capture: true, passive: true })
+    );
     let svg = null;
     let currentViewBox = { ...NATIVE_VIEW_BOX };
     let suppressNextClick = false;
@@ -833,7 +852,7 @@
             const touch = evt.touches[0];
             const dx = touch.clientX - lastX;
             const dy = touch.clientY - lastY;
-            if (!dragged && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+            if (!dragged && Math.hypot(dx, dy) < TAP_SLOP_PX) return;
             evt.preventDefault();
             dragged = true;
             container.classList.add("dragging");
@@ -879,6 +898,13 @@
         true
       );
 
+      // A tap on empty ocean (not a country, hit circle or button) clears the pick.
+      container.addEventListener("click", (evt) => {
+        if (!onEmptyTap || !recentTouch()) return;
+        if (evt.target.closest("path.country, circle.hit-target, .map-controls, button")) return;
+        onEmptyTap();
+      });
+
       if (zoomInBtn) zoomInBtn.addEventListener("click", () => zoomAtCenter(1 / BUTTON_ZOOM_FACTOR));
       if (zoomOutBtn) zoomOutBtn.addEventListener("click", () => zoomAtCenter(BUTTON_ZOOM_FACTOR));
       if (zoomResetBtn) {
@@ -895,10 +921,13 @@
     function attachMapHandlers() {
       svg.querySelectorAll("path.country").forEach((path) => {
         path.addEventListener("mouseenter", () => {
+          if (recentTouch()) return;
           path.classList.add("hovered");
           showTooltip(displayNameByCode.get(path.id) || path.dataset.name);
         });
-        path.addEventListener("mousemove", positionTooltip);
+        path.addEventListener("mousemove", (evt) => {
+          if (!recentTouch()) positionTooltip(evt);
+        });
         path.addEventListener("mouseleave", () => {
           path.classList.remove("hovered");
           hideTooltip();
@@ -912,11 +941,14 @@
         const code = circle.dataset.code;
         const realPath = document.getElementById(code);
         circle.addEventListener("mouseenter", () => {
+          if (recentTouch()) return;
           circle.classList.add("active");
           if (realPath) realPath.classList.add("hovered");
           showTooltip(displayNameByCode.get(code) || circle.dataset.name);
         });
-        circle.addEventListener("mousemove", positionTooltip);
+        circle.addEventListener("mousemove", (evt) => {
+          if (!recentTouch()) positionTooltip(evt);
+        });
         circle.addEventListener("mouseleave", () => {
           circle.classList.remove("active");
           if (realPath) realPath.classList.remove("hovered");
@@ -996,6 +1028,7 @@
     zoomResetBtn: mapZoomResetBtn,
     isVisible: () => !mapSection.hidden,
     onCountryClick: (code) => selectCountryByCode(code),
+    onEmptyTap: clearSelectionAndCard,
   });
 
   // --- 3D globe view (globe.gl, loaded via CDN) ---
@@ -1402,8 +1435,72 @@
     isVisible,
     enableCountryInteraction = true,
     onCountryClick = null,
+    onEmptyTap = null,
   }) {
     let globe = null;
+    // Touch never hovers (the highlight would stick after lifting a finger) and
+    // only selects on a real tap: a short press that barely moved.
+    let touchInput = false;
+    let tap = null;
+    let tapHandled = false;
+    container.addEventListener(
+      "pointerdown",
+      (evt) => {
+        touchInput = evt.pointerType === "touch";
+        container.classList.toggle("touch-input", touchInput);
+        if (touchInput) {
+          tap = { x: evt.clientX, y: evt.clientY, t: performance.now(), ok: !tap };
+          // The globe only knows what is under the pointer from pointermove,
+          // which a plain tap may never send, so give it one at the tap point.
+          const canvas = container.querySelector("canvas");
+          if (canvas) {
+            canvas.dispatchEvent(
+              new PointerEvent("pointermove", { clientX: evt.clientX, clientY: evt.clientY, pointerType: "touch", bubbles: true })
+            );
+          }
+          if (hoverFeature) {
+            hoverFeature = null;
+            refreshPolygonStyles();
+          }
+        }
+      },
+      true
+    );
+    container.addEventListener(
+      "pointermove",
+      (evt) => {
+        if (evt.pointerType === "mouse" || evt.pointerType === "pen") {
+          touchInput = false;
+          container.classList.remove("touch-input");
+        }
+        if (tap && Math.hypot(evt.clientX - tap.x, evt.clientY - tap.y) > TAP_SLOP_PX) tap.ok = false;
+      },
+      true
+    );
+    // A second finger (pinch) or a long press is not a tap.
+    container.addEventListener(
+      "pointerup",
+      (evt) => {
+        if (evt.pointerType !== "touch" || !tap) return;
+        const isTap = tap.ok && performance.now() - tap.t < TAP_MAX_MS;
+        tap = null;
+        tapHandled = false;
+        if (!isTap) {
+          touchInput = true;
+          suppressTouchClick = true;
+          return;
+        }
+        suppressTouchClick = false;
+        // The polygon click, if any, fires right after pointerup; if none did,
+        // the tap landed on empty ocean or space.
+        setTimeout(() => {
+          if (!tapHandled && onEmptyTap) onEmptyTap();
+          tapHandled = false;
+        }, 60);
+      },
+      true
+    );
+    let suppressTouchClick = false;
     let alpha2ToFeature = new Map();
     let hoverFeature = null;
     let targetFeature = null;
@@ -1474,6 +1571,10 @@
     }
 
     async function handlePolygonClick(feature) {
+      if (touchInput) {
+        if (suppressTouchClick) return;
+        tapHandled = true;
+      }
       if (!onCountryClick || !feature?.id) return;
       const numericToAlpha2 = await fetchNumericToAlpha2Map();
       const alpha2 = numericToAlpha2.get(feature.id);
@@ -1522,10 +1623,12 @@
         if (enableCountryInteraction) {
           globe
             .polygonLabel(({ id, properties }) => {
+              if (touchInput) return "";
               const code = id && numericToAlpha2.get(id);
               return (code && displayNameByCode.get(code)) || (properties && properties.name) || "";
             })
             .onPolygonHover((feat) => {
+              if (touchInput) feat = null;
               hoverFeature = feat?.properties?.neutral ? null : canon.get(feat) || feat;
               refreshPolygonStyles();
             })
@@ -1759,6 +1862,7 @@
     resetBtn: globeResetBtn,
     isVisible: () => !globeSection.hidden,
     onCountryClick: (code) => selectCountryByCode(code),
+    onEmptyTap: clearSelectionAndCard,
   });
 
   const quizGlobe = createGlobeController({

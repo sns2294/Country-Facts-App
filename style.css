@@ -1209,3 +1209,8 @@ main {
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
   mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
 }
+
+/* Touch never hovers: hide the globe's hover label while a finger is driving */
+.globe-container.touch-input .float-tooltip-kap {
+  display: none !important;
+}

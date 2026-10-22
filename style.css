@@ -1128,3 +1128,34 @@ main {
   pointer-events: none;
   transition: opacity 0.2s;
 }
+
+.quiz-suggestions {
+  position: fixed;
+  z-index: 1000;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+.quiz-suggestions[hidden] {
+  display: none;
+}
+
+.quiz-suggestions li {
+  padding: 0.2rem 0.6rem;
+  border-radius: 0.3rem;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.quiz-suggestions li:hover,
+.quiz-suggestions li.active {
+  background: rgba(47, 111, 237, 0.15);
+}

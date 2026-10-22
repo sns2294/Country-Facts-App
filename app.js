@@ -2559,6 +2559,145 @@
     quizGeoNextBtn.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
+  // Custom suggestion list for the quiz answer boxes. The native <datalist>
+  // popup can't be repositioned, so it got clipped at the bottom of the screen
+  // and re-laid itself out while the page scrolled (the flicker). This one
+  // opens below the box, scrolling the page so it fits without covering the globe.
+  function attachSuggestions(input, datalist) {
+    input.removeAttribute("list");
+    const listEl = document.createElement("ul");
+    listEl.className = "quiz-suggestions";
+    listEl.setAttribute("role", "listbox");
+    listEl.hidden = true;
+    document.body.appendChild(listEl);
+    let items = [];
+    let active = -1;
+    let renderedKey = null;
+
+    const setActive = (i) => {
+      if (items[active]) items[active].classList.remove("active");
+      active = i;
+      if (items[active]) {
+        items[active].classList.add("active");
+        items[active].scrollIntoView({ block: "nearest" });
+      }
+    };
+
+    const GAP = 4;
+    const MARGIN = 8;
+    const MAX_ROWS = 5;
+
+    function viewport() {
+      const vv = window.visualViewport;
+      return { top: vv ? vv.offsetTop : 0, bottom: (vv ? vv.offsetTop + vv.height : window.innerHeight), left: vv ? vv.offsetLeft : 0 };
+    }
+
+    function listHeight() {
+      const row = items[0] ? items[0].offsetHeight : 28;
+      return Math.min(listEl.scrollHeight, row * MAX_ROWS + 8);
+    }
+
+    // The list always opens below the box. Scroll the page just enough that
+    // the whole list fits under it, but never so far that the globe's top
+    // edge leaves the screen.
+    function ensureRoom() {
+      if (listEl.hidden) return;
+      const vp = viewport();
+      const r = input.getBoundingClientRect();
+      let need = r.bottom + GAP + listHeight() + MARGIN - vp.bottom;
+      if (need <= 0) return;
+      const globe = quizGeoGlobeContainer.getBoundingClientRect();
+      need = Math.min(need, Math.max(0, globe.top - vp.top));
+      if (need > 0) window.scrollBy({ top: need, behavior: "smooth" });
+    }
+
+    function position() {
+      if (listEl.hidden) return;
+      const vp = viewport();
+      const r = input.getBoundingClientRect();
+      const room = vp.bottom - r.bottom - GAP - MARGIN;
+      listEl.style.left = `${r.left + vp.left}px`;
+      listEl.style.width = `${r.width}px`;
+      listEl.style.top = `${r.bottom + GAP}px`;
+      listEl.style.maxHeight = `${Math.max(48, Math.min(listHeight(), room))}px`;
+    }
+
+    function close() {
+      listEl.hidden = true;
+      renderedKey = null;
+      active = -1;
+    }
+
+    function pick(value) {
+      input.value = value;
+      close();
+      input.dispatchEvent(new Event("change"));
+    }
+
+    function open() {
+      const q = input.value.trim().toLowerCase();
+      if (input.disabled || !q) return close();
+      const matches = Array.from(datalist.options)
+        .map((o) => o.value)
+        .filter((v) => v.toLowerCase().includes(q))
+        .sort((a, b) => Number(b.toLowerCase().startsWith(q)) - Number(a.toLowerCase().startsWith(q)));
+      const key = `${datalist.options.length}|${q}`;
+      if (!matches.length || (matches.length === 1 && matches[0].toLowerCase() === q)) return close();
+      if (key !== renderedKey) {
+        listEl.replaceChildren(
+          ...matches.map((v) => {
+            const li = document.createElement("li");
+            li.setAttribute("role", "option");
+            li.textContent = v;
+            li.addEventListener("mousedown", (e) => {
+              e.preventDefault();
+              pick(v);
+            });
+            return li;
+          })
+        );
+        items = Array.from(listEl.children);
+        active = -1;
+        renderedKey = key;
+        listEl.scrollTop = 0;
+      }
+      const wasHidden = listEl.hidden;
+      listEl.hidden = false;
+      position();
+      if (wasHidden) ensureRoom();
+      position();
+    }
+
+    input.addEventListener("input", open);
+    input.addEventListener("blur", close);
+    input.addEventListener("keydown", (e) => {
+      if (listEl.hidden) return;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActive(Math.min(items.length - 1, active + 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActive(Math.max(0, active - 1));
+      } else if (e.key === "Enter" && items[active]) {
+        e.preventDefault();
+        pick(items[active].textContent);
+      } else if (e.key === "Escape") {
+        close();
+      }
+    });
+    window.addEventListener("resize", position);
+    window.addEventListener("scroll", position, true);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", () => {
+        ensureRoom();
+        position();
+      });
+      window.visualViewport.addEventListener("scroll", position);
+    }
+  }
+  attachSuggestions(quizCountryGuessInput, quizCountryGuessList);
+  attachSuggestions(quizCapitalGuessInput, quizCapitalGuessList);
+
   quizCountryGuessInput.addEventListener("change", handleCountryGuess);
   quizCapitalGuessInput.addEventListener("change", handleCapitalGuess);
 

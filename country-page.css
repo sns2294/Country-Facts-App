@@ -1,0 +1,187 @@
+/* Layout for the static country pages (country/<name>/). Colours, the header,
+   the fact card and the footer come from style.css. */
+.app-header .site-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.country-page {
+  align-items: stretch;
+  max-width: 820px;
+  gap: 1.5rem;
+}
+
+.country-page .fact-card {
+  max-width: none;
+  margin-top: 0;
+}
+
+.country-page .fact-card h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 600;
+}
+
+.country-page .fact-card .intro {
+  margin: 0 0 1.5rem;
+  line-height: 1.55;
+}
+
+.country-page .stat-heading {
+  margin: 0 0 0.6rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.country-page .no-borders {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.country-page a.border-chip,
+.country-page span.border-chip {
+  display: inline-block;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.country-page a.border-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.crumbs {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.crumbs a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.crumbs a:hover {
+  text-decoration: underline;
+}
+
+.page-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px var(--shadow);
+  padding: 1.5rem 1.75rem;
+}
+
+.page-card h2 {
+  margin: 0 0 0.9rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.country-map {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+}
+
+.country-map .map-sea {
+  fill: var(--map-ocean);
+}
+
+.country-map .map-land {
+  fill: var(--map-fill);
+  stroke: var(--map-stroke);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.country-map .map-country {
+  fill: var(--map-highlight);
+  stroke: var(--map-stroke);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.country-map .inset-land {
+  fill: var(--map-fill);
+  stroke: var(--map-stroke);
+  stroke-width: 0.4;
+}
+
+.country-map .inset-country {
+  fill: var(--map-highlight);
+  stroke: var(--map-stroke);
+  stroke-width: 0.6px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.country-map .inset-ring {
+  fill: none;
+  stroke: var(--map-highlight);
+  stroke-width: 1.3px;
+  vector-effect: non-scaling-stroke;
+}
+
+.country-map .map-inset-frame {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 2;
+  rx: 3;
+}
+
+.cta-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.cta-links a {
+  display: inline-block;
+  text-decoration: none;
+  text-align: center;
+}
+
+.index-title {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.country-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.4rem 1rem;
+}
+
+.country-list a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.country-list a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 700px) {
+  .country-page {
+    padding: 1.25rem 1rem 3rem;
+  }
+
+  .page-card {
+    padding: 1.25rem;
+  }
+
+  .cta-links a {
+    flex: 1 1 100%;
+  }
+}

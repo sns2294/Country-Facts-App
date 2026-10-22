@@ -6,6 +6,9 @@
   --text-muted: #5b6270;
   --border: #dde1e6;
   --accent: #2f6fed;
+  --button-bg: #2a63d8;
+  --button-text: #ffffff;
+  --danger-bg: #c73e29;
   --shadow: rgba(20, 24, 33, 0.08);
   --map-ocean: #4d9bdc;
   --map-fill: #fbfcfd;
@@ -27,6 +30,7 @@
   --text-muted: #9aa2ad;
   --border: #2c3038;
   --accent: #6fa1ff;
+  --button-bg: #2f6fed;
   --shadow: rgba(0, 0, 0, 0.4);
   --map-ocean: #123a63;
   --map-fill: #9db4cb;
@@ -323,8 +327,8 @@ main {
 }
 
 .map-controls button:hover {
-  background: var(--accent);
-  color: #ffffff;
+  background: var(--button-bg);
+  color: var(--button-text);
 }
 
 .map-hint {
@@ -875,8 +879,8 @@ main {
   align-self: center;
   padding: 0.7rem 1.5rem;
   font-size: 0.95rem;
-  color: #ffffff;
-  background: var(--accent);
+  color: var(--button-text);
+  background: var(--button-bg);
   border: none;
   border-radius: 0.5rem;
   cursor: pointer;
@@ -905,8 +909,8 @@ main {
 .quiz-btn-danger {
   padding: 0.6rem 1.2rem;
   font-size: 0.9rem;
-  color: #ffffff;
-  background: #e0553f;
+  color: var(--button-text);
+  background: var(--danger-bg);
   border: none;
   border-radius: 0.5rem;
   cursor: pointer;

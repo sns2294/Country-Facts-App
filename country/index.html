@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>All Countries: Facts, Capitals &amp; Populations | Country Facts</title>
+  <meta name="description" content="Facts for 6 countries: capital, population, languages, religion and neighbours, each with a flag and map." />
+  <link rel="canonical" href="https://sns2294.github.io/Country-Facts-App/country/" />
+  <meta name="robots" content="noindex" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Country Facts" />
+  <meta property="og:title" content="All Countries: Facts, Capitals &amp; Populations | Country Facts" />
+  <meta property="og:description" content="Facts for 6 countries: capital, population, languages, religion and neighbours, each with a flag and map." />
+  <meta property="og:url" content="https://sns2294.github.io/Country-Facts-App/country/" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>" />
+  <script>try{var s=localStorage.getItem("countryFactsApp.darkMode");var d=s===null?matchMedia("(prefers-color-scheme: dark)").matches:s==="true";document.documentElement.classList.toggle("dark",d)}catch(e){}</script>
+  <link rel="stylesheet" href="../style.css?v=4d7a5557" />
+  <link rel="stylesheet" href="../country-page.css?v=9ceceaa7" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-text">
+      <a class="site-title" href="../">Country Facts</a>
+      <p class="app-subtitle">Explore countries, browse the map, and test what you know.</p>
+    </div>
+    <button id="dark-mode-toggle" type="button" aria-pressed="false" title="Toggle dark mode">
+      <span id="dark-mode-icon" aria-hidden="true">🌙</span>
+    </button>
+  </header>
+  <main class="country-page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="../">Country Facts</a> <span aria-hidden="true">›</span> <span>Countries</span></nav>
+    <h1 class="index-title">Countries of the world</h1>
+    <section class="page-card"><h2>Africa</h2><ul class="country-list"><li><a href="ivory-coast/">Ivory Coast</a></li></ul></section>
+    <section class="page-card"><h2>Asia</h2><ul class="country-list"><li><a href="japan/">Japan</a></li><li><a href="singapore/">Singapore</a></li></ul></section>
+    <section class="page-card"><h2>Europe</h2><ul class="country-list"><li><a href="germany/">Germany</a></li><li><a href="liechtenstein/">Liechtenstein</a></li><li><a href="switzerland/">Switzerland</a></li></ul></section>
+  </main>
+  <footer class="site-footer">
+    <p>Data last updated: October 14, 2026</p>
+    <p class="data-credits">
+      Data:
+      <a href="https://countries.dev" target="_blank" rel="noopener">countries.dev</a>
+      (<a href="https://www.geonames.org" target="_blank" rel="noopener">GeoNames</a>),
+      <a href="https://www.cia.gov/the-world-factbook/" target="_blank" rel="noopener">CIA World Factbook</a>,
+      <a href="https://data.worldbank.org" target="_blank" rel="noopener">World Bank</a>,
+      <a href="https://www.naturalearthdata.com" target="_blank" rel="noopener">Natural Earth</a>,
+      <a href="https://flagicons.lipis.dev" target="_blank" rel="noopener">flag-icons</a>.
+    </p>
+  </footer>
+  <script>(function(){var b=document.getElementById("dark-mode-toggle"),i=document.getElementById("dark-mode-icon"),r=document.documentElement;function sync(){var d=r.classList.contains("dark");b.setAttribute("aria-pressed",String(d));i.textContent=d?"\u2600\uFE0F":"\uD83C\uDF19"}sync();b.addEventListener("click",function(){var d=!r.classList.contains("dark");r.classList.toggle("dark",d);try{localStorage.setItem("countryFactsApp.darkMode",String(d))}catch(e){}sync()})})();</script>
+</body>
+</html>

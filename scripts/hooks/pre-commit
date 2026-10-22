@@ -7,7 +7,7 @@ ROOT=$(git rev-parse --show-toplevel)
 cd "$ROOT"
 
 # Nothing to do unless a file the stamp reads is part of this commit.
-git diff --cached --name-only | grep -qE '^(app\.js|index\.html|style\.css|shape-rules\.js|language-quiz\.js|world-map\.svg|data/(countries|meta|countries-50m|countries-50m-full)\.json)$' || exit 0
+git diff --cached --name-only | grep -qE '^(app\.js|index\.html|style\.css|shape-rules\.js|country-text\.js|language-quiz\.js|world-map\.svg|data/(countries|meta|countries-50m|countries-50m-full)\.json)$' || exit 0
 
 # The stamp rewrites app.js and index.html. If either has changes that aren't
 # staged, adding them here would sneak those changes into the commit, so stop.

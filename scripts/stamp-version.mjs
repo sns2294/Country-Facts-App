@@ -29,7 +29,7 @@ const DATA_FILES = [
   "data/countries-50m-full.json",
   "world-map.svg",
 ];
-const HTML_ASSETS = ["style.css", "shape-rules.js", "language-quiz.js", "app.js"];
+const HTML_ASSETS = ["style.css", "shape-rules.js", "country-text.js", "language-quiz.js", "app.js"];
 
 const dataVersion = hash(...DATA_FILES.map(read));
 

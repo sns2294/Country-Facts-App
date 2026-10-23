@@ -30,6 +30,7 @@ const SOURCES = {
   worldBankPopulation:
     "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL?format=json&mrnev=1&per_page=400",
   worldAtlas: "https://unpkg.com/world-atlas@2.0.2/countries-50m.json",
+  worldAtlas10m: "https://unpkg.com/world-atlas@2.0.2/countries-10m.json",
   factbook: "https://codeload.github.com/factbook/factbook.json/tar.gz/refs/heads/master",
   flagIcons: "https://registry.npmjs.org/flag-icons/-/flag-icons-7.2.3.tgz",
   wikidata: "https://query.wikidata.org/sparql",
@@ -62,6 +63,25 @@ const LANGUAGE_FIXES = {
 // lists French first. Whole-list replacements, keyed by alpha2 code.
 const LANGUAGE_LIST_OVERRIDES = {
   BF: ["Mooré", "Fula", "French"],
+};
+
+// Gaps neither countries.dev nor the Factbook fills. Keyed by alpha2 code; each
+// applies only where the main sources have nothing, so a later refresh that
+// fills the gap wins.
+//
+// The Factbook has no religion entry for St Kitts and Nevis. This is the 2011
+// census as given in the US State Department's International Religious Freedom
+// Report for 2018 (17% Anglican ... 9% no affiliation), in the Factbook's
+// "Group n%" format so it goes through the same grouping as every other country.
+// The report's "4% other" has no group and is left out.
+const RELIGION_TEXT_OVERRIDES = {
+  KN: "Anglican 17%, Methodist 16%, Pentecostal 11%, Church of God 7%, Roman Catholic 6%, Baptist 5%, Moravian Church 5%, Seventh-day Adventist 5%, Wesleyan Holiness Church 5%, Brethren Church 2%, evangelical Christian 2%, Hindu 2%, Jehovah's Witness 1%, Muslim 1%, Rastafarian 1%, Baha'i <1%, Presbyterian <1%, Salvation Army <1%, none 9%",
+};
+
+// Land area in km², where countries.dev has none. Palestine: World Bank
+// AG.LND.TOTL.K2 (West Bank and Gaza, 2024: 6,025 km²).
+const AREA_OVERRIDES = {
+  PS: 6025,
 };
 
 // countries.dev files a few remote islands under a continent they aren't on
@@ -401,6 +421,14 @@ async function main() {
     log(`Simplified world-atlas shapes: ${before} -> ${after} points`);
     fs.writeFileSync(path.join(STAGING_DIR, "countries-50m.json"), JSON.stringify(atlas));
 
+    // The 10m atlas is not loaded by the app: scripts/build-pages.mjs uses it for the
+    // close-up maps of small countries, which the 50m shapes draw as blocks.
+    log("Downloading world-atlas 10m shapes (for the country pages)…");
+    const atlas10m = await download(SOURCES.worldAtlas10m, { json: true });
+    if (!atlas10m?.objects?.countries) throw new Error("world-atlas 10m file has no countries object");
+    splitTopology(atlas10m);
+    fs.writeFileSync(path.join(STAGING_DIR, "countries-10m.json"), JSON.stringify(atlas10m));
+
     log("Downloading CIA World Factbook (factbook.json)…");
     await downloadAndExtract(SOURCES.factbook, path.join(tmp, "factbook"));
     const factbookRoot = path.join(tmp, "factbook", fs.readdirSync(path.join(tmp, "factbook"))[0]);
@@ -444,7 +472,7 @@ async function main() {
         }
       }
 
-      const religionText = profile?.["People and Society"]?.Religions?.text;
+      const religionText = profile?.["People and Society"]?.Religions?.text || RELIGION_TEXT_OVERRIDES[iso2];
       const religions = parseReligions(religionText);
       if (religionText) religionRows.push({ name: c.name, raw: religionText });
       if (religions.length) stats.religion++;
@@ -491,7 +519,7 @@ async function main() {
           : SUBREGION_RENAMES[c.subregion] || c.subregion || null,
         population,
         populationYear,
-        area: typeof c.area === "number" ? c.area : null,
+        area: typeof c.area === "number" ? c.area : AREA_OVERRIDES[iso2] ?? null,
         demonym: c.demonym || null,
         languages: (LANGUAGE_LIST_OVERRIDES[iso2] || (c.languages || []).map((l) => LANGUAGE_FIXES[iso2]?.[l.name] || l.name)).map((name) => ({ name })),
         currencies: (c.currencies || []).map((cur) => ({ code: cur.code, name: cur.name, symbol: cur.symbol })),
@@ -522,7 +550,7 @@ async function main() {
       updatedAt: new Date().toISOString(),
       sources: {
         countries: "countries.dev (GeoNames, CC BY 4.0)",
-        governmentAndReligion: "CIA World Factbook via factbook/factbook.json (CC0); government fallback: Wikidata (CC0)",
+        governmentAndReligion: "CIA World Factbook via factbook/factbook.json (CC0); government fallback: Wikidata (CC0); St Kitts and Nevis religion: 2011 census via US State Dept IRF report 2018",
         gdp: "World Bank, NY.GDP.MKTP.CD (CC BY 4.0)",
         population: "World Bank, SP.POP.TOTL (CC BY 4.0); countries.dev fallback where missing",
         shapes: "world-atlas 2.0.2 / Natural Earth (public domain)",

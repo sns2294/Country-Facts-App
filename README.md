@@ -22,6 +22,7 @@ Built as vanilla HTML, CSS, and JavaScript — no framework, no backend, and **n
 | Government fallback for gaps | [Wikidata](https://www.wikidata.org) | CC0 |
 | GDP (current US$, latest year) | [World Bank](https://data.worldbank.org/indicator/NY.GDP.MKTP.CD) `NY.GDP.MKTP.CD` | CC BY 4.0 |
 | Globe country shapes | [world-atlas](https://github.com/topojson/world-atlas) 2.0.2 (Natural Earth) | Public domain |
+| Close-up maps on the country pages | [world-atlas](https://github.com/topojson/world-atlas) 2.0.2, 10m resolution (`data/countries-10m.json`, used only by `scripts/build-pages.mjs`, not loaded by the app) | Public domain |
 | Flags | [flag-icons](https://github.com/lipis/flag-icons) 7.2.3 | MIT |
 | Flat map | `world-map.svg` (in this repo) | — |
 

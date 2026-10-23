@@ -114,10 +114,12 @@ function borderCountries(country) {
 // A small static map: the country in the highlight colour over its neighbours,
 // framed on its main landmass. Same shape data and shape rules as the globe.
 
-const topology = JSON.parse(read("data/countries-50m.json"));
+// Two levels of detail: the 50m shapes are enough for a big country's map; small
+// countries (Singapore, Malta, the Maldives...) are drawn from the 10m shapes, which
+// the 50m ones reduce to a few blocky points.
 const padId = (id) => String(id).padStart(3, "0");
 
-function loadShapes() {
+function loadShapes(topology) {
   const collection = topology.objects.countries;
   const geometries = collection.geometries;
   const features = topojson.feature(topology, collection).features;
@@ -142,7 +144,10 @@ function loadShapes() {
   });
   return shapes;
 }
-const shapes = loadShapes();
+const shapes = loadShapes(JSON.parse(read("data/countries-50m.json")));
+const shapes10m = loadShapes(JSON.parse(read("data/countries-10m.json")));
+// A country whose framed area spans less than this many degrees uses the 10m shapes.
+const DETAIL_BELOW_DEGREES = 12;
 
 function polygonsOf(geometry) {
   return geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
@@ -198,6 +203,7 @@ function ringBox(ring) {
   }
   return [x0, y0, x1, y1];
 }
+const mergeBox = (a, b) => [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])];
 const boxArea = ([x0, y0, x1, y1]) => (x1 - x0) * (y1 - y0);
 const intersects = (a, b) => a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
 
@@ -275,6 +281,17 @@ function simplify(points, eps) {
   return [...simplify(points.slice(0, index + 1), eps).slice(0, -1), ...simplify(points.slice(index), eps)];
 }
 
+// Thin a closed ring of points to a tolerance `eps`: split it at the point farthest
+// from the start and simplify the two halves, so the ring's seam isn't pinned.
+function simplifyRing(pts, eps) {
+  if (pts.length < 6) return pts;
+  let mid = 1;
+  pts.forEach((q, i) => {
+    if (Math.hypot(q[0] - pts[0][0], q[1] - pts[0][1]) > Math.hypot(pts[mid][0] - pts[0][0], pts[mid][1] - pts[0][1])) mid = i;
+  });
+  return [...simplify(pts.slice(0, mid + 1), eps).slice(0, -1), ...simplify(pts.slice(mid).concat([pts[0]]), eps).slice(0, -1)];
+}
+
 function worldPath(geometry, offset = 0, fine = false) {
   const parts = [];
   for (const poly of polygonsWithCopies(geometry)) {
@@ -313,7 +330,7 @@ function worldLandSvg() {
 // outline is drawn a second time one world to the right.
 const INSET_VIEWS = {
   Europe: [-25, 45, 34, 72],
-  Africa: [-20, 55, -37, 38],
+  Africa: [-20, 66, -37, 38], // east to 66 so Seychelles and Mauritius sit inside
   Asia: [20, 150, -12, 60],
   Americas: [-170, -30, -57, 75],
   Oceania: [105, 235, -50, 25],
@@ -395,7 +412,7 @@ ${full ? "" : `<rect class="map-inset-frame" x="${pos.x}" y="${pos.y}" width="${
 
 // Countries missing from the map data (too small for it): a hand-set position,
 // shown as a ring on a regional map in place of the close-up. Keyed by alpha2.
-const MANUAL_LOCATIONS = { TV: [178.7, -8.5] }; // Tuvalu
+const MANUAL_LOCATIONS = {}; // none needed while the 10m shapes cover every country
 
 // The regional map at full size with a ring on the country, for places a close-up
 // can't show: too small for the map data, or islands only a few pixels wide.
@@ -406,7 +423,17 @@ function locatorOnly(country, box, target = null) {
 }
 
 function buildMap(country) {
-  const target = shapes.get(padId(country.numericCode));
+  const key = padId(country.numericCode);
+  let set = shapes;
+  let target = shapes.get(key);
+  const fine = shapes10m.get(key);
+  if (fine) {
+    const [a, b, c, d] = frameBox(fine);
+    if (Math.max(c - a, d - b) < DETAIL_BELOW_DEGREES) {
+      set = shapes10m;
+      target = fine;
+    }
+  }
   if (!target) {
     const at = MANUAL_LOCATIONS[country.alpha2Code];
     return at ? locatorOnly(country, [at[0], at[1], at[0], at[1]]) : null;
@@ -427,7 +454,9 @@ function buildMap(country) {
     const [x0, y0, x1, y1] = ringBox(poly[0]);
     return Math.max(m, (x1 - x0) * kx * unit, (y1 - y0) * unit);
   }, 0);
-  if (biggest < 20) return locatorOnly(country, [fx0, fy0, fx1, fy1], target);
+  // The ring marks the whole country, not just the cluster the close-up would frame
+  // (Kiribati's Gilbert, Phoenix and Line islands are thousands of km apart).
+  if (biggest < 20) return locatorOnly(country, polygonsOf(target).map((p) => ringBox(p[0])).reduce(mergeBox), target);
   const px = (lon) => (lon * kx - view.x0) * unit;
   const py = (lat) => (view.y1 - lat) * unit;
   const lonLatView = [view.x0 / kx, view.y0, view.x1 / kx, view.y1];
@@ -449,12 +478,15 @@ function buildMap(country) {
         // Specks under about a pixel can't be seen; don't carry them.
         const [rx0, ry0, rx1, ry1] = ringBox(clipped);
         if (!collect && Math.max((rx1 - rx0) * kx * unit, (ry1 - ry0) * unit) < 1.5) continue;
+        // Points closer than half a pixel (a quarter for the highlighted country) are
+        // invisible; the 10m shapes carry many of them.
+        const pts = simplifyRing(clipped.map(([lon, lat]) => [px(lon), py(lat)]), collect ? 0.25 : 0.6);
         let d = "";
         let last = "";
-        clipped.forEach(([lon, lat], i) => {
-          const pt = `${num(px(lon))} ${num(py(lat))}`;
+        pts.forEach(([x, y], i) => {
+          const pt = `${num(x)} ${num(y)}`;
           if (pt === last) return;
-          if (collect) collect.push([px(lon), py(lat)]);
+          if (collect) collect.push([x, y]);
           d += `${i === 0 ? "M" : "L"}${pt}`;
           last = pt;
         });
@@ -466,7 +498,7 @@ function buildMap(country) {
 
   const targetKey = padId(country.numericCode);
   const others = [];
-  shapes.forEach((geometry, key) => {
+  set.forEach((geometry, key) => {
     if (key === targetKey) return;
     const d = pathFor(geometry);
     if (d) others.push(d);

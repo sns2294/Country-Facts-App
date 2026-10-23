@@ -4,7 +4,7 @@
 // into shapes of their own (named as in SHARED_NAMES below; shape-rules.js
 // links each name to its countries.json entry).
 //
-//   node scripts/split-territories.mjs   splits data/countries-50m*.json and world-map.svg in place and
+//   node scripts/split-territories.mjs   splits data/countries-*m*.json and world-map.svg in place and
 //                                        adds the parent notes to data/countries.json
 //
 // scripts/update-data.mjs calls splitTopology() on every fresh atlas download,
@@ -173,7 +173,7 @@ const HIT_TARGET_CODES = { Guadeloupe: "GP", Martinique: "MQ", Réunion: "RE", M
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-  for (const file of ["data/countries-50m.json", "data/countries-50m-full.json"]) {
+  for (const file of ["data/countries-50m.json", "data/countries-50m-full.json", "data/countries-10m.json"]) {
     const p = path.join(root, file);
     const topology = JSON.parse(fs.readFileSync(p, "utf8"));
     const added = splitTopology(topology);

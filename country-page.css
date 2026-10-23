@@ -109,6 +109,13 @@
   stroke-linejoin: round;
 }
 
+/* A dot of at least a set size for each island too small to read as one. */
+.country-map .map-dots circle {
+  fill: var(--map-highlight);
+  stroke: var(--map-stroke);
+  stroke-width: 1;
+}
+
 /* The ring round a country too small to see at the close-up's scale. */
 .country-map .map-ring-halo {
   fill: none;

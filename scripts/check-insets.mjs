@@ -14,6 +14,12 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MARGIN = 0.01; // of the view's narrower side, a little under the builder's own margin
 const WORLD = 360 * 4; // one world in the inset's units (K = 4)
 
+// Specks of these (pieces under 3 degrees across) may fall outside a regional view, as in the
+// builder's INSET_OUTLIERS_MAY_LEAVE; their main body must still fit. Russia stays on the world
+// view and is held to the full rule.
+const SPECK_UNITS = 3 * 4; // 3 degrees, in the inset's units (K = 4)
+const OUTLIERS_MAY_LEAVE = new Set(["norway", "south-africa", "united-states", "canada"]);
+
 const failures = [];
 const slugs = fs.readdirSync(path.join(ROOT, "country"), { withFileTypes: true }).filter((d) => d.isDirectory());
 for (const { name: slug } of slugs) {
@@ -42,6 +48,7 @@ for (const { name: slug } of slugs) {
   if (!pieces.length) failures.push(`${slug}: inset has no country shape`);
   for (const box of pieces) {
     if (inside(box)) continue;
+    if (OUTLIERS_MAY_LEAVE.has(slug) && Math.max(box[2] - box[0], box[3] - box[1]) < SPECK_UNITS) continue;
     const copies = [-WORLD, WORLD].map((sh) => [box[0] + sh, box[1], box[2] + sh, box[3]]);
     // Fully outside the view, with its date-line copy shown instead: fine.
     if (around) {

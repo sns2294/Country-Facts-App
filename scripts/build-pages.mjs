@@ -327,23 +327,62 @@ function worldLandSvg() {
 }
 
 // Crops, in degrees [west, east, south, north]. East can pass 180 (Oceania) because the
-// outline is drawn a second time one world to the right.
-const INSET_VIEWS = {
-  Europe: [-25, 45, 34, 72],
-  Africa: [-20, 66, -37, 38], // east to 66 so Seychelles and Mauritius sit inside
-  Asia: [20, 150, -12, 60],
-  Americas: [-170, -30, -57, 75],
-  Oceania: [105, 235, -50, 25],
-  World: [-180, 180, -58, 84],
-};
+// outline is drawn a second time one world to the right. Each crop is sized to take in
+// the far-flung parts of the countries in it (Spain's Canaries, Portugal's Azores, Chile's
+// Easter Island, New Zealand's sub-Antarctic islands). A view narrower than
+// INSET_MIN_ASPECT is widened so the inset box stays a sensible shape.
+const INSET_MIN_ASPECT = 1.2;
+const INSET_VIEWS = Object.fromEntries(
+  Object.entries({
+    Europe: [-34, 45, 25, 72],
+    Africa: [-31, 70, -37, 40], // Cape Verde in the west, Mauritius and Seychelles with their rings in the east
+    Asia: [20, 157, -16, 62],
+    "North America": [-170, -50, 1, 84], // with Central America (Costa Rica's Cocos Island) and the Caribbean
+    "South America": [-115, -27, -60, 16], // west to Easter Island
+    Oceania: [105, 235, -57, 25],
+    World: [-180, 180, -62, 88],
+  }).map(([name, [w, e, south, north]]) => {
+    const wide = INSET_MIN_ASPECT * (north - south);
+    const mid = (w + e) / 2;
+    return [name, e - w < wide ? [mid - wide / 2, mid + wide / 2, south, north] : [w, e, south, north]];
+  })
+);
+const INSET_MAX_HEIGHT = 175;
+const INSET_MARGIN = 0.015; // the country keeps this fraction of the view's size clear of every edge
+
+// The views to try for a country, nearest first; the world always fits.
+function insetCandidates(country) {
+  const regional = country.region === "Americas" ? (country.subregion === "South America" ? "South America" : "North America") : country.region;
+  return [...(INSET_VIEWS[regional] ? [regional] : []), "World"];
+}
+
+// Does every part of the country (and the ring, if there is one) sit inside `view` with a margin?
+// Pieces may sit a world to the left or right of where the data puts them (Fiji, Kiribati, Chukotka).
+function fitsView([w, e, south, north], boxes, ring) {
+  // Measured on the narrower side as the inset box is drawn, so the world view isn't given a huge margin.
+  const m = INSET_MARGIN * Math.min(e - w, INSET_MIN_ASPECT * 1.4 * (north - south));
+  // The world view wraps all the way round, so only latitude can leave it.
+  const around = e - w >= 360;
+  const inside = ([x0, y0, x1, y1]) =>
+    y0 >= south + m && y1 <= north - m && (around || [0, -360, 360].some((sh) => x0 + sh >= w + m && x1 + sh <= e - m));
+  return boxes.every(inside) && (!ring || inside(ring));
+}
 
 // Where the inset goes: the first corner whose rectangle holds no point of the
 // country (the close-up is 800 wide), shrinking the inset if every corner is taken.
+// The box has exactly the view's shape, so nothing is cropped.
 function placeInset(points, aspect, height) {
   const margin = 14;
   let best = null;
-  for (const width of [250, 210, 170]) {
-    const h = Math.min(Math.max(width / aspect, 90), 175);
+  for (const maxWidth of [250, 210, 170]) {
+    let width = maxWidth;
+    let h = width / aspect;
+    if (h > INSET_MAX_HEIGHT) {
+      h = INSET_MAX_HEIGHT;
+      width = h * aspect;
+    }
+    width = Math.round(width);
+    h = Math.round(h);
     const corners = [
       [800 - width - margin, height - h - margin],
       [800 - width - margin, margin],
@@ -359,67 +398,43 @@ function placeInset(points, aspect, height) {
   return best;
 }
 
-function insetMarkup(country, target, [fx0, fy0, fx1, fy1], points, mainHeight, full = false) {
-  const region = INSET_VIEWS[country.region] ? country.region : "World";
-  let name = region;
-  let [vw0, vw1, vs, vn] = INSET_VIEWS[name];
-  // The country's centre, shifted to the far side of the date line when the view wraps.
-  let cLon = (fx0 + fx1) / 2;
+function insetMarkup(country, target, [fx0, fy0, fx1, fy1], points, mainHeight) {
+  const boxes = polygonsOf(target).map((poly) => ringBox(poly[0]));
+  const cLon = (fx0 + fx1) / 2;
   const cLat = (fy0 + fy1) / 2;
   const span = Math.max(fx1 - fx0, fy1 - fy0);
-  const inView = () => {
-    let lon = cLon;
-    if (vw1 > 180 && lon < vw0) lon += 360;
-    return lon >= vw0 && lon <= vw1 && cLat >= vs && cLat <= vn && span < (vw1 - vw0) * 0.5;
+  // The real shape is always drawn. A country whose largest island is too small to see at
+  // this size also gets a thin open ring, so the eye can find it. Its size depends on the
+  // view (a degree is fewer pixels in a wider view), so it is worked out per view.
+  const biggestDeg = boxes.reduce((m, [x0, y0, x1, y1]) => Math.max(m, x1 - x0, y1 - y0), 0);
+  const ringFor = (view) => {
+    const viewW = view[1] - view[0];
+    const widthPx = Math.min(250, INSET_MAX_HEIGHT * (viewW / (view[3] - view[2])));
+    if ((biggestDeg * widthPx) / viewW >= 9) return null;
+    const r = Math.max(span / 2 + (5 * viewW) / widthPx, (7 * viewW) / widthPx);
+    return { r, box: [cLon - r, cLat - r, cLon + r, cLat + r] };
   };
-  if (!inView()) {
-    name = "World";
-    [vw0, vw1, vs, vn] = INSET_VIEWS.World;
-  }
-  const lon = vw1 > 180 && cLon < vw0 ? cLon + 360 : cLon;
+  const name = insetCandidates(country).find((n) => fitsView(INSET_VIEWS[n], boxes, ringFor(INSET_VIEWS[n])?.box));
+  if (!name) throw new Error(`${country.name}: no inset view holds the whole country`);
+  const [vw0, vw1, vs, vn] = INSET_VIEWS[name];
   const aspect = (vw1 - vw0) / (vn - vs);
-  const pos = full ? { x: 0, y: 0, width: 800, h: 800 / aspect } : placeInset(points, aspect, mainHeight);
+  const pos = placeInset(points, aspect, mainHeight);
   const vb = `${(vw0 + 180) * K} ${(90 - vn) * K} ${(vw1 - vw0) * K} ${(vn - vs) * K}`;
   const wrap = vw1 > 180;
-  const own = target ? worldPath(target, 0, true) : "";
-  const ownWrapped = target && wrap ? worldPath(target, 360 * K, true) : "";
-  const viewW = vw1 - vw0;
-  // The real shape is always drawn. Only a country too small to see at this size
-  // also gets a thin open ring, so the eye can find it.
-  const pxPerUnit = pos.width / (viewW * K);
-  // Judged by the largest island (a scatter of specks is "too small" even if it spans a lot of sea).
-  const biggestDeg = target
-    ? polygonsOf(target).reduce((m, poly) => {
-        const [x0, y0, x1, y1] = ringBox(poly[0]);
-        return Math.max(m, x1 - x0, y1 - y0);
-      }, 0)
-    : 0;
-  const shapePx = biggestDeg * K * pxPerUnit;
-  const groupPx = span * K * pxPerUnit;
-  const ring =
-    shapePx < 9
-      ? `<circle class="inset-ring" cx="${wx(lon)}" cy="${wy(cLat)}" r="${Math.round((Math.max(groupPx / 2 + 5, 7) / pxPerUnit) * 10) / 10}"/>`
-      : "";
+  const own = worldPath(target, 0, true);
+  const ownWrapped = wrap ? worldPath(target, 360 * K, true) : "";
+  const ringInfo = ringFor(INSET_VIEWS[name]);
+  // The ring's centre, on whichever side of the date line the view shows.
+  const lon = [0, 360, -360].map((sh) => cLon + sh).find((l) => l >= vw0 && l <= vw1) ?? cLon;
+  const ring = ringInfo ? `<circle class="inset-ring" cx="${wx(lon)}" cy="${wy(cLat)}" r="${Math.round(ringInfo.r * K * 10) / 10}"/>` : "";
   const land = `<use href="../world-land.svg#land" class="inset-land"/>${wrap ? `<use href="../world-land.svg#land" class="inset-land" x="${360 * K}"/>` : ""}`;
-  return `<svg class="map-inset" x="${pos.x}" y="${pos.y}" width="${pos.width}" height="${Math.round(pos.h)}" viewBox="${vb}" preserveAspectRatio="xMidYMid slice">
+  return `<svg class="map-inset" x="${pos.x}" y="${pos.y}" width="${pos.width}" height="${pos.h}" viewBox="${vb}" preserveAspectRatio="xMidYMid slice">
 <rect x="0" y="0" width="${720 * K}" height="${180 * K}" class="map-sea"/>
 ${land}
 <path class="inset-country" d="${own}${ownWrapped}"/>
 ${ring}
 </svg>
-${full ? "" : `<rect class="map-inset-frame" x="${pos.x}" y="${pos.y}" width="${pos.width}" height="${Math.round(pos.h)}"/>`}`;
-}
-
-// Countries missing from the map data (too small for it): a hand-set position,
-// shown as a ring on a regional map in place of the close-up. Keyed by alpha2.
-const MANUAL_LOCATIONS = {}; // none needed while the 10m shapes cover every country
-
-// The regional map at full size with a ring on the country, for places a close-up
-// can't show: too small for the map data, or islands only a few pixels wide.
-function locatorOnly(country, box, target = null) {
-  const inner = insetMarkup(country, target, box, [], 0, true);
-  const h = Math.round(inner.match(/height="(\d+)"/)[1]);
-  return `<svg class="country-map" viewBox="0 0 800 ${h}" role="img" aria-label="Map showing the location of ${esc(displayName(country))}" preserveAspectRatio="xMidYMid slice">\n${inner}\n</svg>`;
+<rect class="map-inset-frame" x="${pos.x}" y="${pos.y}" width="${pos.width}" height="${pos.h}"/>`;
 }
 
 function buildMap(country) {
@@ -429,15 +444,12 @@ function buildMap(country) {
   const fine = shapes10m.get(key);
   if (fine) {
     const [a, b, c, d] = frameBox(fine);
-    if (Math.max(c - a, d - b) < DETAIL_BELOW_DEGREES) {
+    if (!target || Math.max(c - a, d - b) < DETAIL_BELOW_DEGREES) {
       set = shapes10m;
       target = fine;
     }
   }
-  if (!target) {
-    const at = MANUAL_LOCATIONS[country.alpha2Code];
-    return at ? locatorOnly(country, [at[0], at[1], at[0], at[1]]) : null;
-  }
+  if (!target) return null;
   const [fx0, fy0, fx1, fy1] = frameBox(target);
   const midLat = (fy0 + fy1) / 2;
   const kx = Math.cos((midLat * Math.PI) / 180);
@@ -454,9 +466,9 @@ function buildMap(country) {
     const [x0, y0, x1, y1] = ringBox(poly[0]);
     return Math.max(m, (x1 - x0) * kx * unit, (y1 - y0) * unit);
   }, 0);
-  // The ring marks the whole country, not just the cluster the close-up would frame
-  // (Kiribati's Gilbert, Phoenix and Line islands are thousands of km apart).
-  if (biggest < 20) return locatorOnly(country, polygonsOf(target).map((p) => ringBox(p[0])).reduce(mergeBox), target);
+  // Too small to see at this scale (Vatican City, Monaco, the Maldives): the close-up
+  // still shows the surrounding area, with a ring round the country.
+  const tiny = biggest < 20;
   const px = (lon) => (lon * kx - view.x0) * unit;
   const py = (lat) => (view.y1 - lat) * unit;
   const lonLatView = [view.x0 / kx, view.y0, view.x1 / kx, view.y1];
@@ -506,11 +518,33 @@ function buildMap(country) {
   const points = [];
   const own = pathFor(target, points);
   const height = Math.round(800 / 1.6);
-  const inset = insetMarkup(country, target, [fx0, fy0, fx1, fy1], points, height);
+  let ring = "";
+  if (tiny) {
+    // An ellipse round the main cluster the close-up is framed on (a thin chain like the Maldives
+    // gets a thin ring): the cluster's own proportions, scaled up just enough to take in its
+    // corners, at least 18 units across and never more than most of the map. Islands scattered
+    // farther afield (Kiribati, Micronesia) stay outside it; the inset ring marks the whole country.
+    const [fxa, fxb, fya, fyb] = [px(fx0) - 2, px(fx1) + 2, py(fy1) - 2, py(fy0) + 2];
+    const cluster = points.filter(([x, y]) => x >= fxa && x <= fxb && y >= fya && y <= fyb);
+    const ringPts = cluster.length ? cluster : points;
+    const [bx0, by0, bx1, by1] = ringPts.reduce(([a, b, c, d], [x, y]) => [Math.min(a, x), Math.min(b, y), Math.max(c, x), Math.max(d, y)], [Infinity, Infinity, -Infinity, -Infinity]);
+    const [rcx, rcy] = [(bx0 + bx1) / 2, (by0 + by1) / 2];
+    const [hw, hh] = [Math.max((bx1 - bx0) / 2, 9), Math.max((by1 - by0) / 2, 9)];
+    const scale = Math.max(1, ...ringPts.map(([x, y]) => Math.hypot((x - rcx) / hw, (y - rcy) / hh)));
+    const rx = Math.min(hw * scale + 10, 300);
+    const ry = Math.min(hh * scale + 10, 190);
+    const at = (n) => Math.round(n * 10) / 10;
+    ring = `<ellipse class="map-ring-halo" cx="${at(rcx)}" cy="${at(rcy)}" rx="${at(rx)}" ry="${at(ry)}"/>\n<ellipse class="map-ring" cx="${at(rcx)}" cy="${at(rcy)}" rx="${at(rx)}" ry="${at(ry)}"/>`;
+    // Keep the corner inset off the ring.
+    for (let i = 0; i < 16; i++) points.push([rcx + rx * Math.cos((i * Math.PI) / 8), rcy + ry * Math.sin((i * Math.PI) / 8)]);
+  }
+  const fullBox = polygonsOf(target).map((poly) => ringBox(poly[0])).reduce(mergeBox);
+  const inset = insetMarkup(country, target, fullBox, points, height);
   return `<svg class="country-map" viewBox="0 0 800 ${height}" role="img" aria-label="Map showing the location of ${esc(displayName(country))}" preserveAspectRatio="xMidYMid slice">
 <rect width="800" height="${height}" class="map-sea"/>
 <path class="map-land" d="${others.join("")}"/>
 <path class="map-country" d="${own}"/>
+${ring}
 ${inset}
 </svg>`;
 }

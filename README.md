@@ -54,6 +54,9 @@ node scripts/serve.mjs
 
 then open http://localhost:8000. This server sends no-cache headers so edits always show up; `python3 -m http.server 8000` also works but lets browsers reuse old copies of `app.js` and the data files.
 
+### Country pages
+`node scripts/build-pages.mjs` writes `country/`, `sitemap.xml` and `robots.txt`; `--check` verifies they are up to date. `node scripts/check-insets.mjs` verifies that on every page the locator inset holds the whole country (or its ring) with a margin and is not cropped.
+
 ### Cache-busting
 `index.html` and `app.js` carry content-hash version strings (`app.js?v=…`, `DATA_VERSION`) so a deployed change loads immediately instead of waiting for browser caches to expire; unchanged files keep their URL and stay cached. After changing `style.css`, any script, `world-map.svg` or anything in `data/`, run this before committing:
 

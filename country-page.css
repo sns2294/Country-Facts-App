@@ -109,6 +109,19 @@
   stroke-linejoin: round;
 }
 
+/* The ring round a country too small to see at the close-up's scale. */
+.country-map .map-ring-halo {
+  fill: none;
+  stroke: var(--map-fill);
+  stroke-width: 7;
+}
+
+.country-map .map-ring {
+  fill: none;
+  stroke: var(--map-highlight);
+  stroke-width: 3.5;
+}
+
 .country-map .inset-land {
   fill: var(--map-fill);
   stroke: var(--map-stroke);

@@ -99,6 +99,7 @@
     formatReligions,
     formatRegion,
     includedInParent,
+    missingGdp,
     getPredominantReligion,
     buildOverview,
   } = window.CountryText;
@@ -324,7 +325,7 @@
           </div>
           <div class="stat">
             <dt>GDP</dt>
-            <dd>${gdp ? formatGdp(gdp) : includedInParent(country)}${gdp ? ` <span class="stat-note">(${gdp.year})</span>` : ""}</dd>
+            <dd>${gdp ? formatGdp(gdp) : missingGdp(country)}${gdp ? ` <span class="stat-note">(${gdp.year})</span>` : ""}</dd>
           </div>
         </dl>
         ${bordersMarkup}

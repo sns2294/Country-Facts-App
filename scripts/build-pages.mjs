@@ -667,7 +667,7 @@ function countryPage(country) {
     stat("Form of Government", esc(T.formatGovernment(country))),
     stat("Religion", T.formatReligions(country.religions, country)),
     stat("Currency", esc(T.formatCurrencies(T.getCurrencies(country)))),
-    stat("GDP", `${gdp ? T.formatGdp(gdp) : T.includedInParent(country)}${gdp ? ` <span class="stat-note">(${gdp.year})</span>` : ""}`),
+    stat("GDP", `${gdp ? T.formatGdp(gdp) : T.missingGdp(country)}${gdp ? ` <span class="stat-note">(${gdp.year})</span>` : ""}`),
   ].join("\n          ");
 
   const map = buildMap(country);

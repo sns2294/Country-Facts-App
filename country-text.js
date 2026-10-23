@@ -102,6 +102,12 @@
   }
 
   // For a territory whose figures are counted in its parent country's.
+  // No official GDP figure exists for these two, and the app doesn't show estimates.
+  const GDP_NOT_PUBLISHED = new Set(["KP", "VA"]); // North Korea, Vatican City
+  function missingGdp(country) {
+    return GDP_NOT_PUBLISHED.has(country.alpha2Code) ? "Not published" : includedInParent(country);
+  }
+
   function includedInParent(country) {
     return country.parent?.figures ? `Included in ${country.parent.figures} figures` : "N/A";
   }
@@ -199,6 +205,7 @@
     formatReligions,
     formatRegion,
     includedInParent,
+    missingGdp,
     getPredominantReligion,
     buildOverview,
   };

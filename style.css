@@ -103,6 +103,29 @@ body::before {
   color: var(--text-muted);
 }
 
+.browse-link,
+.fact-card .full-page-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.browse-link {
+  align-self: flex-start;
+  margin-top: 0.15rem;
+}
+
+.fact-card .full-page-link {
+  display: inline-block;
+  margin-top: 1rem;
+}
+
+.browse-link:hover,
+.fact-card .full-page-link:hover {
+  text-decoration: underline;
+}
+
 #dark-mode-toggle {
   border: 1px solid var(--border);
   background: var(--surface);

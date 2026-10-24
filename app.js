@@ -255,6 +255,17 @@
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  // Same slug the static country pages are built under (scripts/build-pages.mjs).
+  function pageSlug(country) {
+    return getBorderDisplayName(country.name)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
   function renderCountry(country, borderCountries) {
     const gdp = country.gdp;
     const flagUrl = country.flags?.svg || country.flags?.png || "";
@@ -330,6 +341,11 @@
         </dl>
         ${bordersMarkup}
         <p class="overview">${buildOverview(country)}</p>
+        ${
+          country.sovereign
+            ? `<a class="full-page-link" href="country/${pageSlug(country)}/">Full page for ${getBorderDisplayName(country.name)} &rarr;</a>`
+            : ""
+        }
       </div>
     `;
     factCard.hidden = false;

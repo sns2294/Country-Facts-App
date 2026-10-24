@@ -50,6 +50,23 @@
   text-decoration: none;
 }
 
+/* The "More in <subregion>" card sits outside .fact-card, so give its chips the same look. */
+.page-card .borders-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.page-card .border-chip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0.3rem 0.75rem;
+  margin: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.8rem;
+}
+
 .country-page a.border-chip:hover {
   border-color: var(--accent);
   color: var(--accent);

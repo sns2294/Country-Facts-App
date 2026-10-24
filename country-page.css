@@ -191,16 +191,54 @@
   font-size: 1.6rem;
 }
 
+.region-jumps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.region-jumps a {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.region-jumps a span {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.region-jumps a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.page-card[id] {
+  scroll-margin-top: 1rem;
+}
+
+/* Columns, so names run alphabetically down each one. */
 .country-list {
   margin: 0;
   padding: 0;
   list-style: none;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-  gap: 0.4rem 1rem;
+  column-width: 12rem;
+  column-gap: 1.5rem;
+}
+
+.country-list li {
+  break-inside: avoid;
+  padding: 0.2rem 0;
 }
 
 .country-list a {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   color: var(--accent);
   text-decoration: none;
 }
@@ -209,7 +247,21 @@
   text-decoration: underline;
 }
 
+.list-flag {
+  flex: none;
+  width: 20px;
+  height: 14px;
+  object-fit: cover;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--border);
+}
+
 @media (max-width: 700px) {
+  .country-list {
+    column-width: 9rem;
+    column-gap: 1rem;
+  }
+
   .country-page {
     padding: 1.25rem 1rem 3rem;
   }

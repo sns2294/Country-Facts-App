@@ -856,13 +856,20 @@ function countryPage(country) {
 
 function indexPage() {
   const regions = [...new Set(built.map((c) => c.region))].sort();
+  const regionId = (region) => `region-${slugify(region)}`;
+  const inRegion = (region) => built.filter((c) => c.region === region);
+  const jumps = `<nav class="region-jumps" aria-label="Jump to a continent">${regions
+    .map((region) => `<a href="#${regionId(region)}">${esc(region)} <span>${inRegion(region).length}</span></a>`)
+    .join("")}</nav>`;
   const sections = regions
     .map((region) => {
-      const items = built
-        .filter((c) => c.region === region)
-        .map((c) => `<li><a href="${slugOf.get(c.alpha3Code)}/">${esc(displayName(c))}</a></li>`)
+      const items = inRegion(region)
+        .map(
+          (c) =>
+            `<li><a href="${slugOf.get(c.alpha3Code)}/"><img class="list-flag" src="../${esc(c.flags.svg)}" alt="" width="20" height="14" loading="lazy" />${esc(displayName(c))}</a></li>`
+        )
         .join("");
-      return `<section class="page-card"><h2>${esc(region)}</h2><ul class="country-list">${items}</ul></section>`;
+      return `<section class="page-card" id="${regionId(region)}"><h2>${esc(region)}</h2><ul class="country-list">${items}</ul></section>`;
     })
     .join("\n    ");
   const canonical = `${BASE_URL}/country/`;
@@ -871,6 +878,7 @@ function indexPage() {
   const body = `  <main class="country-page">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="../">${SITE_NAME}</a> <span aria-hidden="true">›</span> <span>Countries</span></nav>
     <h1 class="index-title">Countries of the world</h1>
+    ${jumps}
     ${sections}
   </main>`;
   return shell({ depth: 1, title, description, canonical, body });

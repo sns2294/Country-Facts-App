@@ -474,6 +474,17 @@ const DOT_BELOW = 4;
 const DOT_RADIUS = 3;
 // A scattered country's main group: the islands within this many degrees of its largest island.
 const MAIN_GROUP_REACH = 6;
+// Where the capital is [lon, lat], for scattered archipelagos whose largest island isn't the
+// centre of the country (Kiribati's is Kiritimati, a long way from the capital Tarawa).
+const CAPITAL_AT = {
+  SYC: [55.45, -4.62], // Victoria
+  KIR: [173.03, 1.33], // Tarawa
+  FSM: [158.16, 6.92], // Palikir
+  MHL: [171.38, 7.09], // Majuro
+  TON: [-175.2, -21.14], // Nuku'alofa
+  TUV: [179.19, -8.52], // Funafuti
+  MDV: [73.51, 4.18], // Malé
+};
 
 const ringArea = (ring) => {
   let a = 0;
@@ -594,7 +605,13 @@ function buildMap(country) {
     // proportions, scaled up just enough to take in every island's corners, at least 18 units
     // across. A thin chain like the Maldives gets a thin ring.
     const polys = polygonsOf(target).map((poly) => ({ box: ringBox(poly[0]), area: ringArea(poly[0]) }));
-    const main = polys.reduce((a, b) => (b.area > a.area ? b : a));
+    // The group is the one round the capital where known, else round the largest island.
+    const capital = CAPITAL_AT[country.alpha3Code];
+    const gap = ({ box }) =>
+      Math.min(...[0, -360, 360].map((sh) => Math.hypot(Math.max(box[0], Math.min(capital[0] + sh, box[2])) - capital[0] - sh, Math.max(box[1], Math.min(capital[1], box[3])) - capital[1])));
+    const main = capital
+      ? polys.reduce((a, b) => (gap(b) < gap(a) ? b : a))
+      : polys.reduce((a, b) => (b.area > a.area ? b : a));
     const [mx, my] = [(main.box[0] + main.box[2]) / 2, (main.box[1] + main.box[3]) / 2];
     const group = polys.filter(({ box }) => Math.abs((box[0] + box[2]) / 2 - mx) <= MAIN_GROUP_REACH && Math.abs((box[1] + box[3]) / 2 - my) <= MAIN_GROUP_REACH);
     const corners = group.flatMap(({ box }) => [[px(box[0]), py(box[1])], [px(box[2]), py(box[1])], [px(box[0]), py(box[3])], [px(box[2]), py(box[3])]]);

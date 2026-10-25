@@ -323,6 +323,39 @@ main {
   opacity: 0.85;
 }
 
+/* Pulsing ring on a small selected country, like the globe's */
+.map-container circle.select-ring {
+  fill: none;
+  stroke: var(--map-highlight);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: map-select-pulse 1.4s ease-out infinite;
+}
+
+@keyframes map-select-pulse {
+  from {
+    transform: scale(0.2);
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-container circle.select-ring {
+    animation: none;
+    opacity: 0.8;
+  }
+}
+
 .map-controls {
   position: absolute;
   top: 0.75rem;

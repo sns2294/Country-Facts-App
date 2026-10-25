@@ -18,6 +18,67 @@
     ZW: [{ code: "ZWG", name: "Zimbabwe Gold", symbol: "ZiG" }],
   };
 
+  // Land borders that exist only through a territory are shown as the
+  // territory with its parent in brackets ("French Guiana (France)"), not as
+  // the parent. countries.dev lists some of these as the parent alone (Cyprus's
+  // border is with the UK's Akrotiri and Dhekelia base) and has no entry for
+  // the territory, so those are named here, keyed "<country>:<listed neighbour>".
+  const BORDER_CHIP_OVERRIDES = {
+    "CYP:GBR": "Akrotiri and Dhekelia (UK)",
+    "ESP:GIB": "Gibraltar (UK)",
+  };
+  // Neighbours of a country's territories that the data doesn't record
+  // (Gibraltar and the bases have no parent link), shown "<neighbour> via <territory>".
+  const BORDER_VIA_EXTRAS = {
+    GBR: [
+      { code: "ESP", via: "Gibraltar" },
+      { code: "CYP", via: "Akrotiri and Dhekelia" },
+    ],
+  };
+
+  // Bordering countries as chips: [{ code, name, via? }]. A territory's land
+  // neighbours count for its parent too, marked "via <territory>" (France
+  // borders Brazil and Suriname via French Guiana). A neighbour that is itself a
+  // territory is shown as the territory, parent in brackets, and its parent's
+  // own chip is dropped (Brazil lists French Guiana (France), not France).
+  function getBorderChips(country, countries) {
+    const byCode = new Map(countries.map((c) => [c.alpha3Code, c]));
+    const territoryChip = (t) => {
+      const parent = byCode.get(t.parent.of);
+      return { code: t.alpha3Code, name: `${getBorderDisplayName(t.name)} (${getBorderDisplayName(parent?.name || t.parent.of)})` };
+    };
+    const chips = [];
+    const listed = new Set([country.alpha3Code]);
+    const add = (chip) => {
+      if (listed.has(chip.code)) return;
+      listed.add(chip.code);
+      chips.push(chip);
+    };
+    (country.borders || []).forEach((code) => {
+      const c = byCode.get(code);
+      if (!c) return;
+      const override = BORDER_CHIP_OVERRIDES[`${country.alpha3Code}:${code}`];
+      add(override ? { code, name: override } : c.parent ? territoryChip(c) : { code, name: getBorderDisplayName(c.name) });
+    });
+    countries
+      .filter((t) => t.parent?.of === country.alpha3Code)
+      .forEach((territory) => {
+        const via = territory.name.replace(/\s*\(.*\)/, "");
+        (territory.borders || []).forEach((code) => {
+          const n = byCode.get(code);
+          if (!n) return;
+          add(n.parent ? territoryChip(n) : { code, name: getBorderDisplayName(n.name), via });
+        });
+      });
+    (BORDER_VIA_EXTRAS[country.alpha3Code] || []).forEach(({ code, via }) => {
+      const n = byCode.get(code);
+      if (n) add({ code, name: getBorderDisplayName(n.name), via });
+    });
+    // A parent whose territory is already listed is the same border.
+    const parentsListed = new Set(chips.map((chip) => byCode.get(chip.code)?.parent?.of).filter(Boolean));
+    return chips.filter((chip) => !parentsListed.has(chip.code));
+  }
+
   function getCurrencies(country) {
     return CURRENCY_OVERRIDES[country.alpha2Code] || country.currencies;
   }
@@ -196,6 +257,7 @@
 
   const api = {
     getBorderDisplayName,
+    getBorderChips,
     getCurrencies,
     formatPopulation,
     formatArea,

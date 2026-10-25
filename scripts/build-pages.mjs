@@ -86,29 +86,8 @@ if (unknownOnly.length) throw new Error(`Unknown slug(s) in --only: ${unknownOnl
 const built = sovereign.filter((c) => !SPEC_ONLY.length || SPEC_ONLY.includes(slugOf.get(c.alpha3Code)));
 const hasPage = new Set(built.map((c) => c.alpha3Code));
 
-// Land neighbours, as the app's fact card lists them: a territory's neighbours
-// count for its parent too ("via <territory>"); a territory neighbour counts as
-// its parent.
-function borderCountries(country) {
-  const chips = (country.borders || [])
-    .map((code) => byAlpha3.get(code))
-    .filter(Boolean)
-    .map((c) => ({ code: c.alpha3Code, name: displayName(c) }));
-  const listed = new Set([country.alpha3Code, ...chips.map((c) => c.code)]);
-  allCountries
-    .filter((t) => t.parent?.of === country.alpha3Code)
-    .forEach((territory) => {
-      (territory.borders || []).forEach((code) => {
-        const neighbour = byAlpha3.get(code);
-        if (!neighbour) return;
-        const target = (neighbour.parent && byAlpha3.get(neighbour.parent.of)) || neighbour;
-        if (listed.has(target.alpha3Code)) return;
-        listed.add(target.alpha3Code);
-        chips.push({ code: target.alpha3Code, name: displayName(target), via: territory.name.replace(/\s*\(.*\)/, "") });
-      });
-    });
-  return chips;
-}
+// Land neighbours, as the app's fact card lists them (country-text.js).
+const borderCountries = (country) => T.getBorderChips(country, allCountries);
 
 // ---------- map ----------
 // A small static map: the country in the highlight colour over its neighbours,

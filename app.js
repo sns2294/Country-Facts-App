@@ -76,6 +76,11 @@
   const MIN_VIEW_WIDTH = 4;
   const MAX_VIEW_WIDTH = NATIVE_VIEW_BOX.w;
   const MIN_HIT_TARGET_PX = 9;
+  // The selected country gets a pulsing ring (like the globe's) while it spans
+  // fewer than this many screen pixels, and loses it once zoomed in past that.
+  const SELECT_RING_MAX_COUNTRY_PX = 32;
+  const SELECT_RING_RADIUS_PX = 22; // the ring's widest point, from the country's centre
+  const SELECT_RING_CONTROLS_PX = 64; // keep the ring this far from the right edge, clear of the zoom buttons
   const MAX_HIT_RADIUS_DEG = 1.0;
   const WHEEL_ZOOM_FACTOR = 1.15;
   const BUTTON_ZOOM_FACTOR = 1.4;
@@ -90,6 +95,7 @@
 
   const {
     getBorderDisplayName,
+    getBorderChips,
     getCurrencies,
     formatPopulation,
     formatArea,
@@ -191,31 +197,10 @@
     return byCode.get(String(code).toUpperCase()) || null;
   }
 
-  // Bordering countries as chips. A territory's land neighbours count for its
-  // parent too, marked "via <territory>" (France borders Brazil and Suriname
-  // via French Guiana). A neighbour that is itself a territory counts as its
-  // parent (Saint Martin's border with Sint Maarten is France's border with the
-  // Netherlands).
+  // Bordering countries as chips (see CountryText.getBorderChips).
   async function getBorderCountries(country) {
-    const { countries, byCode } = await loadCountryData();
-    const chips = (country.borders || [])
-      .map((code) => byCode.get(code))
-      .filter(Boolean)
-      .map((c) => ({ code: c.alpha3Code, name: c.name }));
-    const listed = new Set([country.alpha3Code, ...chips.map((c) => c.code)]);
-    countries
-      .filter((t) => t.parent?.of === country.alpha3Code)
-      .forEach((territory) => {
-        (territory.borders || []).forEach((code) => {
-          const neighbour = byCode.get(code);
-          if (!neighbour) return;
-          const target = (neighbour.parent && byCode.get(neighbour.parent.of)) || neighbour;
-          if (listed.has(target.alpha3Code)) return;
-          listed.add(target.alpha3Code);
-          chips.push({ code: target.alpha3Code, name: target.name, via: territory.name.replace(/\s*\(.*\)/, "") });
-        });
-      });
-    return chips;
+    const { countries } = await loadCountryData();
+    return getBorderChips(country, countries);
   }
 
   async function showDataDate() {
@@ -277,9 +262,7 @@
           <div class="borders-list">${borderCountries
             .map(
               (b) =>
-                `<button type="button" class="border-chip" data-code="${b.code}">${getBorderDisplayName(
-                  b.name
-                )}${b.via ? ` <span class="chip-via">via ${b.via}</span>` : ""}</button>`
+                `<button type="button" class="border-chip" data-code="${b.code}">${b.name}${b.via ? ` <span class="chip-via">via ${b.via}</span>` : ""}</button>`
             )
             .join("")}</div>
         </div>
@@ -683,6 +666,7 @@
     let currentViewBox = { ...NATIVE_VIEW_BOX };
     let suppressNextClick = false;
     let selectedCode = null;
+    let selectRing = null; // pulsing ring on the selected country, if it is small
 
     function showTooltip(name) {
       if (!tooltipEl || !name) return;
@@ -775,6 +759,58 @@
       svg.querySelectorAll("circle.hit-target").forEach((circle) => {
         circle.setAttribute("r", radius);
       });
+      if (selectRing) {
+        selectRing.setAttribute("r", SELECT_RING_RADIUS_PX / scale);
+        selectRing.style.display = Number(selectRing.dataset.span) * scale < SELECT_RING_MAX_COUNTRY_PX ? "" : "none";
+      }
+    }
+
+    // Centre and size (map units) of the selected country: its shape's bounding
+    // box, measured with findEnclosingArc so Fiji doesn't span the whole map.
+    function selectionBounds(path, circles) {
+      if (path) {
+        const points = parsePathRings(path.getAttribute("d")).flat();
+        if (points.length) {
+          const ys = points.map((pt) => pt[1]);
+          const arc = findEnclosingArc(points.map((pt) => pt[0]));
+          const mid = arc.start + arc.span / 2;
+          const minY = Math.min(...ys);
+          const maxY = Math.max(...ys);
+          return { cx: mid > 180 ? mid - 360 : mid, cy: (minY + maxY) / 2, span: Math.max(arc.span, maxY - minY) };
+        }
+      }
+      if (!circles.length) return null;
+      return { cx: Number(circles[0].getAttribute("cx")), cy: Number(circles[0].getAttribute("cy")), span: 0 };
+    }
+
+    // Pans, just far enough, so a small country's whole ring is on screen and
+    // clear of the zoom buttons (Fiji, Tonga... sit on the map's right edge).
+    function revealSelectRing() {
+      if (!selectRing || selectRing.style.display === "none") return;
+      const scale = container.getBoundingClientRect().width / currentViewBox.w;
+      if (!scale) return;
+      const cx = Number(selectRing.getAttribute("cx"));
+      const r = Number(selectRing.getAttribute("r"));
+      const controlsPad = SELECT_RING_CONTROLS_PX / scale;
+      const v = currentViewBox;
+      let x = v.x;
+      if (cx + r > v.x + v.w - controlsPad) x = cx + r + controlsPad - v.w;
+      else if (cx - r < v.x) x = cx - r;
+      if (x !== v.x) applyViewBox(x, v.y, v.w, { clampMargin: r + controlsPad });
+    }
+
+    function setSelectRing(path, circles) {
+      if (selectRing) selectRing.remove();
+      selectRing = null;
+      const bounds = selectionBounds(path, circles);
+      if (!bounds) return;
+      selectRing = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      selectRing.setAttribute("class", "select-ring");
+      selectRing.setAttribute("cx", bounds.cx);
+      selectRing.setAttribute("cy", bounds.cy);
+      selectRing.dataset.span = bounds.span;
+      svg.appendChild(selectRing);
+      updateHitTargetSizes();
     }
 
     function attachZoomPanHandlers() {
@@ -981,12 +1017,16 @@
       selectedCode = code;
       if (!svg) return;
       svg.querySelectorAll(".selected").forEach((el) => el.classList.remove("selected"));
+      if (selectRing) selectRing.remove();
+      selectRing = null;
       if (!code) return;
       const path = svg.querySelector(`path.country[id="${code}"]`);
       const circles = svg.querySelectorAll(`circle.hit-target[data-code="${code}"]`);
       if (path) path.classList.add("selected");
       circles.forEach((circle) => circle.classList.add("selected"));
+      setSelectRing(path, circles);
       if (!recenter) return;
+      revealSelectRing();
 
       let cx;
       let cy;

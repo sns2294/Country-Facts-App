@@ -1183,6 +1183,53 @@
     return [1, 2, 3].map((i) => parseInt(m[i], 16)).join(",");
   }
 
+  // The simplified atlas draws long straight borders (the 49th parallel is one
+  // 27.6-degree segment) with no points between their ends. globe.gl bends such
+  // a segment along a great circle for the border line and tessellates the fill
+  // on its own, so the two disagree and the line sinks under the fill part-way
+  // along. Splitting long segments into short ones, evenly in longitude and
+  // latitude as the flat map draws them, leaves nothing to disagree about.
+  const GLOBE_MAX_SEGMENT_DEGREES = 1;
+
+  function densifyRing(ring) {
+    const out = [ring[0]];
+    for (let i = 1; i < ring.length; i++) {
+      const [lng0, lat0] = ring[i - 1];
+      const [lng1, lat1] = ring[i];
+      const span = Math.max(Math.abs(lng1 - lng0), Math.abs(lat1 - lat0));
+      // Leave alone the map's edge lines (Antarctica's pole line, an antimeridian wrap).
+      const onEdge = Math.abs(lng1 - lng0) > 180 || (Math.abs(lat0) > 89.9 && Math.abs(lat1) > 89.9);
+      const pieces = onEdge ? 1 : Math.ceil(span / GLOBE_MAX_SEGMENT_DEGREES);
+      for (let k = 1; k < pieces; k++) {
+        const t = k / pieces;
+        out.push([lng0 + (lng1 - lng0) * t, lat0 + (lat1 - lat0) * t]);
+      }
+      out.push(ring[i]);
+    }
+    return out;
+  }
+
+  // The extra points are for drawing only. `landGeometry` keeps the outline as
+  // the atlas has it, which is what framing measures (ring sizes, centres, boxes).
+  function densifyFeature(feature) {
+    const geometry = feature.geometry;
+    if (geometry?.type === "Polygon") {
+      return { ...feature, geometry: { ...geometry, coordinates: geometry.coordinates.map(densifyRing) }, landGeometry: geometry };
+    }
+    if (geometry?.type === "MultiPolygon") {
+      return {
+        ...feature,
+        geometry: { ...geometry, coordinates: geometry.coordinates.map((polygon) => polygon.map(densifyRing)) },
+        landGeometry: geometry,
+      };
+    }
+    return feature;
+  }
+
+  function landOutline(feature) {
+    return feature?.landGeometry || feature?.geometry;
+  }
+
   // Applies window.SHAPE_RULES (see shape-rules.js) to the globe's shapes.
   function applyGlobeShapeRules(topology, numericToAlpha2) {
     const alpha2ToNumeric = new Map([...numericToAlpha2].map(([numeric, alpha2]) => [alpha2, numeric]));
@@ -1220,7 +1267,7 @@
       features[indices[0]] = { ...features[indices[0]], geometry: merged };
       indices.slice(1).forEach((i) => mergedAway.add(i));
     });
-    return features.filter((_, i) => !mergedAway.has(i));
+    return features.filter((_, i) => !mergedAway.has(i)).map(densifyFeature);
   }
 
   // Kicks off the library and the map data together so they download in parallel.
@@ -1291,7 +1338,7 @@
     let minLat = Infinity;
     let maxLat = -Infinity;
     features.forEach((feature) => {
-      const geom = feature?.geometry;
+      const geom = landOutline(feature);
       if (!geom) return;
       const rings =
         geom.type === "Polygon" ? geom.coordinates : geom.type === "MultiPolygon" ? geom.coordinates.flat() : [];
@@ -1363,7 +1410,7 @@
   function altitudeToShowLand(box, landmarkFeatures, aspect, minLandmasses) {
     const needed = [];
     landmarkFeatures.forEach((feature) => {
-      const geom = feature?.geometry;
+      const geom = landOutline(feature);
       const rings = !geom ? [] : geom.type === "Polygon" ? geom.coordinates : geom.type === "MultiPolygon" ? geom.coordinates.flat() : [];
       rings.forEach((ring) => {
         if (ring.length < LANDMARK_MIN_RING_POINTS) return;
@@ -1424,7 +1471,7 @@
   // Bounding boxes of a country's separate landmasses (outer rings of its
   // polygons), biggest first.
   function landmassBoxes(feature) {
-    const geom = feature?.geometry;
+    const geom = landOutline(feature);
     const polygons = !geom ? [] : geom.type === "Polygon" ? [geom.coordinates] : geom.type === "MultiPolygon" ? geom.coordinates : [];
     return polygons
       .map(([outer]) => getFeatureSetBBox([{ geometry: { type: "Polygon", coordinates: [outer] } }]))

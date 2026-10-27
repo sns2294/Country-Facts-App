@@ -82,6 +82,16 @@
   const SELECT_RING_RADIUS_PX = 22; // the ring's widest point, from the country's centre
   const SELECT_RING_CONTROLS_PX = 64; // keep the ring this far from the right edge, clear of the zoom buttons
   const MAX_HIT_RADIUS_DEG = 1.0;
+  // A country whose shape is under TINY_SHAPE_PX on screen (Vatican City is a
+  // single point) draws nothing worth aiming at, so it gets a small visible dot
+  // and is picked by proximity: the nearest tiny country within
+  // TINY_PICK_RADIUS_PX wins. At world view that radius is capped in degrees too
+  // (TINY_PICK_MAX_DEG), or one dot would swallow the countries around it.
+  const TINY_SHAPE_PX = 5;
+  const TINY_SHAPE_MAX_DEG = 1.5; // however small the screen, a bigger country keeps its own shape
+  const TINY_DOT_RADIUS_PX = 3.5;
+  const TINY_PICK_RADIUS_PX = 9;
+  const TINY_PICK_MAX_DEG = 3;
   const WHEEL_ZOOM_FACTOR = 1.15;
   const BUTTON_ZOOM_FACTOR = 1.4;
   const DRAG_THRESHOLD_PX = 3;
@@ -667,6 +677,9 @@
     let suppressNextClick = false;
     let selectedCode = null;
     let selectRing = null; // pulsing ring on the selected country, if it is small
+    let tinyTargets = []; // the dots currently picked by proximity, in screen px
+    let activeTiny = null;
+    const shapeSizeDeg = new Map(); // hit circle -> its country's shape size, degrees
 
     function showTooltip(name) {
       if (!tooltipEl || !name) return;
@@ -759,10 +772,124 @@
       svg.querySelectorAll("circle.hit-target").forEach((circle) => {
         circle.setAttribute("r", radius);
       });
+      if (enableCountryInteraction) updateTinyTargets();
       if (selectRing) {
         selectRing.setAttribute("r", SELECT_RING_RADIUS_PX / scale);
         selectRing.style.display = Number(selectRing.dataset.span) * scale < SELECT_RING_MAX_COUNTRY_PX ? "" : "none";
       }
+    }
+
+    // How big a hit circle's country is drawn (degrees; Infinity if it wraps the map).
+    function circleShapeDeg(circle) {
+      if (!shapeSizeDeg.size) {
+        const pathsByName = new Map();
+        svg.querySelectorAll("path.country").forEach((path) => pathsByName.set(path.dataset.name, path));
+        svg.querySelectorAll("circle.hit-target").forEach((c) => {
+          const path = pathsByName.get(c.dataset.name);
+          const box = path && path.getBBox();
+          shapeSizeDeg.set(c, !box ? 0 : box.width > 180 ? Infinity : Math.max(box.width, box.height));
+        });
+      }
+      return shapeSizeDeg.get(circle) ?? Infinity;
+    }
+
+    // Finds the countries too small to see at this zoom, shows each as a dot
+    // (sized in pixels, shrunk where dots crowd) and records where to pick them.
+    function updateTinyTargets() {
+      const ctm = svg.getScreenCTM();
+      if (!ctm || !ctm.a) return;
+      const tiny = [];
+      svg.querySelectorAll("circle.hit-target").forEach((circle) => {
+        const sizeDeg = circleShapeDeg(circle);
+        const isTiny = sizeDeg < TINY_SHAPE_MAX_DEG && sizeDeg * ctm.a < TINY_SHAPE_PX;
+        circle.classList.toggle("tiny", isTiny);
+        if (!isTiny) return;
+        tiny.push({
+          circle,
+          code: circle.dataset.code,
+          name: circle.dataset.name,
+          x: ctm.a * Number(circle.getAttribute("cx")) + ctm.e,
+          y: ctm.d * Number(circle.getAttribute("cy")) + ctm.f,
+        });
+      });
+      tiny.forEach((t) => {
+        let nearest = Infinity;
+        tiny.forEach((o) => {
+          if (o !== t) nearest = Math.min(nearest, Math.hypot(o.x - t.x, o.y - t.y));
+        });
+        // The dot never outgrows the pick radius, which is what the dot promises.
+        const capPx = TINY_PICK_MAX_DEG * ctm.a;
+        const dotPx = Math.max(1.5, Math.min(TINY_DOT_RADIUS_PX, nearest * 0.45, capPx - 1));
+        t.circle.setAttribute("r", dotPx / ctm.a);
+        t.pickPx = Math.max(dotPx + 1, Math.min(TINY_PICK_RADIUS_PX, capPx));
+      });
+      tinyTargets = tiny;
+      if (activeTiny) setActiveTiny(tiny.find((t) => t.circle === activeTiny.circle) || null);
+    }
+
+    function nearestTiny(clientX, clientY) {
+      let best = null;
+      let bestDist = Infinity;
+      tinyTargets.forEach((t) => {
+        const dist = Math.hypot(t.x - clientX, t.y - clientY);
+        if (dist <= t.pickPx && dist < bestDist) {
+          best = t;
+          bestDist = dist;
+        }
+      });
+      return best;
+    }
+
+    // Dots can overlap at world view (Vatican City and San Marino are 2° apart);
+    // the one being hovered or selected is drawn last, so it shows.
+    function raiseCircle(circle) {
+      circle.parentNode.appendChild(circle);
+    }
+
+    // Hover feedback for the tiny country nearest the pointer (or none).
+    function setActiveTiny(target, evt = null) {
+      if (target !== activeTiny) {
+        if (activeTiny) activeTiny.circle.classList.remove("active");
+        activeTiny = target;
+        if (target) {
+          target.circle.classList.add("active");
+          raiseCircle(target.circle);
+        }
+        svg.classList.toggle("snapping", Boolean(target));
+      }
+      if (target) {
+        showTooltip(displayNameByCode.get(target.code) || target.name);
+        if (evt) positionTooltip(evt);
+      } else if (evt) {
+        // Back to whatever country is under the pointer.
+        const path = evt.target.closest?.("path.country:not(.no-code)");
+        if (path) showTooltip(displayNameByCode.get(path.id) || path.dataset.name);
+        else hideTooltip();
+      }
+    }
+
+    function attachTinyTargetHandlers() {
+      container.addEventListener("mousemove", (evt) => {
+        if (recentTouch() || container.classList.contains("dragging")) return;
+        setActiveTiny(nearestTiny(evt.clientX, evt.clientY), evt);
+      });
+      container.addEventListener("mouseleave", () => {
+        setActiveTiny(null);
+        hideTooltip();
+      });
+      // Capture, so a dot beats the country drawn under it; a tap is a click too.
+      container.addEventListener(
+        "click",
+        (evt) => {
+          if (suppressNextClick || evt.defaultPrevented || evt.target.closest(".map-controls, button")) return;
+          const target = nearestTiny(evt.clientX, evt.clientY);
+          if (!target) return;
+          evt.stopPropagation();
+          evt.preventDefault();
+          onCountryClick(target.code);
+        },
+        true
+      );
     }
 
     // Centre and size (map units) of the selected country: its shape's bounding
@@ -1023,7 +1150,10 @@
       const path = svg.querySelector(`path.country[id="${code}"]`);
       const circles = svg.querySelectorAll(`circle.hit-target[data-code="${code}"]`);
       if (path) path.classList.add("selected");
-      circles.forEach((circle) => circle.classList.add("selected"));
+      circles.forEach((circle) => {
+        circle.classList.add("selected");
+        raiseCircle(circle);
+      });
       setSelectRing(path, circles);
       if (!recenter) return;
       revealSelectRing();
@@ -1060,6 +1190,7 @@
         svg = container.querySelector("svg");
         applyFlatMapShapeRules(svg);
         if (enableCountryInteraction) attachMapHandlers();
+        if (enableCountryInteraction && onCountryClick) attachTinyTargetHandlers();
         attachZoomPanHandlers();
         applyViewBox(NATIVE_VIEW_BOX.x, NATIVE_VIEW_BOX.y, NATIVE_VIEW_BOX.w);
         setSelected(selectedCode, { recenter: true });
@@ -1142,6 +1273,24 @@
   // Extra camera altitude, on top of the tight fit, that shows a country's surroundings.
   const COUNTRY_CONTEXT_ALTITUDE = 0.5;
   const GLOBE_CAMERA_FOV = 50; // globe.gl's default vertical field of view, degrees
+  // Small countries get an invisible disc over each landmass, sized in pixels
+  // like the flat map's hit circles, so they stay easy to point at at any zoom.
+  // The discs only exist while the landmass is smaller than GLOBE_HIT_SHOW_PX
+  // on screen; bigger ones are hit on their own shape.
+  const GLOBE_HIT_RADIUS_PX = 9;
+  const GLOBE_HIT_SHOW_PX = 24;
+  // At world view 9 px is many degrees, enough to swallow the neighbours, so a
+  // disc is also capped in degrees and to a share of the way to the nearest
+  // other country's disc.
+  const GLOBE_HIT_MAX_DEGREES = 2;
+  const GLOBE_HIT_NEIGHBOUR_SHARE = 0.45;
+  // Above the hovered (0.015) and selected (0.02) shapes, so a disc always wins
+  // the depth test against a neighbour that has been raised.
+  const GLOBE_HIT_ALTITUDE = 0.022;
+  // globe.gl lets a border line count as a hit up to 0.2 units (about 13 km)
+  // away, at any zoom: a neighbour's outline then covers a whole microstate
+  // (Andorra, San Marino...). Outlines are not hit targets here.
+  const GLOBE_LINE_HOVER_PRECISION = 0;
 
   let globeFeaturesPromise = null;
   let globeNumericToAlpha2Promise = null;
@@ -1641,6 +1790,10 @@
     let ringDatum = null;
     let dotData = [];
     let dotsTimer = null;
+    // Hit discs (see GLOBE_HIT_RADIUS_PX): one per landmass of each small country.
+    let hitTargets = [];
+    let hitShown = [];
+    let hitTimer = null;
     const bboxCache = new Map();
 
     function refreshPolygonStyles() {
@@ -1739,6 +1892,25 @@
           .ringRepeatPeriod(1400);
 
         if (enableCountryInteraction) {
+          hitTargets = buildHitTargets(numericToAlpha2);
+          globe
+            .lineHoverPrecision(GLOBE_LINE_HOVER_PRECISION)
+            .pointsData([])
+            .pointLat("lat")
+            .pointLng("lng")
+            .pointRadius("radius")
+            .pointAltitude(GLOBE_HIT_ALTITUDE)
+            .pointColor(() => "rgba(0,0,0,0)")
+            .pointResolution(8)
+            .pointsMerge(false)
+            .pointsTransitionDuration(0)
+            .pointLabel((d) => displayNameForFeature(d.feature, numericToAlpha2))
+            .onPointHover((target) => {
+              if (touchInput) target = null;
+              hoverFeature = target ? target.feature : null;
+              refreshPolygonStyles();
+            })
+            .onPointClick((target) => handlePolygonClick(target.feature));
           globe
             .polygonLabel(({ id, properties }) => {
               if (touchInput) return "";
@@ -1772,6 +1944,8 @@
           updateMarker(altitude);
           clearTimeout(dotsTimer);
           dotsTimer = setTimeout(() => refreshDots(globe.pointOfView().altitude), 150);
+          clearTimeout(hitTimer);
+          hitTimer = setTimeout(refreshHitDiscs, 60);
           clearTimeout(detailTimer);
           detailTimer = setTimeout(syncDetail, 150);
         });
@@ -1779,6 +1953,7 @@
         globe.pointOfView(defaultPov(), 0);
         applyTheme();
         resize();
+        refreshHitDiscs();
         if (loadingEl) loadingEl.hidden = true;
       } catch (err) {
         if (loadingEl) loadingEl.textContent = "Couldn't load the globe. Reload the page and try again.";
@@ -1795,6 +1970,60 @@
       const start = () => fetchGlobeFullFeatures().catch(() => {});
       if ("requestIdleCallback" in window) requestIdleCallback(start, { timeout: 5000 });
       else setTimeout(start, 2000);
+    }
+
+    function displayNameForFeature(feature, numericToAlpha2) {
+      const code = feature.id && numericToAlpha2.get(feature.id);
+      return (code && displayNameByCode.get(code)) || feature.properties?.name || "";
+    }
+
+    // One target per landmass of every small country that can be picked.
+    function buildHitTargets(numericToAlpha2) {
+      const targets = [];
+      features.forEach((feature) => {
+        if (!feature.id || !numericToAlpha2.get(feature.id) || feature.properties?.neutral) return;
+        const box = featureBBox(feature);
+        if (!box || !hasSmallLand(feature, box)) return;
+        landmassBoxes(feature).forEach((land) => {
+          targets.push({ feature, lat: land.centerLat, lng: land.centerLng, span: Math.max(land.latSpan, land.lngSpan), radius: 0 });
+        });
+      });
+      return targets;
+    }
+
+    // Sizes and shows the hit discs for the current zoom: pixel-sized, but
+    // never so big that one reaches over another country's disc.
+    function refreshHitDiscs() {
+      if (!globe || !hitTargets.length) return;
+      const rect = container.getBoundingClientRect();
+      if (!rect.height) return;
+      const pov = globe.pointOfView();
+      const distance = 1 + pov.altitude;
+      const pxPerTan = rect.height / 2 / Math.tan((GLOBE_CAMERA_FOV / 2) * (Math.PI / 180));
+      const pxPerDegree = (pxPerTan * (Math.PI / 180)) / pov.altitude;
+      const shown = hitTargets.filter(
+        (t) => t.span * pxPerDegree < GLOBE_HIT_SHOW_PX && projectToView(t.lat, t.lng, pov.lat, pov.lng, distance).z > 1 / distance
+      );
+      const maxDegrees = Math.min(GLOBE_HIT_RADIUS_PX / pxPerDegree, GLOBE_HIT_MAX_DEGREES);
+      let changed = shown.length !== hitShown.length || shown.some((t, i) => t !== hitShown[i]);
+      shown.forEach((t) => {
+        let nearest = Infinity;
+        shown.forEach((o) => {
+          if (o.feature === t.feature) return;
+          const dLat = o.lat - t.lat;
+          const dLng = (((o.lng - t.lng + 540) % 360) - 180) * Math.cos((t.lat * Math.PI) / 180);
+          nearest = Math.min(nearest, Math.hypot(dLat, dLng));
+        });
+        const radius = Math.min(maxDegrees, nearest * GLOBE_HIT_NEIGHBOUR_SHARE);
+        // Only rebuild a disc when its size really moved: each rebuild is a new mesh.
+        if (Math.abs(radius - t.radius) > t.radius * 0.04) {
+          t.radius = radius;
+          changed = true;
+        }
+      });
+      if (!changed) return;
+      hitShown = shown;
+      globe.pointsData(shown.slice());
     }
 
     function featureBBox(feature) {
@@ -1941,6 +2170,7 @@
       syncOverlay();
       // The camera is still flying in; settle the ring on where it ends up.
       if (moveCamera) setTimeout(() => globe && updateMarker(globe.pointOfView().altitude), transitionMs + 50);
+      if (moveCamera) setTimeout(refreshHitDiscs, transitionMs + 100);
     }
 
     function clearHighlight() {

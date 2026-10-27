@@ -313,6 +313,25 @@ main {
   cursor: pointer;
 }
 
+/* A country too small to see gets a dot; the pointer picks it by proximity
+   (see updateTinyTargets), so the circle itself takes no events. */
+.map-container circle.hit-target.tiny {
+  fill: var(--map-fill);
+  stroke: var(--map-stroke);
+  stroke-width: 1.25;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.map-container svg.snapping {
+  cursor: pointer;
+}
+
+/* While a tiny country's dot is picked, the country drawn under it is not. */
+.map-container svg.snapping path.country.hovered:not(.selected) {
+  fill: var(--map-fill);
+}
+
 .map-container path.country.selected {
   fill: var(--map-highlight);
 }

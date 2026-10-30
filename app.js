@@ -229,7 +229,9 @@
   }
 
 
-  const phoneQuery = window.matchMedia("(max-width: 700px)");
+  // Phones: narrow upright screens, or touch screens turned sideways (too wide for
+  // the width check, but never taller than ~500px; laptops use a fine pointer).
+  const phoneQuery = window.matchMedia("(max-width: 700px), (pointer: coarse) and (max-height: 500px)");
 
   // The picker the user is currently selecting from: the visible map or globe,
   // falling back to the search box when the dropdown view is active.

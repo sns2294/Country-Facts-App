@@ -274,6 +274,13 @@ main {
   justify-content: center;
   cursor: grab;
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.map-container svg,
+.map-container canvas {
+  -webkit-user-select: none;
   user-select: none;
 }
 

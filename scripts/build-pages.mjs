@@ -708,6 +708,8 @@ function shell({ depth, title, description, canonical, jsonLd, body }) {
   <meta property="og:url" content="${esc(canonical)}" />
   <meta name="twitter:card" content="summary" />
   <link rel="icon" href="${FAVICON}" />
+  <link rel="icon" type="image/png" sizes="192x192" href="${up}favicon-192.png" />
+  <link rel="apple-touch-icon" href="${up}apple-touch-icon.png" />
   <script>${THEME_SNIPPET}</script>
   <link rel="stylesheet" href="${up}style.css?v=${styleHash}" />
   <link rel="stylesheet" href="${up}country-page.css?v=${pageCssHash}" />${

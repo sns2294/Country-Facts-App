@@ -247,6 +247,9 @@
     return "search";
   }
 
+  // Touch screens turned sideways only: the quiz page stays scrolled down there.
+  const landscapePhoneQuery = window.matchMedia("(pointer: coarse) and (max-height: 500px)");
+
   function scrollIntoViewOnPhone(el) {
     if (!phoneQuery.matches) return;
     el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2554,6 +2557,8 @@
   function renderQuizQuestion() {
     const { questions, index, score } = quizState;
     const question = questions[index];
+
+    if (landscapePhoneQuery.matches) quizSection.scrollIntoView({ behavior: "smooth", block: "start" });
 
     quizProgressText.textContent = `Question ${index + 1} of ${questions.length}`;
     quizScoreText.textContent = `Score: ${score}`;

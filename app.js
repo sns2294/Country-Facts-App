@@ -866,9 +866,12 @@
         showTooltip(displayNameByCode.get(target.code) || target.name);
         if (evt) positionTooltip(evt);
       } else if (evt) {
-        // Back to whatever country is under the pointer.
+        // Back to whatever country is under the pointer: its shape, or the
+        // enlarged hit circle that click selects (Lesotho, eSwatini...).
         const path = evt.target.closest?.("path.country:not(.no-code)");
+        const circle = evt.target.closest?.("circle.hit-target");
         if (path) showTooltip(displayNameByCode.get(path.id) || path.dataset.name);
+        else if (circle) showTooltip(displayNameByCode.get(circle.dataset.code) || circle.dataset.name);
         else hideTooltip();
       }
     }

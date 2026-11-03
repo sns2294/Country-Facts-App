@@ -689,6 +689,7 @@ const FOOTER = `<footer class="site-footer">
       <a href="https://www.naturalearthdata.com" target="_blank" rel="noopener">Natural Earth</a>,
       <a href="https://flagicons.lipis.dev" target="_blank" rel="noopener">flag-icons</a>.
     </p>
+    <p class="footer-feedback"><a href="mailto:hello@countryfacts.app">Send feedback</a></p>
   </footer>`;
 
 function shell({ depth, title, description, canonical, jsonLd, body }) {

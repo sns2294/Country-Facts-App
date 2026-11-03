@@ -2561,8 +2561,6 @@
     const { questions, index, score } = quizState;
     const question = questions[index];
 
-    if (landscapePhoneQuery.matches) quizSection.scrollIntoView({ behavior: "smooth", block: "start" });
-
     quizProgressText.textContent = `Question ${index + 1} of ${questions.length}`;
     quizScoreText.textContent = `Score: ${score}`;
     quizProgressBar.classList.toggle("quiz-progress--geo", question.kind === "geography");
@@ -2576,6 +2574,20 @@
       quizQuestionEl.hidden = false;
       renderMcqQuestion(question);
     }
+
+    scrollQuizToTop();
+  }
+
+  // Landscape phone: put the quiz card at the top of the screen. This runs
+  // after the question is drawn, and jumps instead of animating. The earlier
+  // version asked for a smooth scroll before drawing: the target was clamped to
+  // the old, shorter page (question 1), or the layout change cancelled the
+  // animation (Next), so real phones stayed scrolled down.
+  function scrollQuizToTop() {
+    if (!landscapePhoneQuery.matches) return;
+    const jump = () => window.scrollTo({ top: quizSection.getBoundingClientRect().top + window.scrollY, behavior: "instant" });
+    jump();
+    requestAnimationFrame(jump); // again once the globe / flag has settled
   }
 
   function renderMcqQuestion(question) {

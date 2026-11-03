@@ -1296,3 +1296,140 @@ main {
 .globe-container.touch-input .float-tooltip-kap {
   display: none !important;
 }
+
+/* Landscape phone, Quiz tab: the question sits beside its globe or flag so the
+   whole question fits on one screen without scrolling. Left: globe, flag or
+   question text. Right: answer box or buttons, feedback and Next. Same
+   condition as landscapePhoneQuery in app.js; portrait and laptop are untouched. */
+@media (pointer: coarse) and (max-height: 500px) {
+  .quiz-section {
+    --lp-height: 100vh;
+  }
+
+  @supports (height: 100svh) {
+    .quiz-section {
+      --lp-height: 100svh;
+    }
+  }
+
+  /* Enough page below the card that it can always be scrolled to the top. */
+  .quiz-section:has(#quiz-progress-bar:not([hidden])) {
+    min-height: var(--lp-height);
+  }
+
+  .quiz-progress,
+  .quiz-progress--geo {
+    max-width: none;
+    margin-bottom: 0.35rem;
+  }
+
+  .quiz-question,
+  .quiz-geo-question {
+    max-width: none;
+    display: grid;
+    grid-template-rows: auto auto auto 1fr;
+    column-gap: 1.25rem;
+    row-gap: 0;
+    padding: 0.5rem 0.9rem;
+  }
+
+  .quiz-question {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  }
+
+  .quiz-question > * {
+    grid-column: 2;
+    align-self: start;
+  }
+
+  .quiz-question > .quiz-prompt {
+    grid-column: 1;
+    grid-row: 1 / 5;
+    align-self: center;
+  }
+
+  .quiz-question > .quiz-options {
+    grid-row: 1;
+    gap: 0.35rem;
+  }
+
+  .quiz-question > .quiz-feedback {
+    grid-row: 2;
+    margin: 0.4rem 0 0;
+    text-align: left;
+  }
+
+  .quiz-question > .quiz-btn-primary {
+    grid-row: 3;
+    justify-self: start;
+    margin-top: 0.4rem;
+  }
+
+  .quiz-option-btn {
+    padding: 0.45rem 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  .quiz-flag {
+    max-width: none;
+  }
+
+  .quiz-prompt-text {
+    font-size: 1.15rem;
+  }
+
+  /* Geography: the globe takes the full height the screen allows. */
+  .quiz-geo-question {
+    grid-template-columns: min(calc(var(--lp-height) - 3.9rem), calc(100% - 20rem)) minmax(0, 1fr);
+  }
+
+  .quiz-geo-question > * {
+    grid-column: 2;
+    align-self: start;
+  }
+
+  .quiz-geo-question > .quiz-geo-globe-container {
+    grid-column: 1;
+    grid-row: 1 / 5;
+    align-self: center;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+  }
+
+  .quiz-geo-question > .quiz-geo-instruction {
+    grid-row: 1;
+    text-align: left;
+    font-size: 0.95rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .quiz-geo-question > .quiz-geo-answer-row:not(.quiz-bonus-row) {
+    grid-row: 2;
+  }
+
+  .quiz-geo-question > .quiz-bonus-row {
+    grid-row: 3;
+    margin-top: 0.4rem;
+    padding: 0.4rem 0.6rem;
+  }
+
+  .quiz-geo-question > .quiz-btn-primary {
+    grid-row: 4;
+    justify-self: start;
+    margin-top: 0.4rem;
+  }
+
+  .quiz-geo-answer-row {
+    gap: 0.25rem;
+  }
+
+  .quiz-guess-input {
+    padding: 0.45rem 0.7rem;
+  }
+
+  .quiz-bonus-label {
+    margin-bottom: 0.3rem;
+    font-size: 0.8rem;
+  }
+}

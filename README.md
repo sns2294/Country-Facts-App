@@ -69,4 +69,4 @@ A pre-commit hook does this for you. Enable it once per clone:
 ```
 git config core.hooksPath scripts/hooks
 ```
- Or visit the live version via GitHub Pages.
+ The site is live at https://countryfacts.app.

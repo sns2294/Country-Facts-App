@@ -92,7 +92,17 @@
   const TINY_DOT_RADIUS_PX = 3.5;
   const TINY_PICK_RADIUS_PX = 9;
   const TINY_PICK_MAX_DEG = 3;
-  const WHEEL_ZOOM_FACTOR = 1.15;
+  // Scroll/trackpad zoom feel (flat map only). Each wheel event zooms by
+  // exp(delta * WHEEL_ZOOM_SENSITIVITY), so the zoom follows how far you
+  // scroll rather than how many events fire. Raise it for faster zoom, lower
+  // it for gentler. 0.0008 is about 8% per mouse-wheel notch.
+  const WHEEL_ZOOM_SENSITIVITY = 0.0008;
+  const WHEEL_MAX_DELTA = 100; // cap one event, so a hard mouse flick can't jump
+  // Trackpad pinch arrives as wheel events with ctrlKey set, with much smaller
+  // deltas than a scroll, so it gets its own (larger) sensitivity. Raise it for
+  // faster pinch zoom, lower it for gentler.
+  const PINCH_ZOOM_SENSITIVITY = 0.01;
+  const PINCH_MAX_DELTA = 25;
   const BUTTON_ZOOM_FACTOR = 1.4;
   const DRAG_THRESHOLD_PX = 3;
   // A touch that moves farther than this is a drag, not a tap (fingers jitter).
@@ -953,7 +963,13 @@
         "wheel",
         (evt) => {
           evt.preventDefault();
-          const factor = evt.deltaY > 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR;
+          // deltaMode 1 = lines, 2 = pages; convert to approximate pixels.
+          const unit = evt.deltaMode === 1 ? 33 : evt.deltaMode === 2 ? 400 : 1;
+          const isPinch = evt.ctrlKey;
+          const maxDelta = isPinch ? PINCH_MAX_DELTA : WHEEL_MAX_DELTA;
+          const sensitivity = isPinch ? PINCH_ZOOM_SENSITIVITY : WHEEL_ZOOM_SENSITIVITY;
+          const delta = clamp(evt.deltaY * unit, -maxDelta, maxDelta);
+          const factor = Math.exp(delta * sensitivity);
           zoomAt(evt.clientX, evt.clientY, factor);
         },
         { passive: false }

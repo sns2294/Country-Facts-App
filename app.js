@@ -232,7 +232,7 @@
       const { updatedAt } = await res.json();
       const date = new Date(updatedAt);
       if (Number.isNaN(date.getTime())) throw new Error("Invalid date");
-      el.textContent = `Data last updated: ${date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`;
+      el.textContent = `Data last updated: ${date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })}`;
     } catch (err) {
       console.error("Failed to load data date:", err);
     }

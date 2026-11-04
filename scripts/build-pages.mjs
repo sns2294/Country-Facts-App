@@ -14,6 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
@@ -486,7 +487,19 @@ function viewFor([fx0, fy0, fx1, fy1], grow = 1) {
   return { kx, w, h, x0: cx - w / 2, x1: cx + w / 2, y0: cy - h / 2, y1: cy + h / 2, unit: 800 / w };
 }
 
-function buildMap(country) {
+// polygonsWithCopies, plus (on the preview card, when the frame crosses the date line) a copy a world
+// to the east of the pieces on the western side, so Tonga and Samoa show beside Fiji.
+function mapPolygons(geometry, east, og) {
+  const out = polygonsWithCopies(geometry);
+  if (og && east > 180) {
+    for (const poly of polygonsOf(geometry)) {
+      if (ringBox(poly[0])[2] <= 180) out.push(poly.map((ring) => ring.map(([lon, lat]) => [lon + 360, lat])));
+    }
+  }
+  return out;
+}
+
+function buildMap(country, og = false) {
   const targetKey = padId(country.numericCode);
   let set = shapes;
   let target = shapes.get(targetKey);
@@ -507,7 +520,7 @@ function buildMap(country) {
     const [x0, y0, x1, y1] = ringBox(poly[0]);
     return Math.max(m, (x1 - x0) * view.kx * view.unit, (y1 - y0) * view.unit);
   }, 0);
-  const tiny = biggest < 20;
+  const tiny = biggest < (og ? 40 : 20); // the preview card draws the map smaller, so its ring kicks in sooner
   if (tiny) {
     // Frame all of the country, zoomed out until a recognizable landmass is in view, so scattered
     // islands (Seychelles, Kiribati) are all there as dots; the ring picks out the main group.
@@ -518,6 +531,33 @@ function buildMap(country) {
       view = viewFor(fullBox, grow);
       if (hasContextLand(targetKey, [view.x0 / view.kx, view.y0, view.x1 / view.kx, view.y1])) break;
     }
+    set = view.w / view.kx < DETAIL_BELOW_DEGREES * 1.6 ? shapes10m : shapes;
+  }
+  if (og && !tiny) {
+    // An island country with no neighbour in the frame (Fiji, Iceland): zoom out until a piece of
+    // another country, big enough to see, comes into view.
+    const neighbourShows = (v) => {
+      const lonLat = [v.x0 / v.kx, v.y0, v.x1 / v.kx, v.y1];
+      for (const [key, geometry] of set) {
+        if (key === targetKey) continue;
+        for (const poly of mapPolygons(geometry, lonLat[2], og)) {
+          const box = ringBox(poly[0]);
+          // The land actually inside the frame (not the polygon's bounding box) has to be big enough to see.
+          if (!intersects(box, lonLat)) continue;
+          const clipped = clipRing(poly[0], lonLat);
+          if (clipped.length < 3) continue;
+          const [ox0, oy0, ox1, oy1] = ringBox(clipped);
+          if (Math.max((ox1 - ox0) * v.kx * v.unit, (oy1 - oy0) * v.unit) >= 40) return true;
+        }
+      }
+      return false;
+    };
+    // Zoom out only about half as far as it takes to bring a neighbour fully in: its edge shows,
+    // and the country stays big.
+    const framed = frameBox(target);
+    let grow = 1;
+    while (grow < 8 && !neighbourShows(viewFor(framed, grow))) grow *= 1.25;
+    if (grow > 1) view = viewFor(framed, 1 + (grow - 1) / 2);
     set = view.w / view.kx < DETAIL_BELOW_DEGREES * 1.6 ? shapes10m : shapes;
   }
   const { kx, w, h, unit } = view;
@@ -534,7 +574,7 @@ function buildMap(country) {
   const num = (n) => Math.round(n * 10) / 10;
   function pathFor(geometry, collect) {
     const parts = [];
-    for (const poly of polygonsWithCopies(geometry)) {
+    for (const poly of mapPolygons(geometry, lonLatView[2], og)) {
       for (const ring of poly) {
         if (!intersects(ringBox(ring), lonLatView)) continue;
         const clipped = clipRing(ring, clipBox);
@@ -598,13 +638,20 @@ function buildMap(country) {
     const [rcx, rcy] = [(bx0 + bx1) / 2, (by0 + by1) / 2];
     const [hw, hh] = [Math.max((bx1 - bx0) / 2, 9), Math.max((by1 - by0) / 2, 9)];
     const scale = Math.max(1, ...corners.map(([x, y]) => Math.hypot((x - rcx) / hw, (y - rcy) / hh)));
-    const rx = hw * scale + 10;
-    const ry = hh * scale + 10;
+    // On the preview card the ring is a circle; the country pages keep the oval.
+    const rx = og ? Math.max(hw, hh) * scale + 10 : hw * scale + 10;
+    const ry = og ? rx : hh * scale + 10;
     ring = `<ellipse class="map-ring-halo" cx="${num(rcx)}" cy="${num(rcy)}" rx="${num(rx)}" ry="${num(ry)}"/>\n<ellipse class="map-ring" cx="${num(rcx)}" cy="${num(rcy)}" rx="${num(rx)}" ry="${num(ry)}"/>`;
     // Keep the corner inset off the ring.
     for (let i = 0; i < 16; i++) points.push([rcx + rx * Math.cos((i * Math.PI) / 8), rcy + ry * Math.sin((i * Math.PI) / 8)]);
   }
-  const inset = insetMarkup(country, target, fullBox, points, height);
+  const inset = og ? "" : insetMarkup(country, target, fullBox, points, height);
+  if (og) return `<svg class="country-map" viewBox="0 0 800 ${height}" preserveAspectRatio="xMidYMid slice">
+<rect width="800" height="${height}" class="map-sea"/>
+<path class="map-land" d="${others.join("")}"/>
+<path class="map-country" d="${own}"/>
+${dots.size ? `<g class="map-dots">${[...dots.values()].join("")}</g>\n` : ""}${ring}
+</svg>`;
   return `<svg class="country-map" viewBox="0 0 800 ${height}" role="img" aria-label="Map showing the location of ${esc(displayName(country))}" preserveAspectRatio="xMidYMid slice">
 <rect width="800" height="${height}" class="map-sea"/>
 <path class="map-land" d="${others.join("")}"/>
@@ -665,6 +712,175 @@ function introText(country, name) {
   return text;
 }
 
+// ---------- preview images (Open Graph / Twitter card) ----------
+// One 1200x630 PNG per page in og/, drawn in the site's dark style: the homepage and
+// country index share og/home.png; each country gets og/<slug>.png with its flag, name
+// and outline on a small map. Chrome (headless) turns an HTML/SVG card into the PNG, so
+// the build needs Google Chrome installed; the card's hash is kept in og/manifest.json
+// and a PNG is only redrawn when its card changes.
+const OG_W = 1200;
+const OG_H = 630;
+const OG_DIR = "og";
+const OG_NAME = "og/manifest.json";
+const CHROME = process.env.CHROME_PATH || ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/usr/bin/google-chrome", "/usr/bin/chromium"].find((p) => fs.existsSync(p));
+const OG_ONLY = (process.argv.find((a) => a.startsWith("--og-only=")) || "").slice(10).split(",").filter(Boolean);
+const NO_OG = process.argv.includes("--no-og");
+
+const socialTags = ({ title, description, image }) => {
+  const url = `${BASE_URL}/${image}`;
+  return [
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:site_name" content="${SITE_NAME}" />`,
+    `<meta property="og:title" content="${esc(title)}" />`,
+    `<meta property="og:description" content="${esc(description)}" />`,
+    `<meta property="og:image" content="${url}" />`,
+    `<meta property="og:image:width" content="${OG_W}" />`,
+    `<meta property="og:image:height" content="${OG_H}" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${esc(title)}" />`,
+    `<meta name="twitter:description" content="${esc(description)}" />`,
+    `<meta name="twitter:image" content="${url}" />`,
+  ].join("\n  ");
+};
+
+const OG_CSS = `
+*{box-sizing:border-box;margin:0}
+html,body{width:${OG_W}px;height:${OG_H}px;overflow:hidden}
+body{background:radial-gradient(900px 500px at 20% 0%,#1a2236 0%,#12141c 70%);color:#eef0f3;font-family:-apple-system,"SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;position:relative}
+.brand{position:absolute;left:64px;top:44px;font-size:38px;font-weight:700;letter-spacing:-.01em;display:flex;gap:14px;align-items:center}
+.url{position:absolute;left:64px;bottom:48px;font-size:28px;color:#9aa2ad}
+.accent{position:absolute;left:0;top:0;bottom:0;width:10px;background:#ffb02e}
+.map-sea{fill:#123a63}.map-land{fill:#9db4cb;stroke:#0b1d30;stroke-width:1.4;stroke-linejoin:round}
+.map-country{fill:#ffb02e;stroke:#0b1d30;stroke-width:2;stroke-linejoin:round}
+.map-dots circle{fill:#ffb02e;stroke:#0b1d30;stroke-width:1.4}
+.map-ring-halo{fill:none;stroke:#9db4cb;stroke-width:9}.map-ring{fill:none;stroke:#ffb02e;stroke-width:5}
+`;
+
+// A globe drawn from the site's own land shapes (orthographic projection), so the cards carry no
+// emoji artwork. Points on the far side are pushed out to the rim; the circle's clip hides the rest.
+const globeCache = new Map();
+function globeLand(R, lon0, lat0, eps) {
+  const key = [R, lon0, lat0, eps].join();
+  if (globeCache.has(key)) return globeCache.get(key);
+  const [l0, f0] = [(lon0 * Math.PI) / 180, (lat0 * Math.PI) / 180];
+  const parts = [];
+  shapes.forEach((geometry, id) => {
+    for (const poly of polygonsOf(geometry)) {
+      const ring = poly[0];
+      let anyVisible = false;
+      const pts = ring.map(([lon, lat]) => {
+        const [l, f] = [(lon * Math.PI) / 180, (lat * Math.PI) / 180];
+        const x = Math.cos(f) * Math.sin(l - l0);
+        const y = Math.cos(f0) * Math.sin(f) - Math.sin(f0) * Math.cos(f) * Math.cos(l - l0);
+        const visible = Math.sin(f0) * Math.sin(f) + Math.cos(f0) * Math.cos(f) * Math.cos(l - l0) > 0;
+        if (visible) anyVisible = true;
+        const len = Math.hypot(x, y) || 1;
+        const k = visible ? 1 : 1 / len;
+        return [x * k * R, -y * k * R];
+      });
+      if (!anyVisible) continue;
+      const simple = simplifyRing(pts, eps);
+      if (simple.length < 3) continue;
+      parts.push(`M${simple.map(([x, y]) => `${Math.round(x * 10) / 10} ${Math.round(y * 10) / 10}`).join("L")}Z`);
+    }
+  });
+  const d = parts.join("");
+  globeCache.set(key, d);
+  return d;
+}
+
+// The globe as an <svg> of `size` px, drawn in the map's dark colours.
+function globeSvg(size, { lon0 = 15, lat0 = 20, glow = false } = {}) {
+  const R = 100;
+  const pad = glow ? 14 : 2;
+  const d = globeLand(R, lon0, lat0, size > 200 ? 0.12 : 0.5);
+  return `<svg width="${size}" height="${size}" viewBox="${-R - pad} ${-R - pad} ${2 * (R + pad)} ${2 * (R + pad)}">
+<defs><clipPath id="gc"><circle r="${R}"/></clipPath><radialGradient id="gs" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="#1d5a99"/><stop offset="1" stop-color="#0d2f52"/></radialGradient></defs>
+${glow ? `<circle r="${R + 10}" fill="#3f86c9" opacity=".18"/><circle r="${R + 4}" fill="#3f86c9" opacity=".28"/>` : ""}
+<circle r="${R}" fill="url(#gs)"/>
+<g clip-path="url(#gc)"><path d="${d}" fill="#9db4cb" stroke="#0b1d30" stroke-width="${size > 200 ? 0.35 : 0.9}" stroke-linejoin="round"/></g>
+<circle r="${R}" fill="none" stroke="#0b1d30" stroke-opacity=".55" stroke-width="1"/>
+</svg>`;
+}
+
+const OG_BRAND = `<div class="brand">${globeSvg(52)}<span>Country Facts</span></div>`;
+
+function ogHome() {
+  return `<!doctype html><meta charset="utf-8"><style>${OG_CSS}
+.hero{position:absolute;left:64px;top:0;bottom:0;width:560px;display:flex;flex-direction:column;justify-content:center}
+h1{font-size:132px;font-weight:800;letter-spacing:-.03em;line-height:.98}
+p{font-size:36px;color:#9aa2ad;margin-top:30px;line-height:1.3}
+.big{position:absolute;left:640px;top:35px}
+.brand{display:none}.url{left:64px}
+</style><div class="accent"></div><div class="hero"><h1>Country<br>Facts</h1><p>Explore countries, browse the map, and test what you know.</p></div><div class="big">${globeSvg(560, { glow: true })}</div><div class="url">countryfacts.app</div>`;
+}
+
+function ogCountry(country) {
+  const name = displayName(country);
+  const flag = fs.readFileSync(path.join(ROOT, country.flags.svg), "utf8");
+  const flagUri = `data:image/svg+xml;base64,${Buffer.from(flag).toString("base64")}`;
+  const map = buildMap(country, true);
+  // The name stays in the flag's column (470px), on one line or two: the largest size that fits.
+  const COLUMN = 470;
+  const wrap = (size) => {
+    const lines = [""];
+    for (const word of name.split(" ")) {
+      const line = lines.at(-1);
+      const next = line ? `${line} ${word}` : word;
+      if (!line || next.length * size * 0.6 <= COLUMN) lines[lines.length - 1] = next;
+      else lines.push(word);
+    }
+    return lines;
+  };
+  let size = 96;
+  // Two lines must also fit above the bottom edge, so they are capped at 64px.
+  const fits = (px) => {
+    const lines = wrap(px);
+    return lines.every((l) => l.length * px * 0.6 <= COLUMN) && (lines.length === 1 || (lines.length === 2 && px <= 64));
+  };
+  while (size > 40 && !fits(size)) size -= 2;
+  const nameHtml = wrap(size).map(esc).join("<br>");
+  return `<!doctype html><meta charset="utf-8"><style>${OG_CSS}
+.flag{position:absolute;left:64px;top:140px;width:470px;height:290px;display:flex;align-items:center;justify-content:center}
+.flag img{max-width:470px;max-height:290px;border-radius:12px;box-shadow:0 10px 36px rgba(0,0,0,.55);outline:2px solid rgba(255,255,255,.14)}
+h1{position:absolute;left:64px;top:462px;width:${COLUMN}px;white-space:nowrap;font-size:${size}px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.map{position:absolute;left:600px;top:120px;width:540px;height:337.5px;border-radius:18px;overflow:hidden;box-shadow:0 10px 36px rgba(0,0,0,.5);outline:2px solid rgba(255,255,255,.14)}
+.map svg{width:540px;height:337.5px;display:block}
+.url{left:auto;right:64px;bottom:40px;font-size:22px}
+</style><div class="accent"></div>${OG_BRAND}
+<div class="flag"><img src="${flagUri}"></div><h1>${nameHtml}</h1><div class="map">${map}</div><div class="url">countryfacts.app</div>`;
+}
+
+function renderOgImages(cards) {
+  // cards: Map of "og/<name>.png" -> html. Redraws only the cards whose hash changed.
+  const manifestFile = path.join(ROOT, OG_NAME);
+  const manifest = fs.existsSync(manifestFile) ? JSON.parse(fs.readFileSync(manifestFile, "utf8")) : {};
+  const todo = [];
+  for (const [file, html] of cards) {
+    const h = hash(html);
+    if (manifest[file] !== h || !fs.existsSync(path.join(ROOT, file))) todo.push([file, html, h]);
+  }
+  if (!todo.length) return 0;
+  if (!CHROME) throw new Error("Google Chrome is needed to draw the preview images. Install it or set CHROME_PATH.");
+  fs.mkdirSync(path.join(ROOT, OG_DIR), { recursive: true });
+  const tmp = fs.mkdtempSync(path.join(process.env.TMPDIR || "/tmp", "og-"));
+  try {
+    for (const [file, html, h] of todo) {
+      const src = path.join(tmp, "card.html");
+      fs.writeFileSync(src, html);
+      const out = path.join(ROOT, file);
+      execFileSync(CHROME, ["--headless=new", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1", `--window-size=${OG_W},${OG_H}`, `--screenshot=${out}`, `--user-data-dir=${path.join(tmp, "profile")}`, "file://" + src], { stdio: "ignore", timeout: 60000 });
+      if (!fs.existsSync(out)) throw new Error(`Chrome did not write ${file}`);
+      manifest[file] = h;
+    }
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+  const sorted = Object.fromEntries(Object.entries(manifest).sort(([a], [b]) => a.localeCompare(b)));
+  fs.writeFileSync(manifestFile, JSON.stringify(sorted, null, 2) + "\n");
+  return todo.length;
+}
+
 // ---------- page ----------
 
 const styleHash = hash(read("style.css"));
@@ -692,7 +908,7 @@ const FOOTER = `<footer class="site-footer">
     <p class="footer-feedback"><a href="mailto:hello@countryfacts.app">Send feedback</a></p>
   </footer>`;
 
-function shell({ depth, title, description, canonical, jsonLd, body }) {
+function shell({ depth, title, description, canonical, jsonLd, body, ogImage }) {
   const up = "../".repeat(depth);
   return `<!doctype html>
 <html lang="en">
@@ -707,7 +923,7 @@ function shell({ depth, title, description, canonical, jsonLd, body }) {
   <meta property="og:title" content="${esc(title)}" />
   <meta property="og:description" content="${esc(description)}" />
   <meta property="og:url" content="${esc(canonical)}" />
-  <meta name="twitter:card" content="summary" />
+${socialTags({ title, description, image: ogImage })}
   <link rel="icon" href="${FAVICON}" />
   <link rel="icon" type="image/png" sizes="192x192" href="${up}favicon-192.png" />
   <link rel="apple-touch-icon" href="${up}apple-touch-icon.png" />
@@ -833,7 +1049,7 @@ function countryPage(country) {
       ],
     },
   ];
-  return shell({ depth: 2, title, description, canonical, jsonLd, body });
+  return shell({ depth: 2, title, description, canonical, jsonLd, body, ogImage: `og/${slug}.png` });
 }
 
 function indexPage() {
@@ -863,7 +1079,7 @@ function indexPage() {
     ${jumps}
     ${sections}
   </main>`;
-  return shell({ depth: 1, title, description, canonical, body });
+  return shell({ depth: 1, title, description, canonical, body, ogImage: "og/home.png" });
 }
 
 function sitemap() {
@@ -889,7 +1105,12 @@ let outputs_index; // index.html with its robots block updated
   const html = read("index.html");
   const block = /(<!-- robots:start[^>]*-->\n)[\s\S]*?(  <!-- robots:end -->)/;
   if (!block.test(html)) throw new Error("index.html is missing its <!-- robots:start --> / <!-- robots:end --> block");
-  outputs_index = html.replace(block, `$1${INDEXABLE ? "" : '  <meta name="robots" content="noindex" />\n'}$2`);
+  const social = /(<!-- social:start[^>]*-->\n)[\s\S]*?(  <!-- social:end -->)/;
+  if (!social.test(html)) throw new Error("index.html is missing its <!-- social:start --> / <!-- social:end --> block");
+  const tags = socialTags({ title: SITE_NAME, description: "Explore countries, browse the map, and test what you know.", image: "og/home.png" });
+  outputs_index = html
+    .replace(block, `$1${INDEXABLE ? "" : '  <meta name="robots" content="noindex" />\n'}$2`)
+    .replace(social, `$1  ${tags}\n$2`);
 }
 const outputs = new Map();
 outputs.set("index.html", outputs_index);
@@ -899,8 +1120,21 @@ outputs.set("country/world-land.svg", worldLandSvg());
 outputs.set("sitemap.xml", sitemap());
 outputs.set("robots.txt", robots());
 
+// The preview cards: og/home.png for the homepage and country index, og/<slug>.png per country.
+const ogCards = new Map([["og/home.png", ogHome()]]);
+for (const c of built) ogCards.set(`og/${slugOf.get(c.alpha3Code)}.png`, ogCountry(c));
+
+if (OG_ONLY.length) {
+  // Samples: draw just these cards and leave every other file alone.
+  const cards = new Map([...ogCards].filter(([f]) => f === "og/home.png" || OG_ONLY.includes(path.basename(f, ".png"))));
+  console.log(`Drew ${renderOgImages(cards)} preview image(s) in og/.`);
+  process.exit(0);
+}
+
 if (CHECK) {
-  const stale = [...outputs].filter(([file, text]) => !fs.existsSync(path.join(ROOT, file)) || read(file) !== text).map(([f]) => f);
+  const manifest = fs.existsSync(path.join(ROOT, OG_NAME)) ? JSON.parse(read(OG_NAME)) : {};
+  for (const [file, html] of ogCards) if (manifest[file] !== hash(html) || !fs.existsSync(path.join(ROOT, file))) outputs.set(file, null);
+  const stale = [...outputs].filter(([file, text]) => text === null || !fs.existsSync(path.join(ROOT, file)) || read(file) !== text).map(([f]) => f);
   if (stale.length) {
     console.error(`${stale.length} generated file(s) are out of date. Run: node scripts/build-pages.mjs`);
     process.exit(1);
@@ -919,6 +1153,11 @@ if (CHECK) {
   for (const [file, text] of outputs) {
     fs.mkdirSync(path.dirname(path.join(ROOT, file)), { recursive: true });
     fs.writeFileSync(path.join(ROOT, file), text);
+  }
+  if (!NO_OG) {
+    // Preview images for slugs no longer built are removed along with their manifest entries.
+    const drawn = renderOgImages(ogCards);
+    console.log(`Drew ${drawn} preview image(s).`);
   }
   console.log(`Wrote ${built.length} country pages, the country index, sitemap.xml and robots.txt (base URL ${BASE_URL}).`);
 }

@@ -2451,13 +2451,14 @@
     },
   };
 
-  function showQuizScreen(screen) {
+  function showQuizScreen(screen, initial = false) {
     quizModeSelect.hidden = screen !== "mode";
     quizRegionSelect.hidden = screen !== "region";
     quizProgressBar.hidden = screen !== "question";
     quizQuestionEl.hidden = true;
     quizGeoQuestionEl.hidden = true;
     quizScoreScreen.hidden = screen !== "score";
+    if (!initial) scrollQuizToTop();
   }
 
   const MCQ_MODE_KEYS = Object.keys(QUIZ_MODES);
@@ -2836,7 +2837,8 @@
       quizCapitalGuessInput.disabled = false;
       // Bring the bonus box fully on screen before focusing so the browser
       // doesn't scroll on its own and the Country answer stays visible.
-      quizBonusRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      if (landscapePhoneQuery.matches) scrollQuizToTop();
+      else quizBonusRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
       if (!isPhone()) quizCapitalGuessInput.focus({ preventScroll: true });
     } else {
       quizGeoFeedback.textContent = `Not quite — the highlighted country is ${question.country.name}.`;
@@ -3106,6 +3108,6 @@
   initDarkMode();
   loadCountryList();
   showDataDate();
-  showQuizScreen("mode");
+  showQuizScreen("mode", true);
   applyUrlParams();
 })();

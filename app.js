@@ -2560,6 +2560,7 @@
         questions,
         index: 0,
         score: 0,
+        capitalScore: 0,
         geoPool: geoPool || [],
         countryAnswered: false,
         bonusActive: false,
@@ -2574,12 +2575,28 @@
     }
   }
 
+  // Geography questions carry a separate capital bonus, so a quiz with any of
+  // them reports country answers and capitals apart instead of one total that
+  // can exceed the question count. Other quiz types keep a single score.
+  function quizScoreSummary(final) {
+    const { questions, score, capitalScore } = quizState;
+    const geoCount = questions.filter((q) => q.kind === "geography").length;
+    if (geoCount === 0) return final ? `${score}/${questions.length}` : `Score: ${score}`;
+    const main = geoCount === questions.length ? "Countries" : "Score";
+    const capitals = final ? `${capitalScore}/${geoCount}` : capitalScore;
+    return `${main}: ${final ? `${score}/${questions.length}` : score} · Capitals: ${capitals}`;
+  }
+
+  function updateQuizScoreText() {
+    quizScoreText.textContent = quizScoreSummary(false);
+  }
+
   function renderQuizQuestion() {
     const { questions, index, score } = quizState;
     const question = questions[index];
 
     quizProgressText.textContent = `Question ${index + 1} of ${questions.length}`;
-    quizScoreText.textContent = `Score: ${score}`;
+    updateQuizScoreText();
     quizProgressBar.classList.toggle("quiz-progress--geo", question.kind === "geography");
 
     if (question.kind === "geography") {
@@ -2635,7 +2652,7 @@
     });
 
     if (isCorrect) quizState.score += 1;
-    quizScoreText.textContent = `Score: ${quizState.score}`;
+    updateQuizScoreText();
 
     quizFeedback.hidden = false;
     quizFeedback.textContent = isCorrect ? "Correct!" : `Incorrect — the correct answer is ${question.correctAnswer}.`;
@@ -2656,7 +2673,13 @@
     quizState.index += 1;
     if (quizState.index >= quizState.questions.length) {
       quizGlobe.clearHighlight();
-      quizFinalScore.textContent = `${quizState.score}/${quizState.questions.length}`;
+      // Stacked rather than joined by "·", so a narrow screen never wraps
+      // with the dot stranded at the end of a line.
+      quizFinalScore.replaceChildren(
+        ...quizScoreSummary(true)
+          .split(" · ")
+          .map((part) => Object.assign(document.createElement("div"), { textContent: part }))
+      );
       showQuizScreen("score");
     } else {
       renderQuizQuestion();
@@ -2761,6 +2784,7 @@
         questions,
         index: 0,
         score: 0,
+        capitalScore: 0,
         countryAnswered: false,
         bonusActive: false,
       };
@@ -2827,7 +2851,7 @@
     quizGeoFeedback.hidden = false;
     if (isCorrect) {
       quizState.score += 1;
-      quizScoreText.textContent = `Score: ${quizState.score}`;
+      updateQuizScoreText();
       quizGeoFeedback.textContent = "Correct! Bonus round: name the capital.";
       quizGeoFeedback.classList.add("correct");
 
@@ -2867,8 +2891,8 @@
     const isBonusCorrect = match.capital === question.country.capital;
 
     if (isBonusCorrect) {
-      quizState.score += 1;
-      quizScoreText.textContent = `Score: ${quizState.score}`;
+      quizState.capitalScore += 1;
+      updateQuizScoreText();
     }
 
     quizBonusFeedback.hidden = false;

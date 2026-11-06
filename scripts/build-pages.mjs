@@ -951,6 +951,11 @@ ${body}
 `;
 }
 
+// One-off sentences shown under a country's intro (keyed by alpha3).
+const COUNTRY_NOTES = {
+  UKR: "Crimea has been occupied by Russia since 2014; its annexation is not internationally recognized.",
+};
+
 function countryPage(country) {
   const name = displayName(country);
   const slug = slugOf.get(country.alpha3Code);
@@ -1010,7 +1015,7 @@ function countryPage(country) {
         </div>
       </div>
       <div class="card-body">
-        <p class="intro">${esc(introText(country, name))}</p>
+        <p class="intro">${esc(introText(country, name))}</p>${COUNTRY_NOTES[country.alpha3Code] ? `\n        <p class="intro">${esc(COUNTRY_NOTES[country.alpha3Code])}</p>` : ""}
         <dl class="stats-grid">
           ${facts}
         </dl>

@@ -46,6 +46,14 @@ export const TERRITORIES = [
   },
 ];
 
+// Shapes that get split out of their parent only so shape-rules.js can merge them into the country
+// that internationally recognized borders give them to (no countries.json entry, no fact card).
+// Natural Earth draws Crimea inside Russia; the site shows it as part of Ukraine, the same way
+// "N. Cyprus" is merged into Cyprus (see shape-rules.js: `Crimea: { mergeInto: "UA" }`).
+export const SHAPE_SPLITS = [
+  { parentNumeric: "643", parent: "RU", name: "Crimea", boxes: [[32.3, 36.9, 44.2, 46.3]] },
+];
+
 // The note shown on a territory's fact card, the country it belongs to (alpha3),
 // a noun phrase for its overview sentence and the possessive used where its
 // figures are folded into the parent's ("Included in France's figures").
@@ -94,7 +102,7 @@ export function splitTopology(topology) {
   const geometries = topology.objects.countries.geometries;
   const arcs = decodeArcs(topology);
   const added = [];
-  for (const t of TERRITORIES) {
+  for (const t of [...TERRITORIES, ...SHAPE_SPLITS]) {
     if (geometries.some((g) => g.properties?.name === t.name)) continue;
     const parent = geometries.find((g) => g.id === t.parentNumeric);
     if (!parent) throw new Error(`Parent shape ${t.parentNumeric} for ${t.name} not found`);
@@ -134,7 +142,7 @@ const round2 = (n) => Math.round(n * 100) / 100;
 // Returns { svg, added }.
 export function splitSvg(svg) {
   const added = [];
-  for (const t of TERRITORIES) {
+  for (const t of [...TERRITORIES, ...SHAPE_SPLITS]) {
     if (svg.includes(`data-name="${t.name}"`)) continue;
     const parentRe = new RegExp(`<path id="(${t.parent})" class="([^"]*)" data-name="([^"]*)" data-cx="([^"]*)" data-cy="([^"]*)" d="([^"]*)"/>`, "g");
     let done = false;

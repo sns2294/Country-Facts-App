@@ -21,6 +21,7 @@
 window.SHAPE_RULES = {
   "N. Cyprus": { mergeInto: "CY" }, // Cyprus
   Somaliland: { mergeInto: "SO" }, // Somalia
+  Crimea: { mergeInto: "UA" }, // Natural Earth draws it inside Russia; internationally recognized as Ukraine (see split-territories.mjs)
   Kosovo: { linkTo: "XK" }, // "Republic of Kosovo" entry; not in the quiz (not sovereign)
   "French Guiana": { linkTo: "GF" },
   Guadeloupe: { linkTo: "GP" },

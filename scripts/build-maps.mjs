@@ -41,7 +41,7 @@ const PARENT = { ALA: "FIN", FRO: "DNK", GIB: "ESP", GGY: "GBR", JEY: "GBR", IMN
 // is drawn as part of that state (Crimea, Northern Cyprus, Somaliland); Kosovo and Western Sahara have their own cards.
 const NAME_OWNER = { Crimea: "UKR", "N. Cyprus": "CYP", "Cyprus U.N. Buffer Zone": "CYP", Akrotiri: "CYP", Dhekelia: "CYP", Kosovo: "UNK", Somaliland: "SOM", "Golan Heights": "SYR", Baikonur: "KAZ", "Siachen Glacier": "XSI", "Réunion": "REU", Mayotte: "MYT" };
 const DISPLAY = { UNK: "Kosovo", VAT: "Vatican City", MKD: "North Macedonia", CZE: "Czechia", BIH: "Bosnia and Herzegovina", GBR: "United Kingdom", COD: "DR Congo", COG: "Republic of the Congo", CIV: "Ivory Coast", STP: "São Tomé and Príncipe", CPV: "Cape Verde", SWZ: "Eswatini", GAZ: "Gaza Strip", XKU: "Southern Kurils (disputed)", XSN: "Senkaku/Diaoyu Is. (disputed)", XDK: "Dokdo/Takeshima (disputed)", XPA: "Paracel Is. (disputed)", XSP: "Spratly Is. (disputed)", XSC: "Scarborough Shoal (disputed)" }; // X-codes: marks that are not countries (cannot clash with an alpha-3)
-const nameOf = (a3) => DISPLAY[a3] || T.getBorderDisplayName(a3Info.get(a3).name);
+const nameOf = (a3) => R.names?.[a3] || DISPLAY[a3] || T.getBorderDisplayName(a3Info.get(a3).name); // R.names: this region's own label text
 const CONTEXT_LABEL_MAX = 15;
 
 // ---------- the regions ----------
@@ -157,6 +157,58 @@ const REGIONS = {
     lede: "Dots mark capital cities.",
     noteExtra: "Drawn in the Lambert azimuthal equal-area projection. Baikonur, the space launch site Kazakhstan leases to Russia, is shown as part of Kazakhstan. Kashmir and the Siachen Glacier, which India, Pakistan and China all claim in part, are shown in gray as Natural Earth draws them, with no country label.",
     projectionName: "Lambert azimuthal equal-area",
+  },
+  "north-america": {
+    name: "North America",
+    preciseLabelBoxes: true,
+    members: ["CAN", "USA", "MEX"],
+    // Greenland (Kingdom of Denmark), Bermuda (UK) and Saint Pierre and Miquelon (France) are drawn in their parents' colors from the Europe map.
+    extraColoured: ["GRL", "BMU", "SPM"], share: {},
+    fixedColours: { GRL: "DNK", BMU: "GBR", SPM: "FRA" },
+    names: { GRL: "Greenland (Kingdom of Denmark)", BMU: "Bermuda (United Kingdom)", SPM: "Saint Pierre and Miquelon (France)" },
+    parent: { PRI: "USA", VIR: "USA" },
+    context: ["RUS", "CUB", "BHS", "JAM", "HTI", "DOM", "BLZ", "GTM", "HND", "SLV", "NIC", "ISL"],
+    inset: { region: "north-america-hawaii", margin: 14, title: "Hawaii (United States)" },
+    extraPoints: { BMU: { name: "Bermuda (United Kingdom)", lat: 32.31, lon: -64.75, gap: 12 }, SPM: { name: "Saint Pierre and Miquelon (France)", lat: 46.9, lon: -56.3, gap: 12 } },
+    width: 1650, lon0: -97, lat0: 52,
+    // Framed by Alaska's western tip and the Aleutians, Greenland's north and north-east, Ellesmere Island, Mexico's south,
+    // Florida, Newfoundland, Bermuda and a little of the Caribbean and Central America.
+    frame: { points: [[-170, 66], [-172, 53], [-165, 54], [-12, 81.5], [-30, 83.6], [-70, 83.2], [-125, 76], [-92, 14.3], [-84, 15], [-72, 18.3], [-80, 24.5], [-64, 32.5], [-52.5, 47.5], [-55, 52], [-115, 23], [-110, 23], [-95, 15]], margin: 0.03 },
+    links: [["GRL", "CAN"], ["SPM", "CAN"], ["USA", "CAN"], ["USA", "MEX"]],
+    micro: ["BMU", "SPM"], microFixed: {}, microSide: { BMU: "east" }, balancedMicroLabels: true,
+    dots: ["BMU", "SPM"], // tiny territories get a small dot in their color (too small to see otherwise)
+    seas: [
+      { t: "Pacific Ocean", lon: -136, lat: 30, rot: 0, size: 16, sp: 0.35 },
+      { t: "Atlantic Ocean", lon: -44, lat: 36, rot: -45, size: 16, sp: 0.35 },
+      { t: "Arctic Ocean", lon: -150, lat: 79, rot: 0, size: 12, sp: 0.3 },
+      { t: "Beaufort Sea", lon: -138, lat: 71.4, rot: -10, size: 8.5, sp: 0.15 },
+      { t: "Gulf of Mexico", lon: -90, lat: 25.3, rot: 0, size: 10, sp: 0.2 },
+      { t: "Caribbean Sea", lon: -78, lat: 14.8, rot: 0, size: 9, sp: 0.2 },
+      { t: "Hudson Bay", lon: -85, lat: 59.5, rot: 0, size: 10, sp: 0.2 },
+      { t: "Baffin Bay", lon: -66, lat: 72, rot: -60, size: 9, sp: 0.2 },
+      { t: "Labrador Sea", lon: -52, lat: 57, rot: -40, size: 8, sp: 0.15 },
+      { t: "Davis Strait", lon: -58.5, lat: 65.5, rot: -50, size: 6.5, sp: 0.1 },
+      { t: "Gulf of Alaska", lon: -146, lat: 57, rot: 0, size: 8.5, sp: 0.15 },
+      { t: "Bering Sea", lon: -171, lat: 60.5, rot: -60, size: 8.5, sp: 0.15 },
+      { t: "Greenland Sea", lon: -14, lat: 75, rot: 70, size: 8, sp: 0.15 },
+      { t: "Denmark Strait", lon: -28, lat: 66.3, rot: -45, size: 6.5, sp: 0.1 },
+    ],
+    lede: "Dots mark capital cities; Greenland, Bermuda and Saint Pierre and Miquelon are shown in their parent country's color, and an inset enlarges Hawaii.",
+    noteExtra: "Drawn in the Lambert azimuthal equal-area projection. Greenland is part of the Kingdom of Denmark, Bermuda is a British Overseas Territory and Saint Pierre and Miquelon is a French overseas collectivity; each is in its parent's color from the Europe map. Puerto Rico and the U.S. Virgin Islands are shown in the United States' color. The western Aleutian Islands lie beyond the left edge.",
+    projectionName: "Lambert azimuthal equal-area",
+  },
+  // Not a page: the Hawaii inset of the North America map (same code, its own projection, the main map's colors).
+  "north-america-hawaii": {
+    fragment: true,
+    name: "Hawaii",
+    members: ["USA"],
+    extraColoured: [], share: {}, context: [],
+    names: { USA: "Hawaii" },
+    extraPoints: { USA: { name: "Honolulu", lat: 21.31, lon: -157.86 } },
+    preciseLabelBoxes: true,
+    width: 270, lon0: -157.6, lat0: 20.6, frame: { west: -160.7, east: -154.6, south: 18.8, north: 22.4 },
+    links: [], micro: [], microFixed: {}, microSide: {},
+    seas: [],
   },
   "southeast-asia": {
     name: "Southeast Asia",
@@ -304,7 +356,7 @@ for (const g of topology.objects.countries.geometries) {
   let a3 = g.id ? numericToA3.get(String(g.id).padStart(3, "0")) : NAME_OWNER[g.properties.name];
   if (g.properties.name in NAME_OWNER) a3 = NAME_OWNER[g.properties.name];
   if (!a3) continue;
-  a3 = PARENT[a3] || a3;
+  a3 = R.parent?.[a3] || PARENT[a3] || a3; // R.parent: territories this region draws as part of their parent (Puerto Rico in the US)
   if (!geomsByOwner.has(a3)) geomsByOwner.set(a3, []);
   geomsByOwner.get(a3).push(g);
 }
@@ -397,7 +449,9 @@ const WIDTH = R.width || 1400;
 let SCALE, X0, Y0, HEIGHT;
 {
   const pts = [];
-  for (let i = 0; i <= 200; i++) {
+  if (FRAME.points) { // framed by the places that matter, plus a margin (a continent that a lon/lat window would frame too loosely)
+    for (const [lon, lat] of FRAME.points) pts.push(laea(lon, lat));
+  } else for (let i = 0; i <= 200; i++) {
     const lon = FRAME.west + ((FRAME.east - FRAME.west) * i) / 200;
     pts.push(laea(lon, FRAME.south), laea(lon, FRAME.north));
     const lat = FRAME.south + ((FRAME.north - FRAME.south) * i) / 200;
@@ -405,7 +459,8 @@ let SCALE, X0, Y0, HEIGHT;
   }
   // Fit the western/eastern/southern edges tightly; the fan-shaped north gets a little air.
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
-  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  let minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  if (FRAME.points) { const m = (FRAME.margin ?? 0.03) * Math.max(maxX - minX, maxY - minY); minX -= m; maxX += m; minY -= m; maxY += m; }
   SCALE = WIDTH / (maxX - minX);
   X0 = -minX; Y0 = maxY;
   HEIGHT = Math.round((maxY - minY) * SCALE);
@@ -561,7 +616,7 @@ const LAKE_MIN_AREA = 14; // square SVG units; smaller ones are specks
 const lakes = [];
 {
   const lakeData = JSON.parse(read("map-data/lakes.json"));
-  const g = { w: R.frame.west - 4, e: R.frame.east + 4, s: R.frame.south - 4, n: R.frame.north + 4 };
+  const g = R.frame.points ? { w: Math.min(...R.frame.points.map((q) => q[0])) - 8, e: Math.max(...R.frame.points.map((q) => q[0])) + 8, s: Math.min(...R.frame.points.map((q) => q[1])) - 8, n: Math.max(...R.frame.points.map((q) => q[1])) + 8 } : { w: R.frame.west - 4, e: R.frame.east + 4, s: R.frame.south - 4, n: R.frame.north + 4 };
   for (const lk of lakeData) {
     const near = lk.p.filter((poly) => poly[0].some(([x, y]) => x >= g.w && x <= g.e && y >= g.s && y <= g.n));
     if (!near.length) continue;
@@ -621,14 +676,17 @@ if (R.disputed) {
 
 // ---------- colouring: no two neighbours (by land or a narrow sea) share a colour ----------
 
-const adjacency = new Map(EUROPE.map((a) => [a, new Set()]));
+// Colored nodes: the members, plus (where a region fixes colors, as North America does) its extra territories.
+const NODES = R.fixedColours ? COLOURED : EUROPE;
+const adjacency = new Map(NODES.map((a) => [a, new Set()]));
 const link = (a, b) => { if (adjacency.has(a) && adjacency.has(b) && a !== b) { adjacency.get(a).add(b); adjacency.get(b).add(a); } };
 for (const c of countries) for (const b of c.borders || []) link(c.alpha3Code, b);
 for (const [a, b] of R.links) link(a, b);
 
-function colourGraph(nodes, adj, k) {
-  // DSATUR, then verify; falls back to more colours only if k is too few.
-  const colour = new Map();
+function colourGraph(nodes, adj, k, fixed = new Map()) {
+  // DSATUR, then verify; falls back to more colours only if k is too few. `fixed` colors are set first.
+  const colour = new Map(fixed);
+  for (const [a, c] of fixed) for (const b of adj.get(a) || []) if (fixed.get(b) === c) throw new Error(`${a} and ${b} are neighbours with the same fixed colour`);
   const order = [...nodes];
   while (colour.size < nodes.length) {
     let best = null, bestSat = -1, bestDeg = -1;
@@ -647,7 +705,19 @@ function colourGraph(nodes, adj, k) {
   return colour;
 }
 const PALETTE_SIZE = 6;
-const colours = process.env.INSET_COLOURS ? new Map(Object.entries(JSON.parse(process.env.INSET_COLOURS))) : colourGraph(EUROPE.filter((a) => shapes.has(a)), new Map([...adjacency].filter(([a]) => shapes.has(a)).map(([a, s]) => [a, new Set([...s].filter((b) => shapes.has(b)))])), PALETTE_SIZE);
+// A territory drawn in its parent's colour from another map (Greenland in Denmark's colour from the Europe map).
+function fixedColours() {
+  const fixed = new Map();
+  if (!R.fixedColours) return fixed;
+  const europe = read("maps/europe/index.html");
+  for (const [a, from] of Object.entries(R.fixedColours)) {
+    const m = europe.match(new RegExp(`<path class="c c(\\d+)" data-code="${from}"`));
+    if (!m) throw new Error(`No colour for ${from} on the Europe map`);
+    if (shapes.has(a)) fixed.set(a, Number(m[1]));
+  }
+  return fixed;
+}
+const colours = process.env.INSET_COLOURS ? new Map(Object.entries(JSON.parse(process.env.INSET_COLOURS))) : colourGraph(NODES.filter((a) => shapes.has(a)), new Map([...adjacency].filter(([a]) => shapes.has(a)).map(([a, s]) => [a, new Set([...s].filter((b) => shapes.has(b)))])), PALETTE_SIZE, fixedColours());
 for (const [a, parent] of Object.entries(R.share)) colours.set(a, colours.get(parent)); // e.g. Greenland: part of the Kingdom of Denmark
 
 // An inset (an enlarged region drawn by this same script in its own projection) goes in an empty corner, with a thin
@@ -945,6 +1015,14 @@ function placeMicro(a3) {
   const words = name.split(" ");
   const variants = [[name]];
   if (words.length > 1) variants.push([words.slice(0, 1).join(" "), words.slice(1).join(" ")]);
+  if (R.balancedMicroLabels && words.length > 2) { // two lines of about equal width ("SAINT PIERRE AND" / "MIQUELON (FRANCE)")
+    let split = 1, gapMin = Infinity;
+    for (let k = 1; k < words.length; k++) {
+      const gap = Math.abs(textWidth(words.slice(0, k).join(" "), CALL_SIZE) - textWidth(words.slice(k).join(" "), CALL_SIZE));
+      if (gap < gapMin) { gapMin = gap; split = k; }
+    }
+    variants.push([words.slice(0, split).join(" "), words.slice(split).join(" ")]);
+  }
   let best = null;
   // Liechtenstein: a short line north into southern Germany (by Lake Constance) rather than the far-off Mediterranean,
   // so it is not confused with Monaco. If that spot is taken by another label, fall through to the open-water search.
@@ -1245,7 +1323,8 @@ const countryLabels = labelOut
     return `<text class="lbl ${l.kind}" transform="translate(${f1(l.x)} ${f1(l.y)})${rot}" font-size="${f1(l.size)}" dy="${f1(l.size * CAP_H * 0.5)}">${textLines(l.lines, l.size)}</text>`;
   })
   .join("\n      ");
-const capMarkup = capOut
+const territoryDots = (R.dots || []).filter((a) => shapes.has(a) && capitalPoint(a)).map((a) => { const [x, y] = capitalPoint(a).xy; return `<circle class="c c${colours.get(a)}" cx="${f1(x)}" cy="${f1(y)}" r="2.6" />`; }).join("\n      ");
+const capMarkup = (territoryDots ? territoryDots + "\n      " : "") + capOut
   .map((c) => `<circle class="cap" cx="${f1(c.x)}" cy="${f1(c.y)}" r="2.6" />` + (c.name ? `<text class="capname" x="${f1(c.nx)}" y="${f1(c.ny)}" text-anchor="${c.anchor}" font-size="${CAP_SIZE}">${esc(c.name)}</text>` : ""))
   .join("\n      ");
 const calloutLines = calloutOut

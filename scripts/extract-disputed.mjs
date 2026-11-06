@@ -10,7 +10,7 @@
 // Siachen Glacier). Only the areas the maps show are kept, in named groups. "kashmir": Indian-administered Jammu and Kashmir (with Ladakh), Azad
 // Kashmir, Gilgit-Baltistan, Aksai Chin and the Shaksgam Valley (Chinese-administered), the Siachen Glacier, and
 // Demchok (a small Indian-administered part of Ladakh that China claims). "kurils", "senkaku" and "dokdo": the Southern Kuril
-// Islands, the Senkaku / Diaoyu Islands and Dokdo / Takeshima.
+// Islands, the Senkaku / Diaoyu Islands and Dokdo / Takeshima; "paracels", "spratlys" and "scarborough" in the South China Sea.
 //
 // Output: [{ group, name, admin, note, p: [polygon, ...] }], a polygon being [outer ring, ...inner rings] of [lon, lat].
 
@@ -26,6 +26,9 @@ const GROUPS = {
   kurils: ["Kuril Is."], // the southern Kurils: administered by Russia, claimed by Japan
   senkaku: ["Pinnacle Is."], // Senkaku / Diaoyu: administered by Japan, claimed by China and Taiwan
   dokdo: ["Dokdo"], // Dokdo / Takeshima: administered by South Korea, claimed by Japan
+  paracels: ["Paracel Is."], // administered by China, claimed by Vietnam and Taiwan
+  spratlys: ["Spratly Is."], // claimed in whole or part by China, Taiwan, Vietnam, the Philippines, Malaysia and Brunei
+  scarborough: ["Scarborough Reef"], // Scarborough Shoal: claimed by China, the Philippines and Taiwan
 };
 const groupOf = (name) => Object.keys(GROUPS).find((g) => GROUPS[g].includes(name));
 const WANTED = Object.values(GROUPS).flat();

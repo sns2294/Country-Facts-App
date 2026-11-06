@@ -40,7 +40,7 @@ const PARENT = { ALA: "FIN", FRO: "DNK", GIB: "ESP", GGY: "GBR", JEY: "GBR", IMN
 // Following the site's rules (shape-rules.js): a piece of a UN member state that a breakaway or occupier holds
 // is drawn as part of that state (Crimea, Northern Cyprus, Somaliland); Kosovo and Western Sahara have their own cards.
 const NAME_OWNER = { Crimea: "UKR", "N. Cyprus": "CYP", "Cyprus U.N. Buffer Zone": "CYP", Akrotiri: "CYP", Dhekelia: "CYP", Kosovo: "UNK", Somaliland: "SOM", "Golan Heights": "SYR", Baikonur: "KAZ", "Siachen Glacier": "XSI", "Réunion": "REU", Mayotte: "MYT" };
-const DISPLAY = { UNK: "Kosovo", VAT: "Vatican City", MKD: "North Macedonia", CZE: "Czechia", BIH: "Bosnia and Herzegovina", GBR: "United Kingdom", COD: "DR Congo", COG: "Republic of the Congo", CIV: "Ivory Coast", STP: "São Tomé and Príncipe", CPV: "Cape Verde", SWZ: "Eswatini", GAZ: "Gaza Strip", XKU: "Southern Kurils (disputed)", XSN: "Senkaku/Diaoyu Is. (disputed)", XDK: "Dokdo/Takeshima (disputed)" }; // X-codes: marks that are not countries (cannot clash with an alpha-3)
+const DISPLAY = { UNK: "Kosovo", VAT: "Vatican City", MKD: "North Macedonia", CZE: "Czechia", BIH: "Bosnia and Herzegovina", GBR: "United Kingdom", COD: "DR Congo", COG: "Republic of the Congo", CIV: "Ivory Coast", STP: "São Tomé and Príncipe", CPV: "Cape Verde", SWZ: "Eswatini", GAZ: "Gaza Strip", XKU: "Southern Kurils (disputed)", XSN: "Senkaku/Diaoyu Is. (disputed)", XDK: "Dokdo/Takeshima (disputed)", XPA: "Paracel Is. (disputed)", XSP: "Spratly Is. (disputed)", XSC: "Scarborough Shoal (disputed)" }; // X-codes: marks that are not countries (cannot clash with an alpha-3)
 const nameOf = (a3) => DISPLAY[a3] || T.getBorderDisplayName(a3Info.get(a3).name);
 const CONTEXT_LABEL_MAX = 15;
 
@@ -156,6 +156,44 @@ const REGIONS = {
     ],
     lede: "Dots mark capital cities.",
     noteExtra: "Drawn in the Lambert azimuthal equal-area projection. Baikonur, the space launch site Kazakhstan leases to Russia, is shown as part of Kazakhstan. Kashmir and the Siachen Glacier, which India, Pakistan and China all claim in part, are shown in gray as Natural Earth draws them, with no country label.",
+    projectionName: "Lambert azimuthal equal-area",
+  },
+  "southeast-asia": {
+    name: "Southeast Asia",
+    preciseLabelBoxes: true,
+    members: ["MMR", "THA", "LAO", "KHM", "VNM", "MYS", "SGP", "BRN", "IDN", "PHL", "TLS"],
+    extraColoured: [], share: {},
+    context: ["CHN", "IND", "BGD", "TWN", "PNG", "AUS"],
+    // Scattered islands in the South China Sea that several countries claim are given to none: an oval over the area they lie in.
+    disputed: [
+      { group: "paracels", marker: true, ring: true },
+      { group: "spratlys", marker: true, ring: true },
+      { group: "scarborough", marker: true },
+    ],
+    extraPoints: {
+      XPA: { name: "Paracel Is. (disputed)", lat: 16.4, lon: 112.0, gap: 28 },
+      XSP: { name: "Spratly Is. (disputed)", lat: 9.7, lon: 114.6, gap: 56 },
+      XSC: { name: "Scarborough Shoal (disputed)", lat: 15.15, lon: 117.76, gap: 12 },
+    },
+    width: 1650, lon0: 117, lat0: 6, frame: { west: 91.5, east: 141.5, south: -11.5, north: 28.8 },
+    links: [["SGP", "MYS"], ["SGP", "IDN"], ["PHL", "MYS"], ["PHL", "IDN"], ["MYS", "VNM"], ["THA", "VNM"], ["BRN", "PHL"], ["KHM", "MYS"]],
+    micro: ["SGP", "BRN", "TLS", "XPA", "XSP", "XSC"], microFixed: {}, microSide: { XPA: "west", XSP: "east", TLS: "south" },
+    seas: [
+      { t: "South China Sea", lon: 112.4, lat: 12.6, rot: -35, size: 11, sp: 0.25 },
+      { t: "Gulf of Thailand", lon: 101.4, lat: 9.2, rot: 0, size: 7, sp: 0.1 },
+      { t: "Andaman Sea", lon: 95.4, lat: 11.5, rot: -75, size: 8.5, sp: 0.15 },
+      { t: "Bay of Bengal", lon: 92.8, lat: 17, rot: -60, size: 8.5, sp: 0.2 },
+      { t: "Java Sea", lon: 111.5, lat: -5.4, rot: 0, size: 9, sp: 0.2 },
+      { t: "Celebes Sea", lon: 122.6, lat: 3.7, rot: 0, size: 8, sp: 0.15 },
+      { t: "Sulu Sea", lon: 119.6, lat: 8.6, rot: -40, size: 7.5, sp: 0.15 },
+      { t: "Philippine Sea", lon: 130, lat: 14.5, rot: 0, size: 11, sp: 0.25 },
+      { t: "Banda Sea", lon: 127, lat: -5.6, rot: 0, size: 9, sp: 0.2 },
+      { t: "Indian Ocean", lon: 100, lat: -8.4, rot: -20, size: 12, sp: 0.3 },
+      { t: "Pacific Ocean", lon: 137, lat: 6, rot: -80, size: 13, sp: 0.35 },
+      { t: "Timor Sea", lon: 127.5, lat: -10.6, rot: 0, size: 7.5, sp: 0.15 },
+    ],
+    lede: "Dots mark capital cities; the smallest states are labeled with a pointer line.",
+    noteExtra: "Drawn in the Lambert azimuthal equal-area projection. The Paracel Islands (administered by China, claimed by Vietnam and Taiwan), the Spratly Islands (claimed in whole or part by China, Taiwan, Vietnam, the Philippines, Malaysia and Brunei) and Scarborough Shoal (claimed by China, the Philippines and Taiwan) are given to none and shown hatched: the ovals mark the area the scattered islands lie in, not claimed waters. Sabah is shown as part of Malaysia; the Philippines also claims it.",
     projectionName: "Lambert azimuthal equal-area",
   },
   "east-asia": {
@@ -452,9 +490,21 @@ function projectCountry(polys) {
   return result;
 }
 // Only keep a hole if its outer ring survived: rings after index 0 of a dropped outer are meaningless.
+// Land more than 95 degrees from the map's centre can never be in view, and near the opposite side of the globe the
+// projection folds over on itself, so such polygons are left out.
+const farFromCentre = (ring) => {
+  const sinP0 = Math.sin(LAT0), cosP0 = Math.cos(LAT0);
+  const step = Math.max(1, Math.floor(ring.length / 40));
+  for (let i = 0; i < ring.length; i += step) {
+    const l = ring[i][0] * D2R, p = ring[i][1] * D2R;
+    if (sinP0 * Math.sin(p) + cosP0 * Math.cos(p) * Math.cos(l - LON0) > -0.087) return false; // within 95 degrees
+  }
+  return true;
+};
 function projectClean(polys) {
   const out = [];
   for (const poly of polys) {
+    if (farFromCentre(poly[0])) continue;
     const outer = (() => {
       const o = poly[0];
       let r = o.slice(0, o[0][0] === o.at(-1)[0] && o[0][1] === o.at(-1)[1] ? -1 : undefined);
@@ -553,8 +603,14 @@ if (R.disputed) {
     const markers = [];
     if (cfg.marker) {
       const pts = areas.flatMap((a) => a.p.flatMap((poly) => poly[0]));
-      const [mx, my] = project((Math.min(...pts.map((q) => q[0])) + Math.max(...pts.map((q) => q[0]))) / 2, (Math.min(...pts.map((q) => q[1])) + Math.max(...pts.map((q) => q[1]))) / 2);
-      if (mx > 6 && mx < WIDTH - 6 && my > 6 && my < HEIGHT - 6) markers.push([mx, my]);
+      const lo = Math.min(...pts.map((q) => q[0])), hi = Math.max(...pts.map((q) => q[0])), la = Math.min(...pts.map((q) => q[1])), lb = Math.max(...pts.map((q) => q[1]));
+      const [mx, my] = project((lo + hi) / 2, (la + lb) / 2);
+      if (mx > 6 && mx < WIDTH - 6 && my > 6 && my < HEIGHT - 6) {
+        if (cfg.ring) { // scattered islands: an oval over the area they lie in (not drawn to scale, and not a claim to the waters)
+          const c = [project(lo, la), project(lo, lb), project(hi, la), project(hi, lb)];
+          markers.push([mx, my, Math.max(3.6, (Math.max(...c.map((q) => q[0])) - Math.min(...c.map((q) => q[0]))) / 2 + 2), Math.max(3.6, (Math.max(...c.map((q) => q[1])) - Math.min(...c.map((q) => q[1]))) / 2 + 2)]);
+        } else markers.push([mx, my]);
+      }
     }
     if (!shapes.length && !markers.length) continue; // outside this map's frame
     console.log(`disputed: ${cfg.group}: ${areas.length} area(s)${runs.length ? `, ${runs.length} line(s) of control` : ""}`);
@@ -910,6 +966,7 @@ function placeMicro(a3) {
     for (let cy = y - 190; cy <= y + 190; cy += 4) for (let cx = x - 190; cx <= x + 190; cx += 4) {
       if (MICRO_SIDE[a3] === "east" && cx < x + 8) continue;
       if (MICRO_SIDE[a3] === "west" && cx > x - 8) continue;
+      if (MICRO_SIDE[a3] === "south" && cy < y + 8) continue;
       const box = [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
       if (box[0] < 8 || box[2] > WIDTH - 8 || box[1] < 8 || box[3] > HEIGHT - 8) continue;
       if (obstacles.some((o) => boxOverlap(o, box))) continue;
@@ -1213,9 +1270,13 @@ const disputedMarkup = disputedGroups.map((g) => {
   return `<g class="disputed">${g.shapes.length ? `
         <path class="disp" d="${d}" />
         <path class="disp-hatch" d="${d}" />
-        <path class="disp-line" d="${g.runs.map((r) => "M" + r.map(([x, y]) => `${f1(x)} ${f1(y)}`).join("L")).join("")}" />` : ""}${g.markers.map(([x, y]) => `
+        <path class="disp-line" d="${g.runs.map((r) => "M" + r.map(([x, y]) => `${f1(x)} ${f1(y)}`).join("L")).join("")}" />` : ""}${g.markers.map(([x, y, rx, ry]) => (rx
+    ? `
+        <ellipse class="disp-dot" cx="${f1(x)}" cy="${f1(y)}" rx="${f1(rx)}" ry="${f1(ry)}" />
+        <ellipse class="disp-dot-hatch" cx="${f1(x)}" cy="${f1(y)}" rx="${f1(rx)}" ry="${f1(ry)}" />`
+    : `
         <circle class="disp-dot" cx="${f1(x)}" cy="${f1(y)}" r="3.6" />
-        <circle class="disp-dot-hatch" cx="${f1(x)}" cy="${f1(y)}" r="3.6" />`).join("")}
+        <circle class="disp-dot-hatch" cx="${f1(x)}" cy="${f1(y)}" r="3.6" />`)).join("")}
       </g>
       `;
 }).join("");

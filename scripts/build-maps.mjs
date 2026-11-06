@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Builds the "More maps" pages: static, labelled maps drawn from the repo's own data.
 //
-//   node scripts/build-maps.mjs            writes maps/europe/index.html
+//   node scripts/build-maps.mjs            writes every region below
+//   node scripts/build-maps.mjs africa     writes one region (maps/africa/index.html)
 //
 // Inputs (all free, no live calls):
 //   data/countries-10m.json   Natural Earth borders via world-atlas (public domain)
@@ -31,49 +32,194 @@ const capitals = JSON.parse(read("map-data/capitals.json"));
 const numericToA3 = new Map(countries.filter((c) => c.numericCode).map((c) => [c.numericCode, c.alpha3Code]));
 const a3Info = new Map(countries.map((c) => [c.alpha3Code, c]));
 
-// Coloured countries (the site's "Europe" region, sovereign plus Kosovo, which has its own card).
-const EUROPE = countries
-  .filter((c) => c.region === "Europe" && (c.sovereign || c.alpha3Code === "UNK") && c.alpha3Code !== "SJM")
-  .map((c) => c.alpha3Code);
 // Small dependencies are drawn in their parent's colour and carry no label of their own.
 const PARENT = { ALA: "FIN", FRO: "DNK", GIB: "ESP", GGY: "GBR", JEY: "GBR", IMN: "GBR" };
-// Natural Earth draws these pieces of Cyprus separately; Crimea is split out of Russia by scripts/split-territories.mjs.
-const NAME_OWNER = { Crimea: "UKR", "N. Cyprus": "CYP", "Cyprus U.N. Buffer Zone": "CYP", Akrotiri: "CYP", Dhekelia: "CYP", Kosovo: "UNK" };
-const DISPLAY = { UNK: "Kosovo", VAT: "Vatican City", MKD: "North Macedonia", CZE: "Czechia", BIH: "Bosnia and Herzegovina", GBR: "United Kingdom" };
+// Natural Earth draws these pieces separately (Crimea is split out of Russia by scripts/split-territories.mjs).
+// Following the site's rules (shape-rules.js): a piece of a UN member state that a breakaway or occupier holds
+// is drawn as part of that state (Crimea, Northern Cyprus, Somaliland); Kosovo and Western Sahara have their own cards.
+const NAME_OWNER = { Crimea: "UKR", "N. Cyprus": "CYP", "Cyprus U.N. Buffer Zone": "CYP", Akrotiri: "CYP", Dhekelia: "CYP", Kosovo: "UNK", Somaliland: "SOM", "Réunion": "REU", Mayotte: "MYT" };
+const DISPLAY = { UNK: "Kosovo", VAT: "Vatican City", MKD: "North Macedonia", CZE: "Czechia", BIH: "Bosnia and Herzegovina", GBR: "United Kingdom", COD: "DR Congo", COG: "Republic of the Congo", CIV: "Ivory Coast", STP: "São Tomé and Príncipe", CPV: "Cape Verde", SWZ: "Eswatini" };
 const nameOf = (a3) => DISPLAY[a3] || T.getBorderDisplayName(a3Info.get(a3).name);
-// Greenland is coloured and labelled too (a Danish territory in the top-left corner of the frame).
-const COLOURED = [...EUROPE, "GRL"]; // Greenland shares Denmark's colour (see colourGraph below)
-// Context countries (grey): labelled in muted type where they fit.
-const CONTEXT = ["TUR", "MAR", "DZA", "TUN", "LBY", "EGY", "SYR", "KAZ", "GEO", "ARM", "AZE", "IRQ", "LBN", "ISR", "JOR"];
 const CONTEXT_LABEL_MAX = 15;
 
+// ---------- the regions ----------
+// members: the coloured countries. context: grey neighbours that get a muted label where they fit.
+// share: a territory drawn in another country's colour. links: extra "touching" pairs (narrow seas) for the colouring.
+// micro: tiny countries labelled outside with a pointer line, in the order they are placed (side: which way the label goes).
+const REGIONS = {
+  europe: {
+    name: "Europe",
+    members: countries.filter((c) => c.region === "Europe" && (c.sovereign || c.alpha3Code === "UNK") && c.alpha3Code !== "SJM").map((c) => c.alpha3Code),
+    extraColoured: ["GRL"], share: { GRL: "DNK" },
+    context: ["TUR", "MAR", "DZA", "TUN", "LBY", "EGY", "SYR", "KAZ", "GEO", "ARM", "AZE", "IRQ", "LBN", "ISR", "JOR"],
+    lon0: 10, lat0: 52, frame: { west: -25.5, east: 43, south: 34.2, north: 71.6 },
+    links: [["UNK", "SRB"], ["UNK", "ALB"], ["UNK", "MKD"], ["UNK", "MNE"], // Kosovo has no border list
+      ["DNK", "SWE"], ["DNK", "NOR"], ["GBR", "FRA"], ["EST", "FIN"], ["ITA", "MLT"], ["ITA", "HRV"], ["GRC", "ITA"],
+      ["GBR", "NOR"], ["LVA", "SWE"], ["POL", "SWE"], ["DEU", "SWE"], ["CYP", "GRC"], ["ISL", "GBR"], ["ISL", "NOR"], ["DNK", "ISL"], ["ESP", "ITA"], ["FRA", "ITA"]],
+    micro: ["SMR", "MCO", "AND", "VAT", "LUX", "LIE", "MLT"], // the only countries that get pointer lines
+    microFixed: { LIE: [710, 654] }, // Liechtenstein: a short line north into southern Germany (by Lake Constance), not the far-off Mediterranean
+    microSide: { SMR: "east", VAT: "west" }, // San Marino's label goes in the Adriatic (east of it); the Vatican's in the Tyrrhenian Sea
+    seas: [
+      { t: "Atlantic Ocean", lon: -17, lat: 45, rot: -62, size: 17, sp: 0.35 },
+      { t: "Norwegian Sea", lon: -2, lat: 66.8, rot: -14, size: 13, sp: 0.22 },
+      { t: "North Sea", lon: 3.2, lat: 56.3, rot: -62, size: 13, sp: 0.22 },
+      { t: "Baltic Sea", lon: 19.8, lat: 57.9, rot: 62, size: 12, sp: 0.2 },
+      { t: "Bay of Biscay", lon: -5.2, lat: 45, rot: 0, size: 10, sp: 0.15 },
+      { t: "Celtic Sea", lon: -8.8, lat: 50.2, rot: 0, size: 9.5, sp: 0.15 },
+      { t: "Mediterranean Sea", lon: 3.2, lat: 37.1, rot: 4, size: 15, sp: 0.3 },
+      { t: "Tyrrhenian Sea", lon: 11.2, lat: 40.3, rot: -48, size: 9.5, sp: 0.14 },
+      { t: "Adriatic Sea", lon: 15.5, lat: 42.4, rot: 40, size: 8.5, sp: 0.08 },
+      { t: "Ionian Sea", lon: 18.6, lat: 38.1, rot: 0, size: 10, sp: 0.2 },
+      { t: "Aegean Sea", lon: 25.1, lat: 38.9, rot: 0, size: 9.5, sp: 0.12 },
+      { t: "Black Sea", lon: 34.3, lat: 43.4, rot: 0, size: 14, sp: 0.3 },
+      { t: "Barents Sea", lon: 36.5, lat: 71.2, rot: 0, size: 12, sp: 0.22 },
+      { t: "Caspian Sea", lon: 51, lat: 43, rot: 0, size: 11, sp: 0.2 },
+    ],
+    lede: "Dots mark capital cities; the smallest states are labeled with a pointer line.",
+    noteExtra: "Drawn in the ETRS89 Lambert azimuthal equal-area projection. Shapes are simplified; Kosovo is shown as the site's own entry.",
+    projectionName: "ETRS89 Lambert azimuthal equal-area",
+  },
+  africa: {
+    name: "Africa",
+    preciseLabelBoxes: true,
+    // The 54 African countries plus Western Sahara, which has its own card on the site.
+    members: countries.filter((c) => c.region === "Africa" && (c.sovereign || c.alpha3Code === "ESH")).map((c) => c.alpha3Code),
+    extraColoured: [], share: {},
+    context: ["ESP", "PRT", "FRA", "ITA", "GRC", "TUR", "CYP", "SYR", "LBN", "ISR", "PSE", "JOR", "IRQ", "SAU", "YEM", "OMN", "IRN"],
+    width: 1650, lon0: 20, lat0: 2, frame: { west: -26.5, east: 64, south: -36, north: 38.5 },
+    links: [["COM", "MOZ"], ["COM", "TZA"], ["COM", "MDG"], ["MDG", "MOZ"], ["MUS", "MDG"], ["SYC", "TZA"], ["SYC", "KEN"], ["SYC", "SOM"],
+      ["CPV", "SEN"], ["CPV", "MRT"], ["STP", "GAB"], ["STP", "GNQ"], ["GNQ", "CMR"], ["MUS", "SYC"], ["COM", "SYC"], ["ESH", "MAR"], ["ESH", "DZA"], ["ESH", "MRT"]],
+    micro: ["CPV", "GMB", "GNB", "STP", "GNQ", "DJI", "SYC", "COM", "MUS"],
+    microFixed: {}, microSide: {},
+    seas: [
+      { t: "Atlantic Ocean", lon: -14, lat: 8, rot: 0, size: 17, sp: 0.35 },
+      { t: "Atlantic Ocean", lon: 0, lat: -26, rot: 0, size: 17, sp: 0.35 },
+      { t: "Indian Ocean", lon: 59, lat: -22, rot: 0, size: 17, sp: 0.35 },
+      { t: "Mediterranean Sea", lon: 17, lat: 35.2, rot: 0, size: 13, sp: 0.3 },
+      { t: "Red Sea", lon: 37.6, lat: 20.5, rot: 52, size: 10.5, sp: 0.2 },
+      { t: "Gulf of Guinea", lon: 4, lat: 2.6, rot: 0, size: 11, sp: 0.2 },
+      { t: "Gulf of Aden", lon: 50, lat: 12.7, rot: -8, size: 9.5, sp: 0.14 },
+      { t: "Arabian Sea", lon: 60, lat: 13, rot: 0, size: 11, sp: 0.2 },
+      { t: "Mozambique Channel", lon: 41.5, lat: -19, rot: 62, size: 9.5, sp: 0.14 },
+      { t: "Bay of Biscay", lon: -5.5, lat: 44.5, rot: 0, size: 8.5, sp: 0.1 },
+    ],
+    lede: "Western Sahara is shown as its own territory. Dots mark capital cities; the island nations are labeled with a pointer line.",
+    noteExtra: "Drawn in the Lambert azimuthal equal-area projection. Borders are the internationally recognized ones: Somaliland is shown as part of Somalia, and Western Sahara, whose status the UN has not settled (Morocco administers most of it), is shown as its own territory, as on its country page.",
+    projectionName: "Lambert azimuthal equal-area",
+  },
+};
+
+const REGION_ID = process.argv[2];
+if (!REGION_ID) {
+  const { execFileSync } = await import("node:child_process");
+  for (const id of Object.keys(REGIONS)) execFileSync(process.execPath, [fileURLToPath(import.meta.url), id], { stdio: "inherit" });
+  process.exit(0);
+}
+const R = REGIONS[REGION_ID];
+if (!R) throw new Error(`Unknown region "${REGION_ID}" (have: ${Object.keys(REGIONS).join(", ")})`);
+const EUROPE = R.members; // (historic name) the countries coloured on this map
+const COLOURED = [...R.members, ...(R.extraColoured || [])];
+const CONTEXT = R.context;
+
 const topology = JSON.parse(read("data/countries-10m.json"));
-const features = topojson.feature(topology, topology.objects.countries).features;
 const rawByOwner = new Map(); // alpha3 -> [polygons], polygon = [ring, ring...]
-for (const f of features) {
-  let a3 = f.id ? numericToA3.get(String(f.id).padStart(3, "0")) : NAME_OWNER[f.properties.name];
-  if (f.properties.name in NAME_OWNER) a3 = NAME_OWNER[f.properties.name];
+const geomsByOwner = new Map();
+const clipLat = (ring, keepSouth) => { // Sutherland-Hodgman against one parallel, in degrees
+  const inside = (p) => (keepSouth ? p[1] <= WESTERN_SAHARA_NORTH : p[1] >= WESTERN_SAHARA_NORTH);
+  const out = [];
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i], b = ring[(i + 1) % ring.length];
+    if (inside(a)) out.push(a);
+    if (inside(a) !== inside(b)) out.push([a[0] + ((WESTERN_SAHARA_NORTH - a[1]) * (b[0] - a[0])) / (b[1] - a[1]), WESTERN_SAHARA_NORTH]);
+  }
+  return out;
+};
+for (const g of topology.objects.countries.geometries) {
+  let a3 = g.id ? numericToA3.get(String(g.id).padStart(3, "0")) : NAME_OWNER[g.properties.name];
+  if (g.properties.name in NAME_OWNER) a3 = NAME_OWNER[g.properties.name];
   if (!a3) continue;
   a3 = PARENT[a3] || a3;
-  const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
-  if (!rawByOwner.has(a3)) rawByOwner.set(a3, []);
-  rawByOwner.get(a3).push(...polys);
+  if (!geomsByOwner.has(a3)) geomsByOwner.set(a3, []);
+  geomsByOwner.get(a3).push(g);
+}
+// Somalia + Somaliland are dissolved into one shape so no seam shows. (Europe's merged pieces, such as Cyprus, keep
+// their seam: dissolving them shifted that approved map's labels.)
+const DISSOLVE = new Set(["SOM"]);
+// Natural Earth's Morocco includes the Moroccan-administered part of Western Sahara. The internationally recognized
+// boundary is the 27°40'N parallel (the Tarfaya border), so on maps that show Western Sahara, the part of Morocco's
+// shape south of it is moved to Western Sahara, making the territory one whole.
+const WESTERN_SAHARA_NORTH = 27 + 40 / 60;
+for (const [a3, geoms] of geomsByOwner) {
+  const merged = geoms.length > 1 && DISSOLVE.has(a3) ? topojson.merge(topology, geoms) : topojson.feature(topology, { type: "GeometryCollection", geometries: geoms }).features.reduce((m, f) => ({ type: "MultiPolygon", coordinates: [...m.coordinates, ...(f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates)] }), { type: "MultiPolygon", coordinates: [] });
+  rawByOwner.set(a3, merged.type === "Polygon" ? [merged.coordinates] : merged.coordinates);
+}
+if (R.members.includes("ESH")) {
+  const north = [], south = [];
+  for (const poly of rawByOwner.get("MAR")) {
+    const open = poly[0].slice(0, -1);
+    const n = clipLat(open, false), so = clipLat(open, true);
+    if (n.length >= 3) north.push([[...n, n[0]], ...poly.slice(1)]);
+    if (so.length >= 3) south.push([[...so, so[0]]]);
+  }
+  rawByOwner.set("MAR", north);
+  // Stitch each southern piece to the Natural Earth Western Sahara outline along the vertices they share (the berm), so no seam shows.
+  const key = (c) => `${c[0]},${c[1]}`;
+  const stitch = (a, b) => { // a, b: open rings; returns one open ring, or null if they do not share exactly one contiguous run
+    const inB = new Set(b.map(key)), inA = new Set(a.map(key));
+    const shared = a.map((c) => inB.has(key(c)));
+    const n = a.length, count = shared.filter(Boolean).length;
+    if (!count || count === n) return null;
+    let start = -1; // first shared vertex after a non-shared one
+    for (let i = 0; i < n; i++) if (shared[i] && !shared[(i + n - 1) % n]) { if (start >= 0) return null; start = i; }
+    if (start < 0) return null;
+    const run = []; // a's shared run, in a's order
+    for (let k = 0; k < count; k++) { if (!shared[(start + k) % n]) return null; run.push(a[(start + k) % n]); }
+    const s0 = key(run[0]), s1 = key(run.at(-1));
+    const aRest = []; // from just after the run, round to just before it
+    for (let k = count; k < n; k++) aRest.push(a[(start + k) % n]);
+    // b: walk from s0's... find s1 in b, then go on (away from the run) until s0
+    const m = b.length, bi = (id) => b.findIndex((c) => key(c) === id);
+    const i1 = bi(s1), i0 = bi(s0);
+    for (const dir of [1, -1]) {
+      const path = [];
+      let i = i1, ok = true;
+      for (let guard = 0; guard < m; guard++) {
+        i = (i + dir + m) % m;
+        if (i === i0) break;
+        if (inA.has(key(b[i]))) { ok = false; break; }
+        path.push(b[i]);
+        if (guard === m - 1) ok = false;
+      }
+      if (ok && path.length) return [run.at(-1), ...aRest, run[0], ...path.reverse()]; // the shared run becomes interior
+    }
+    return null;
+  };
+  let esh = rawByOwner.get("ESH").map((poly) => ({ ring: poly[0].slice(0, -1), holes: poly.slice(1) }));
+  const leftovers = [];
+  for (const poly of south) {
+    const b = poly[0].slice(0, -1);
+    let done = false;
+    for (const e of esh) { const st = stitch(e.ring, b); if (st) { e.ring = st; done = true; break; } }
+    if (!done) leftovers.push(poly);
+  }
+  console.log(`Western Sahara: ${south.length} piece(s) of Morocco moved; ${leftovers.length} not stitched`);
+  rawByOwner.set("ESH", [...esh.map((e) => [[...e.ring, e.ring[0]], ...e.holes]), ...leftovers]);
 }
 for (const a3 of EUROPE) if (!rawByOwner.has(a3)) throw new Error(`No shape for ${a3}`);
 
-// ---------- projection (ETRS89 / LAEA Europe, the EU's standard map projection) ----------
+// ---------- projection (Lambert azimuthal equal-area, centred per region; Europe uses the EU's ETRS89 centre) ----------
 
 const D2R = Math.PI / 180;
-const LON0 = 10 * D2R;
-const LAT0 = 52 * D2R;
+const LON0 = R.lon0 * D2R;
+const LAT0 = R.lat0 * D2R;
 function laea(lon, lat) {
   const l = lon * D2R, p = lat * D2R;
   const k = Math.sqrt(2 / (1 + Math.sin(LAT0) * Math.sin(p) + Math.cos(LAT0) * Math.cos(p) * Math.cos(l - LON0)));
   return [k * Math.cos(p) * Math.sin(l - LON0), k * (Math.cos(LAT0) * Math.sin(p) - Math.sin(LAT0) * Math.cos(p) * Math.cos(l - LON0))];
 }
 // Frame: the geographic window the map shows. Output units = SVG user units.
-const FRAME = { west: -25.5, east: 43, south: 34.2, north: 71.6 };
-const WIDTH = 1400;
+const FRAME = R.frame;
+const WIDTH = R.width || 1400;
 let SCALE, X0, Y0, HEIGHT;
 {
   const pts = [];
@@ -121,7 +267,6 @@ const boxClip = (x0, y0, x1, y1) => ({
     return [a[0] + t * (b[0] - a[0]), v];
   },
 });
-const geoWindow = boxClip(-50, 12, 95, 84);
 const viewWindow = boxClip(-30, -30, WIDTH + 30, HEIGHT + 30);
 
 function ringArea(r) {
@@ -221,9 +366,7 @@ const bigPolys = (polys, a3) => {
 const adjacency = new Map(EUROPE.map((a) => [a, new Set()]));
 const link = (a, b) => { if (adjacency.has(a) && adjacency.has(b) && a !== b) { adjacency.get(a).add(b); adjacency.get(b).add(a); } };
 for (const c of countries) for (const b of c.borders || []) link(c.alpha3Code, b);
-for (const [a, b] of [["UNK", "SRB"], ["UNK", "ALB"], ["UNK", "MKD"], ["UNK", "MNE"], // Kosovo has no border list
-  ["DNK", "SWE"], ["DNK", "NOR"], ["GBR", "FRA"], ["EST", "FIN"], ["ITA", "MLT"], ["ITA", "HRV"], ["GRC", "ITA"],
-  ["GBR", "NOR"], ["LVA", "SWE"], ["POL", "SWE"], ["DEU", "SWE"], ["CYP", "GRC"], ["ISL", "GBR"], ["ISL", "NOR"], ["DNK", "ISL"], ["ESP", "ITA"], ["FRA", "ITA"]]) link(a, b);
+for (const [a, b] of R.links) link(a, b);
 
 function colourGraph(nodes, adj, k) {
   // DSATUR, then verify; falls back to more colours only if k is too few.
@@ -247,7 +390,7 @@ function colourGraph(nodes, adj, k) {
 }
 const PALETTE_SIZE = 6;
 const colours = colourGraph(EUROPE.filter((a) => shapes.has(a)), new Map([...adjacency].filter(([a]) => shapes.has(a)).map(([a, s]) => [a, new Set([...s].filter((b) => shapes.has(b)))])), PALETTE_SIZE);
-colours.set("GRL", colours.get("DNK")); // part of the Kingdom of Denmark
+for (const [a, parent] of Object.entries(R.share)) colours.set(a, colours.get(parent)); // e.g. Greenland: part of the Kingdom of Denmark
 
 // ---------- text fitting ----------
 
@@ -365,7 +508,7 @@ const boxOverlap = (a, b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] >
 
 // Tiny states: label sits outside with a pointer line. dx/dy are offsets of the label anchor from the
 // capital marker, in SVG units; `anchor` is the text-anchor.
-const MICRO = ["LUX", "LIE", "AND", "MCO", "SMR", "VAT", "MLT"]; // the only countries that get pointer lines
+const MICRO = R.micro; // the only countries that get pointer lines
 const CALLOUTS = Object.fromEntries(MICRO.map((a) => [a, true]));
 // Capital-name placement overrides ("r" right, "l" left, "t" above, "b" below).
 const CAP_SIDE = {};
@@ -416,7 +559,9 @@ function labelCountry(a3, { context }) {
   labelOut.push({ a3, name: nameOf(a3), lines: fit.lines, size: fit.size, x: fit.pos[0], y: fit.pos[1], angle: fit.angle, kind: context ? "context" : "country" });
   const c = Math.abs(Math.cos(fit.angle)), sn = Math.abs(Math.sin(fit.angle));
   const hw = (fit.w * c + fit.h * sn) / 2 + 1, hh = (fit.w * sn + fit.h * c) / 2 + 1;
-  obstacles.push([fit.pos[0] - hw, fit.pos[1] - hh, fit.pos[0] + hw, fit.pos[1] + hh]);
+  const ob = [fit.pos[0] - hw, fit.pos[1] - hh, fit.pos[0] + hw, fit.pos[1] + hh];
+  if (fit.angle) ob.rot = { cx: fit.pos[0], cy: fit.pos[1], w: fit.w + 2, h: fit.h + 2, angle: fit.angle }; // the true tilted rectangle inside that bounding box
+  obstacles.push(ob);
 }
 // Largest first so the big countries claim their best spots.
 const byArea = (list) => [...list].sort((a, b) => areaOf(shapes.get(b)) - areaOf(shapes.get(a)));
@@ -457,8 +602,7 @@ const CALL_SIZE = 10, CALL_LINE = 11.5;
 
 // 3) pointer-line callouts for the micro-states: the nearest open water where the label fits (one or two
 // lines), preferring short lines that cross few other countries.
-const MICRO_FIXED = { LIE: [710, 654] };
-const MICRO_SIDE = { SMR: "east", VAT: "west" }; // San Marino's label goes in the Adriatic (east of it); the Vatican's in the Tyrrhenian Sea
+const MICRO_FIXED = R.microFixed, MICRO_SIDE = R.microSide;
 function placeMicro(a3) {
   const cap = capitalPoint(a3);
   if (!cap) return;
@@ -508,7 +652,7 @@ function placeMicro(a3) {
   calloutOut.push({ a3, name: nameOf(a3), x, y, lines: best.lines, box: best.box, nx: best.nx, ny: best.ny });
   console.log(`callout ${nameOf(a3)}: line ${Math.round(best.d)} long, crosses ${best.crossed} other countr${best.crossed === 1 ? "y" : "ies"}`);
 }
-for (const a3 of ["SMR", "MCO", "AND", "VAT", "LUX", "LIE", "MLT"]) placeMicro(a3);
+for (const a3 of MICRO) placeMicro(a3);
 // 3a) countries too small for a full-size label: a small label centred on the country that may spill
 // over its borders (as on the reference map); a pointer-line callout only if even that does not fit.
 const allShapes = [...shapes.values()];
@@ -596,7 +740,17 @@ for (const { a3, cap, x, y } of capDots) {
     bl: { box: [x - 3 - w, y + 4, x - 3, y + 4 + h], nx: x - 3.5, ny: y + 4 + h * 0.85, anchor: "end" },
   };
   const own = shapes.get(a3);
-  const ok = (side) => side.box[0] >= 4 && side.box[2] <= WIDTH - 4 && side.box[1] >= 4 && side.box[3] <= HEIGHT - 4 && !obstacles.some((o, i) => i >= capDots.length && boxOverlap(o, side.box));
+  // A capital name may sit in the empty corner of a tilted label's bounding box, if R.preciseLabelBoxes (new maps; Europe keeps its approved layout).
+  const hitsTilted = (o, b) => {
+    const c = Math.cos(-o.rot.angle), sn = Math.sin(-o.rot.angle);
+    for (let i = 0; i <= 8; i++) for (let j = 0; j <= 2; j++) {
+      const dx = b[0] + ((b[2] - b[0]) * i) / 8 - o.rot.cx, dy = b[1] + ((b[3] - b[1]) * j) / 2 - o.rot.cy;
+      if (Math.abs(dx * c - dy * sn) <= o.rot.w / 2 && Math.abs(dx * sn + dy * c) <= o.rot.h / 2) return true;
+    }
+    return false;
+  };
+  const blockedBy = (o, b) => boxOverlap(o, b) && (!R.preciseLabelBoxes || !o.rot || hitsTilted(o, b));
+  const ok = (side) => side.box[0] >= 4 && side.box[2] <= WIDTH - 4 && side.box[1] >= 4 && side.box[3] <= HEIGHT - 4 && !obstacles.some((o, i) => i >= capDots.length && blockedBy(o, side.box));
   const inOwn = (side) => [[side.box[0], side.box[1]], [side.box[2], side.box[1]], [side.box[0], side.box[3]], [side.box[2], side.box[3]]].every(([cx, cy]) => insidePoly(own, cx, cy));
   const free = ["r", "l", "b", "t", "tr", "tl", "br", "bl"].map((k) => sides[k]).filter(ok);
   const chosen = free.find(inOwn) || free[0];
@@ -621,22 +775,7 @@ for (const l of labelOut.filter((l) => l.kind === "country" && l.size <= 9 && !l
 
 // ---------- sea and ocean labels (positions in lon/lat; rotation in degrees) ----------
 
-const SEAS = [
-  { t: "Atlantic Ocean", lon: -17, lat: 45, rot: -62, size: 17, sp: 0.35 },
-  { t: "Norwegian Sea", lon: -2, lat: 66.8, rot: -14, size: 13, sp: 0.22 },
-  { t: "North Sea", lon: 3.2, lat: 56.3, rot: -62, size: 13, sp: 0.22 },
-  { t: "Baltic Sea", lon: 19.8, lat: 57.9, rot: 62, size: 12, sp: 0.2 },
-  { t: "Bay of Biscay", lon: -5.2, lat: 45, rot: 0, size: 10, sp: 0.15 },
-  { t: "Celtic Sea", lon: -8.8, lat: 50.2, rot: 0, size: 9.5, sp: 0.15 },
-  { t: "Mediterranean Sea", lon: 3.2, lat: 37.1, rot: 4, size: 15, sp: 0.3 },
-  { t: "Tyrrhenian Sea", lon: 11.2, lat: 40.3, rot: -48, size: 9.5, sp: 0.14 },
-  { t: "Adriatic Sea", lon: 15.5, lat: 42.4, rot: 40, size: 8.5, sp: 0.08 },
-  { t: "Ionian Sea", lon: 18.6, lat: 38.1, rot: 0, size: 10, sp: 0.2 },
-  { t: "Aegean Sea", lon: 25.1, lat: 38.9, rot: 0, size: 9.5, sp: 0.12 },
-  { t: "Black Sea", lon: 34.3, lat: 43.4, rot: 0, size: 14, sp: 0.3 },
-  { t: "Barents Sea", lon: 36.5, lat: 71.2, rot: 0, size: 12, sp: 0.22 },
-  { t: "Caspian Sea", lon: 51, lat: 43, rot: 0, size: 11, sp: 0.2 },
-];
+const SEAS = R.seas;
 const seaHits = (t, x, y, size, rot, sp) => {
   const w = textWidth(t, size, sp), ang = (rot * Math.PI) / 180;
   let n = 0;
@@ -730,8 +869,8 @@ const seaMarkup = seaOut
   .join("\n      ");
 
 const svg = `<svg class="map-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-labelledby="map-title map-desc" xmlns="http://www.w3.org/2000/svg">
-    <title id="map-title">Political map of Europe</title>
-    <desc id="map-desc">Europe's countries, each in a colour that differs from its neighbours, with country names, capital cities and the surrounding seas labelled.</desc>
+    <title id="map-title">Political map of ${R.name}</title>
+    <desc id="map-desc">${R.name}'s countries, each in a color that differs from its neighbors, with country names, capital cities and the surrounding seas labeled.</desc>
     <defs>
       <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%"><feDropShadow dx="1.5" dy="3" stdDeviation="3" class="shadow-flood" /></filter>
       <clipPath id="frame"><rect width="${WIDTH}" height="${HEIGHT}" rx="14" /></clipPath>
@@ -809,8 +948,8 @@ const page = `<!doctype html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Map of Europe: Countries, Capitals &amp; Seas | Country Facts</title>
-  <meta name="description" content="A colourful political map of Europe with every country, capital city and sea labelled." />
+  <title>Map of ${R.name}: Countries, Capitals &amp; Seas | Country Facts</title>
+  <meta name="description" content="A colorful political map of ${R.name} with every country, capital city and sea labeled." />
   <meta name="robots" content="noindex" />
   <link rel="icon" href="${FAVICON}" />
   <link rel="icon" type="image/png" sizes="192x192" href="../../favicon-192.png" />
@@ -830,17 +969,17 @@ const page = `<!doctype html>
     </button>
   </header>
   <main class="country-page maps-page">
-    <nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Country Facts</a> <span aria-hidden="true">›</span> <span>More maps</span> <span aria-hidden="true">›</span> <span>Europe</span></nav>
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Country Facts</a> <span aria-hidden="true">›</span> <span>More maps</span> <span aria-hidden="true">›</span> <span>${R.name}</span></nav>
     <section class="page-card map-card">
-      <h1>Political map of Europe</h1>
-      <p class="map-lede">${EUROPE.filter((a) => shapes.has(a)).length} countries, each coloured differently from its neighbours. Dots mark capital cities; the smallest states are labelled with a pointer line.</p>
+      <h1>Political map of ${R.name}</h1>
+      <p class="map-lede">${EUROPE.filter((a) => shapes.has(a)).length} ${R.members.some((a) => a === "ESH") ? "countries and territories" : "countries"}, each colored differently from its neighbors. ${R.lede}</p>
       <p class="map-hint">Tap the map to open it full size, then pinch to zoom.</p>
       <button type="button" class="map-open" id="map-open" aria-label="Open the map full size">
   ${svg}
       </button>
-      <p class="map-note">Borders: <a href="https://www.naturalearthdata.com" target="_blank" rel="noopener">Natural Earth</a> (public domain). Capital cities: Natural Earth populated places. Drawn in the ETRS89 Lambert azimuthal equal-area projection. Shapes are simplified; Kosovo is shown as the site's own entry.</p>
+      <p class="map-note">Borders: <a href="https://www.naturalearthdata.com" target="_blank" rel="noopener">Natural Earth</a> (public domain). Capital cities: Natural Earth populated places. ${R.noteExtra}</p>
     </section>
-  <div class="map-viewer" id="map-viewer" role="dialog" aria-modal="true" aria-label="Map of Europe, full size" hidden>
+  <div class="map-viewer" id="map-viewer" role="dialog" aria-modal="true" aria-label="Map of ${R.name}, full size" hidden>
     <div class="map-viewer-bar">
       <span class="map-viewer-help">Pinch to zoom, drag to move</span>
       <span class="map-viewer-buttons">
@@ -866,8 +1005,8 @@ const page = `<!doctype html>
 </html>
 `;
 
-fs.mkdirSync(path.join(ROOT, "maps/europe"), { recursive: true });
-fs.writeFileSync(path.join(ROOT, "maps/europe/index.html"), page);
-console.log(`maps/europe/index.html written (${WIDTH}x${HEIGHT})`);
+fs.mkdirSync(path.join(ROOT, "maps", REGION_ID), { recursive: true });
+fs.writeFileSync(path.join(ROOT, "maps", REGION_ID, "index.html"), page);
+console.log(`maps/${REGION_ID}/index.html written (${WIDTH}x${HEIGHT})`);
 console.log("coloured:", EUROPE.filter((a) => shapes.has(a)).length, "labelled:", labelOut.filter((l) => l.kind === "country").length, "unlabelled:", unlabelled.join(","));
 console.log("sizes:", labelOut.filter((l) => l.kind === "country").map((l) => `${l.a3}:${f1(l.size)}${l.angle ? "~" : ""}`).join(" "));

@@ -54,6 +54,16 @@ export const SHAPE_SPLITS = [
   { parentNumeric: "643", parent: "RU", name: "Crimea", boxes: [[32.3, 36.9, 44.2, 46.3]] },
 ];
 
+// Shapes that are not a polygon of their own in Natural Earth but part of one country's outline, cut off along a
+// meridian: everything of the parent at or east of `lon` becomes the shape `name` (no countries.json entry, no fact
+// card), which shape-rules.js merges into the country the UN recognizes as its owner.
+// The Golan Heights: Natural Earth puts the Israeli-held part in Israel; internationally it is Syrian territory (see
+// shape-rules.js: `"Golan Heights": { mergeInto: "SY" }`). 35.64°E runs along the Jordan River and the east shore of the
+// Sea of Galilee, so everything east of it (Golan, Mount Hermon) is cut off, and nothing of Israel proper is.
+export const MERIDIAN_CUTS = [
+  { parentNumeric: "376", parent: "IL", name: "Golan Heights", lon: 35.64 },
+];
+
 // The note shown on a territory's fact card, the country it belongs to (alpha3),
 // a noun phrase for its overview sentence and the possessive used where its
 // figures are folded into the parent's ("Included in France's figures").
@@ -97,6 +107,73 @@ function polygonCentre(polygon, arcs) {
   return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
 }
 
+// Cuts a polygon's outline along a meridian without breaking the topology: arcs that cross the line are split at it (every
+// geometry using an arc is updated), and one new arc runs along the cut, shared by the two pieces in opposite directions.
+function cutTopologyByMeridian(topology, cut) {
+  const geometries = topology.objects.countries.geometries;
+  if (geometries.some((g) => g.properties?.name === cut.name)) return false;
+  const parent = geometries.find((g) => g.id === cut.parentNumeric);
+  if (!parent) throw new Error(`Parent shape ${cut.parentNumeric} for ${cut.name} not found`);
+  if (parent.type !== "Polygon" || parent.arcs.length !== 1) throw new Error(`${parent.properties.name} is not a single-ring polygon`);
+  const [sx] = topology.transform.scale;
+  const [tx] = topology.transform.translate;
+  const CUT = Math.round((cut.lon - tx) / sx); // the cut as a grid column, so no rounding doubt about which side a point is on
+  const decode = (k) => { let x = 0, y = 0; return topology.arcs[k].map(([dx, dy]) => [(x += dx), (y += dy)]); };
+  const encode = (pts) => pts.map(([x, y], i) => (i ? [x - pts[i - 1][0], y - pts[i - 1][1]] : [x, y]));
+  const eachGeometry = (fn) => {
+    const walk = (g) => { if (g.type === "GeometryCollection") g.geometries.forEach(walk); else fn(g); };
+    Object.values(topology.objects).forEach(walk);
+  };
+  const replaceArcs = (nested, k, extra) => nested.flatMap((e) => {
+    if (Array.isArray(e)) return [replaceArcs(e, k, extra)];
+    if (e === k) return [k, extra];
+    if (e === ~k) return [~extra, ~k];
+    return [e];
+  });
+  // 1) split every arc of the ring that crosses the line, at the crossing
+  for (let guard = 0; guard < 50; guard++) {
+    let split = null;
+    for (const e of parent.arcs[0]) {
+      const k = e < 0 ? ~e : e, pts = decode(k);
+      for (let j = 0; j + 1 < pts.length && !split; j++) {
+        if (pts[j][0] < CUT !== pts[j + 1][0] < CUT && pts[j][0] !== CUT && pts[j + 1][0] !== CUT) {
+          const t = (CUT - pts[j][0]) / (pts[j + 1][0] - pts[j][0]);
+          split = { k, j, pts, X: [CUT, Math.round(pts[j][1] + t * (pts[j + 1][1] - pts[j][1]))] };
+        }
+      }
+      if (split) break;
+    }
+    if (!split) break;
+    const { k, j, pts, X } = split, extra = topology.arcs.length;
+    topology.arcs[k] = encode([...pts.slice(0, j + 1), X]);
+    topology.arcs.push(encode([X, ...pts.slice(j + 1)]));
+    eachGeometry((g) => { if (g.arcs) g.arcs = replaceArcs(g.arcs, k, extra); });
+  }
+  // 2) which pieces of the ring are east of the line
+  const ring = parent.arcs[0];
+  const orient = (e) => (e < 0 ? decode(~e).reverse() : decode(e));
+  const east = ring.map((e) => {
+    const off = orient(e).filter(([x]) => x !== CUT);
+    return off.length > 0 && off.every(([x]) => x > CUT);
+  });
+  const n = ring.length;
+  const starts = east.map((v, i) => v && !east[(i + n - 1) % n]);
+  if (starts.filter(Boolean).length !== 1 || east.every(Boolean) || !east.some(Boolean)) throw new Error(`${cut.name}: the cut does not split ${parent.properties.name}'s outline in two`);
+  const a = starts.indexOf(true);
+  let b = a;
+  while (east[(b + 1) % n]) b = (b + 1) % n;
+  const inside = [], outside = [];
+  for (let i = a; ; i = (i + 1) % n) { inside.push(ring[i]); if (i === b) break; }
+  for (let i = (b + 1) % n; i !== a; i = (i + 1) % n) outside.push(ring[i]);
+  const pStart = orient(inside[0])[0], pEnd = orient(inside.at(-1)).at(-1);
+  // 3) the new arc along the cut: from where the east piece ends back to where it starts
+  const c = topology.arcs.length;
+  topology.arcs.push(encode([pEnd, pStart]));
+  parent.arcs = [[...outside, ~c]];
+  geometries.push({ type: "MultiPolygon", arcs: [[[...inside, c]]], properties: { name: cut.name } });
+  return true;
+}
+
 // Mutates the topology; returns the names of the shapes it added.
 export function splitTopology(topology) {
   const geometries = topology.objects.countries.geometries;
@@ -124,6 +201,7 @@ export function splitTopology(topology) {
     });
     added.push(t.name);
   }
+  for (const cut of MERIDIAN_CUTS) if (cutTopologyByMeridian(topology, cut)) added.push(cut.name);
   return added;
 }
 
@@ -163,6 +241,31 @@ export function splitSvg(svg) {
       return `<path id="${id}" class="${cls}" data-name="${name}" data-cx="${cx}" data-cy="${cy}" d="${kept.join("")}"/>\n${territory}`;
     });
     if (!done) throw new Error(`No ring of any map path found for ${t.name}`);
+  }
+  for (const cut of MERIDIAN_CUTS) {
+    if (svg.includes(`data-name="${cut.name}"`)) continue;
+    const re = new RegExp(`<path id="${cut.parent}" class="([^"]*)" data-name="([^"]*)" data-cx="([^"]*)" data-cy="([^"]*)" d="([^"]*)"/>`);
+    const m = svg.match(re);
+    if (!m) throw new Error(`No map path ${cut.parent} found for ${cut.name}`);
+    const rings = m[5].match(/M[^M]*/g).map((r) => r.match(/-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?/g).map((p) => p.split(",").map(Number)));
+    if (rings.length !== 1) throw new Error(`${cut.parent} has more than one ring`);
+    const clip = (ring, keepEast) => { // x = longitude here
+      const inside = (p) => (keepEast ? p[0] >= cut.lon : p[0] <= cut.lon);
+      const out = [];
+      for (let i = 0; i < ring.length; i++) {
+        const p = ring[i], q = ring[(i + 1) % ring.length];
+        if (inside(p)) out.push(p);
+        if (inside(p) !== inside(q)) out.push([cut.lon, round2(p[1] + ((cut.lon - p[0]) * (q[1] - p[1])) / (q[0] - p[0]))]);
+      }
+      return out;
+    };
+    const eastRing = clip(rings[0], true), westRing = clip(rings[0], false);
+    const d = (ring) => "M" + ring.map(([x, y]) => `${x},${y}`).join("L") + "Z";
+    const lons = eastRing.map((p) => p[0]), lats = eastRing.map((p) => p[1]);
+    const gcx = round2((Math.min(...lons) + Math.max(...lons)) / 2), gcy = round2(-(Math.min(...lats) + Math.max(...lats)) / 2);
+    const territory = `<path class="country no-code" data-name="${cut.name}" data-cx="${gcx}" data-cy="${gcy}" d="${d(eastRing)}"/>`;
+    svg = svg.replace(re, `<path id="${cut.parent}" class="${m[1]}" data-name="${m[2]}" data-cx="${m[3]}" data-cy="${m[4]}" d="${d(westRing)}"/>\n${territory}`);
+    added.push({ name: cut.name, small: false, cx: gcx, cy: gcy });
   }
   return { svg, added };
 }

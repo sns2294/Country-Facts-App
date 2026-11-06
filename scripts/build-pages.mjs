@@ -951,9 +951,12 @@ ${body}
 `;
 }
 
+const GOLAN_NOTE = "The Golan Heights, captured from Syria in 1967 and annexed by Israel in 1981, is internationally recognized as Syrian territory; a few countries, including the United States, recognize it as part of Israel.";
 // One-off sentences shown under a country's intro (keyed by alpha3).
 const COUNTRY_NOTES = {
   UKR: "Crimea has been occupied by Russia since 2014; its annexation is not internationally recognized.",
+  ISR: GOLAN_NOTE,
+  SYR: GOLAN_NOTE,
 };
 
 function countryPage(country) {

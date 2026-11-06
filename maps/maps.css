@@ -1,0 +1,81 @@
+/* Styles for the static maps (maps/<name>/). Colours follow the site's light/dark theme. */
+.maps-page {
+  --ocean: #cfe6f2;
+  --sea-text: #4f7f9b;
+  --border: #ffffff;
+  --ctx: #e3e1da;
+  --ctx-text: #8b887f;
+  --label: #1d1f24;
+  --label-halo: rgba(255, 255, 255, 0.55);
+  --leader: #3b3f47;
+  --cap-fill: #1d1f24;
+  --cap-ring: #ffffff;
+  --shadow: rgba(30, 50, 70, 0.38);
+  --c0: #f5c63c;
+  --c1: #ef8a4c;
+  --c2: #7cc45a;
+  --c3: #4fc0c0;
+  --c4: #e8709f;
+  --c5: #a98ce0;
+}
+:root.dark .maps-page {
+  --ocean: #0f2233;
+  --sea-text: #6f9bb8;
+  --border: #0f2233;
+  --ctx: #232a33;
+  --ctx-text: #6c7683;
+  --label: #ffffff;
+  --label-halo: rgba(0, 0, 0, 0.6);
+  --leader: #c9ced6;
+  --cap-fill: #ffffff;
+  --cap-ring: #0b1219;
+  --shadow: rgba(0, 0, 0, 0.7);
+  --c0: #b89a26;
+  --c1: #c2653a;
+  --c2: #4f9a47;
+  --c3: #2f9a96;
+  --c4: #b4507d;
+  --c5: #7a65b8;
+}
+
+.maps-page .map-card h1 { margin: 0 0 0.4rem; font-size: 1.6rem; font-weight: 600; }
+.maps-page .map-lede { margin: 0 0 1rem; color: var(--text-muted); line-height: 1.5; }
+.maps-page .map-note { margin: 1rem 0 0; color: var(--text-muted); font-size: 0.8rem; line-height: 1.5; }
+.maps-page .map-note a { color: inherit; }
+/* On a phone the map keeps a readable size and scrolls sideways instead of shrinking its labels. */
+.maps-page .map-open { display: block; width: 100%; padding: 0; margin: 0; border: 0; background: none; border-radius: 14px; overflow: hidden; cursor: default; -webkit-tap-highlight-color: transparent; }
+.maps-page .map-svg { display: block; width: 100%; height: auto; font-family: "Helvetica Neue", Helvetica, Arial, "Segoe UI", sans-serif; }
+/* The tap-to-enlarge hint, and the tap itself, are for narrow screens only. */
+.maps-page .map-hint { display: none; margin: 0 0 0.75rem; text-align: left; color: var(--text-muted); font-size: 0.9rem; }
+@media (max-width: 700px) {
+  .maps-page .map-hint { display: block; }
+  .maps-page .map-open { cursor: zoom-in; }
+}
+/* Full-screen viewer (opened by a tap on a phone). */
+.map-viewer { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; background: var(--ocean); }
+.map-viewer[hidden] { display: none; }
+html.map-viewer-open, html.map-viewer-open body { overflow: hidden; overscroll-behavior: none; }
+.map-viewer-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 0.75rem; padding-top: max(0.5rem, env(safe-area-inset-top)); background: var(--bg); color: var(--text); border-bottom: 1px solid var(--border-ui, rgba(128, 128, 128, 0.3)); }
+.map-viewer-help { font-size: 0.85rem; color: var(--text-muted); }
+.map-viewer-buttons { display: flex; gap: 0.4rem; }
+.map-viewer-buttons button { min-width: 2.5rem; height: 2.5rem; padding: 0 0.6rem; border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 0.6rem; background: var(--card-bg, var(--bg)); color: var(--text); font: inherit; font-size: 1.1rem; line-height: 1; cursor: pointer; }
+.map-viewer-stage { position: relative; flex: 1; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+.map-viewer-stage .map-svg { position: absolute; left: 0; top: 0; transform-origin: 0 0; max-width: none; will-change: transform; }
+
+.maps-page.country-page { max-width: 1240px; }
+.maps-page .map-card { max-width: none; }
+
+.map-svg .ocean { fill: var(--ocean); }
+.map-svg .c { stroke: var(--border); stroke-width: 1; stroke-linejoin: round; }
+.map-svg .c0 { fill: var(--c0); } .map-svg .c1 { fill: var(--c1); } .map-svg .c2 { fill: var(--c2); }
+.map-svg .c3 { fill: var(--c3); } .map-svg .c4 { fill: var(--c4); } .map-svg .c5 { fill: var(--c5); }
+.map-svg .ctx { fill: var(--ctx); }
+.map-svg .shadow-flood { flood-color: var(--shadow); flood-opacity: 1; }
+
+.map-svg .lbl { font-weight: 800; letter-spacing: 0.05em; text-anchor: middle; fill: var(--label); stroke: var(--label-halo); stroke-width: 2.4px; paint-order: stroke; stroke-linejoin: round; pointer-events: none; }
+.map-svg .lbl.context { fill: var(--ctx-text); stroke: none; font-weight: 700; }
+.map-svg .lbl.small { letter-spacing: 0.04em; }
+.map-svg .leader { stroke: var(--leader); stroke-width: 0.9; }
+.map-svg .cap { fill: var(--cap-fill); stroke: var(--cap-ring); stroke-width: 1.4; }
+.map-svg .capname { font-weight: 600; fill: var(--label); stroke: var(--label-halo); stroke-width: 2.2px; paint-order: stroke; stroke-linejoin: round; pointer-events: none; }
+.map-svg .sea { font-style: italic; fill: var(--sea-text); pointer-events: none; }

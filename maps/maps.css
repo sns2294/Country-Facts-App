@@ -93,3 +93,7 @@ html.map-viewer-open, html.map-viewer-open body { overflow: hidden; overscroll-b
 .map-svg .inset-border { fill: none; stroke: var(--label); stroke-width: 1.6; }
 .map-svg .golan-line { fill: none; stroke: var(--label); stroke-width: 0.9; stroke-dasharray: 3 2; pointer-events: none; }
 .map-svg .lbl.golan { font-style: italic; font-weight: 700; letter-spacing: 0.02em; }
+
+/* Lakes: the sea color over the land, edged like a coast; named in the sea style (beside the lake, with a halo, if too big to fit in). */
+.map-svg .lake { fill: var(--ocean); fill-rule: evenodd; stroke: var(--border); stroke-width: 1; stroke-linejoin: round; }
+.map-svg .sea.out { stroke: var(--label-halo); stroke-width: 2.4px; paint-order: stroke; stroke-linejoin: round; }

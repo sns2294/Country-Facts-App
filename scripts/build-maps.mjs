@@ -39,7 +39,7 @@ const PARENT = { ALA: "FIN", FRO: "DNK", GIB: "ESP", GGY: "GBR", JEY: "GBR", IMN
 // Natural Earth draws these pieces separately (Crimea is split out of Russia by scripts/split-territories.mjs).
 // Following the site's rules (shape-rules.js): a piece of a UN member state that a breakaway or occupier holds
 // is drawn as part of that state (Crimea, Northern Cyprus, Somaliland); Kosovo and Western Sahara have their own cards.
-const NAME_OWNER = { Crimea: "UKR", "N. Cyprus": "CYP", "Cyprus U.N. Buffer Zone": "CYP", Akrotiri: "CYP", Dhekelia: "CYP", Kosovo: "UNK", Somaliland: "SOM", "Golan Heights": "SYR", "Réunion": "REU", Mayotte: "MYT" };
+const NAME_OWNER = { Crimea: "UKR", "N. Cyprus": "CYP", "Cyprus U.N. Buffer Zone": "CYP", Akrotiri: "CYP", Dhekelia: "CYP", Kosovo: "UNK", Somaliland: "SOM", "Golan Heights": "SYR", Baikonur: "KAZ", "Siachen Glacier": "XSI", "Réunion": "REU", Mayotte: "MYT" };
 const DISPLAY = { UNK: "Kosovo", VAT: "Vatican City", MKD: "North Macedonia", CZE: "Czechia", BIH: "Bosnia and Herzegovina", GBR: "United Kingdom", COD: "DR Congo", COG: "Republic of the Congo", CIV: "Ivory Coast", STP: "São Tomé and Príncipe", CPV: "Cape Verde", SWZ: "Eswatini", GAZ: "Gaza Strip" };
 const nameOf = (a3) => DISPLAY[a3] || T.getBorderDisplayName(a3Info.get(a3).name);
 const CONTEXT_LABEL_MAX = 15;
@@ -142,6 +142,22 @@ const REGIONS = {
     noteExtra: "Drawn in the Lambert azimuthal equal-area projection. Jerusalem's status is disputed: Israel designates it as its capital, while Palestinians claim East Jerusalem as theirs. Borders are the internationally recognized ones: Northern Cyprus is shown as part of Cyprus, the Golan Heights as part of Syria, Abkhazia and South Ossetia as part of Georgia, and Nagorno-Karabakh as part of Azerbaijan. Palestine is the West Bank and Gaza Strip, as on its country page.",
     projectionName: "Lambert azimuthal equal-area",
   },
+  "central-asia": {
+    name: "Central Asia",
+    preciseLabelBoxes: true,
+    members: ["KAZ", "UZB", "TKM", "KGZ", "TJK", "AFG"],
+    extraColoured: [], share: {},
+    context: ["RUS", "CHN", "MNG", "IND", "PAK", "IRN", "AZE", "NPL"],
+    width: 1650, lon0: 67, lat0: 43, frame: { west: 46.3, east: 87.8, south: 29.2, north: 56 },
+    links: [["KAZ", "TKM"], ["TKM", "KAZ"]],
+    micro: [], microFixed: {}, microSide: {},
+    seas: [
+      { t: "Caspian Sea", lon: 51.3, lat: 41.2, rot: -75, size: 11, sp: 0.2 },
+    ],
+    lede: "Dots mark capital cities.",
+    noteExtra: "Drawn in the Lambert azimuthal equal-area projection. Baikonur, the space launch site Kazakhstan leases to Russia, is shown as part of Kazakhstan. Kashmir and the Siachen Glacier, which India, Pakistan and China all claim in part, are shown in gray as Natural Earth draws them, with no country label.",
+    projectionName: "Lambert azimuthal equal-area",
+  },
   // Not a page: the Levant inset of the Middle East map, drawn by the same code with its own projection, then embedded
   // in that map (colors come from the main map so every country keeps its color).
   "middle-east-levant": {
@@ -199,9 +215,9 @@ for (const g of topology.objects.countries.geometries) {
   if (!geomsByOwner.has(a3)) geomsByOwner.set(a3, []);
   geomsByOwner.get(a3).push(g);
 }
-// Somalia + Somaliland are dissolved into one shape so no seam shows. (Europe's merged pieces, such as Cyprus, keep
+// Somalia + Somaliland, Syria + the Golan and Kazakhstan + Baikonur are dissolved into one shape so no seam shows. (Europe's merged pieces, such as Cyprus, keep
 // their seam: dissolving them shifted that approved map's labels.)
-const DISSOLVE = new Set(["SOM", "SYR"]);
+const DISSOLVE = new Set(["SOM", "SYR", "KAZ"]);
 for (const [a3, geoms] of geomsByOwner) {
   const merged = geoms.length > 1 && DISSOLVE.has(a3) ? topojson.merge(topology, geoms) : topojson.feature(topology, { type: "GeometryCollection", geometries: geoms }).features.reduce((m, f) => ({ type: "MultiPolygon", coordinates: [...m.coordinates, ...(f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates)] }), { type: "MultiPolygon", coordinates: [] });
   rawByOwner.set(a3, merged.type === "Polygon" ? [merged.coordinates] : merged.coordinates);
@@ -425,6 +441,32 @@ const bigPolys = (polys, a3) => {
   const total = areaOf(polys);
   return polys.filter((p) => Math.abs(ringArea(p.rings[0])) >= total * 0.04 || polys.length === 1);
 };
+
+// ---------- lakes (Natural Earth, map-data/lakes.json; see scripts/extract-lakes.mjs) ----------
+// Drawn in the sea color on top of the land, so Lake Victoria, the Aral Sea and the rest show as water.
+// Display names where Natural Earth's differs; "" = water that is drawn but not labeled.
+const LAKE_NAMES = {
+  "South Aral Sea": "Aral Sea", "North Aral Sea": "", "Lago Titicaca": "Lake Titicaca", "Lago de Nicaragua": "Lake Nicaragua",
+  "Lac Moeru": "Lake Mweru", "Buhayrat ath Tharthar": "Lake Tharthar", "Kaliningradskiy Zaliv": "Vistula Lagoon", "Zalew Wislany": "",
+  "Hongze Hu": "Hongze Lake", "Qinghai Hu": "Qinghai Lake", "Khövsgöl Nuur": "Lake Khövsgöl", "Uvs Nuur": "Uvs Lake",
+  "Réservoir Manicouagan": "Manicouagan Reservoir", "Lake Razazah": "", "Lake Pskov": "", Syvash: "", "Georgian Bay": "", "North Channel": "",
+  "Saginaw Bay": "", "McLeod Bay": "", "St. Marys River": "", "Whitefish Bay": "", "Laguna Madre": "", "Lake Srednye Kuyto": "", "Ozero Yarroto Vtoroye": "",
+};
+const LAKE_MIN_AREA = 14; // square SVG units; smaller ones are specks
+const lakes = [];
+{
+  const lakeData = JSON.parse(read("map-data/lakes.json"));
+  const g = { w: R.frame.west - 4, e: R.frame.east + 4, s: R.frame.south - 4, n: R.frame.north + 4 };
+  for (const lk of lakeData) {
+    const near = lk.p.filter((poly) => poly[0].some(([x, y]) => x >= g.w && x <= g.e && y >= g.s && y <= g.n));
+    if (!near.length) continue;
+    const polys = projectClean(near);
+    if (!polys.length) continue;
+    const area = areaOf(polys);
+    if (area >= LAKE_MIN_AREA) lakes.push({ name: LAKE_NAMES[lk.n] ?? lk.n, rank: lk.r, polys, area });
+  }
+  lakes.sort((a, b) => b.area - a.area);
+}
 
 // ---------- colouring: no two neighbours (by land or a narrow sea) share a colour ----------
 
@@ -939,6 +981,66 @@ for (const t of seaOut) {
   if (hits.size) console.log(`WARNING: sea label "${t.t}" overlaps ${[...hits].join(", ")}`);
 }
 
+// ---------- lake names (placed last, around everything else, so no other label moves) ----------
+// The biggest lakes are named in the sea style, inside the lake where the name fits (tilted along a long one); a very
+// big lake whose name does not fit inside gets it beside it.
+const lakeOut = [];
+{
+  for (const t of seaOut) { // keep out of the sea names
+    const w = textWidth(t.t, t.size, t.sp), a = (t.rot * Math.PI) / 180, c = Math.abs(Math.cos(a)), sn = Math.abs(Math.sin(a));
+    const hw = (w * c + t.size * sn) / 2 + 1, hh = (w * sn + t.size * c) / 2 + 1;
+    obstacles.push([t.x - hw, t.y - hh, t.x + hw, t.y + hh]);
+  }
+  // A tilted country label blocks only its real rectangle (small tiles along it), not its whole bounding box.
+  const trueBoxes = obstacles.flatMap((o) => {
+    if (!o.rot) return [o];
+    const { cx, cy, w, h, angle } = o.rot, n = Math.ceil(w / 4), tiles = [];
+    for (let i = 0; i < n; i++) {
+      const u = -w / 2 + ((i + 0.5) * w) / n, x = cx + u * Math.cos(angle), y = cy + u * Math.sin(angle), r = Math.abs(h * Math.cos(angle)) / 2 + 2.5 + Math.abs(Math.sin(angle)) * 0, hh = Math.abs(h * Math.cos(angle)) / 2 + Math.abs(4 * Math.sin(angle)) + 1;
+      tiles.push([x - Math.abs(4 * Math.cos(angle)) - Math.abs(h / 2 * Math.sin(angle)) - 0.5, y - hh - 0.5, x + Math.abs(4 * Math.cos(angle)) + Math.abs(h / 2 * Math.sin(angle)) + 0.5, y + hh + 0.5]);
+    }
+    return tiles;
+  });
+  const LAKE_SP = 0.08, ANGLES = [0, -0.35, 0.35, -0.7, 0.7, -1.05, 1.05, Math.PI / 2];
+  for (const lake of lakes) {
+    if (!lake.name || !(lake.rank <= 3 || (lake.rank <= 5 && lake.area >= 250))) continue;
+    const polys = bigPolys(lake.polys);
+    const rasters = new Map(ANGLES.map((a) => [a, rasterise(polys, a, trueBoxes)]));
+    let best = null;
+    const words = lake.name.split(" ");
+    const variants = [[lake.name]];
+    if (words.length > 1) variants.push([words[0], words.slice(1).join(" ")]); // "Lake" / "Victoria"
+    for (const lines of variants) for (const angle of ANGLES) for (let size = 11; size >= 6.5; size -= 0.5) {
+      const w = Math.max(...lines.map((l) => textWidth(l, size, LAKE_SP))) + size * 0.4, h = size * 0.92 + (lines.length - 1) * size * LINE_H;
+      const pos = placeRect(rasters.get(angle), w, h);
+      if (!pos) continue;
+      const score = size * (angle === 0 ? 1.2 : 1) * (lines.length === 1 ? 1.1 : 1);
+      if (!best || score > best.score) best = { size, pos, angle, score, w, h, out: false, lines };
+      break;
+    }
+    if (!best && lake.rank <= 1) { // beside the lake
+      const xs = lake.polys.flatMap((p) => p.rings[0].map((q) => q[0])), ys = lake.polys.flatMap((p) => p.rings[0].map((q) => q[1]));
+      const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      outer: for (const size of [9, 8, 7]) {
+        const w = textWidth(lake.name, size, LAKE_SP) + 4, h = size * 1.05;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+          const x = cx + dx * ((x1 - x0) / 2 + w / 2 + 3), y = cy + dy * ((y1 - y0) / 2 + h / 2 + 3);
+          const box = [x - w / 2, y - h / 2, x + w / 2, y + h / 2];
+          if (box[0] < 6 || box[2] > WIDTH - 6 || box[1] < 6 || box[3] > HEIGHT - 6 || obstacles.some((o) => boxOverlap(o, box))) continue;
+          best = { size, pos: [x, y], angle: 0, w, h, out: true, lines: [lake.name] };
+          break outer;
+        }
+      }
+    }
+    if (!best) continue;
+    const c = Math.abs(Math.cos(best.angle)), sn = Math.abs(Math.sin(best.angle));
+    const hw = (best.w * c + best.h * sn) / 2 + 1, hh = (best.w * sn + best.h * c) / 2 + 1;
+    obstacles.push([best.pos[0] - hw, best.pos[1] - hh, best.pos[0] + hw, best.pos[1] + hh]);
+    lakeOut.push({ name: lake.name, lines: best.lines, x: best.pos[0], y: best.pos[1], size: best.size, rot: (best.angle * 180) / Math.PI, out: best.out });
+  }
+  if (lakeOut.length) console.log(`lake names: ${lakeOut.map((l) => l.name + (l.out ? " (beside)" : "")).join(", ")}`);
+}
+
 // ---------- SVG ----------
 
 const f1 = num;
@@ -992,6 +1094,14 @@ const seaMarkup = seaOut
   .map((s) => `<text class="sea" transform="translate(${f1(s.x)} ${f1(s.y)}) rotate(${s.rot})" text-anchor="middle" font-size="${s.size}" letter-spacing="${s.sp}em">${esc(s.t)}</text>`)
   .join("\n      ");
 
+const lakeMarkup = lakes.length ? `<g class="lakes">
+      ${lakes.map((l) => `<path class="lake" d="${pathOf(l.polys)}" />`).join("\n      ")}
+      </g>
+      ` : "";
+const lakeLabelMarkup = lakeOut.length ? `<g class="lake-names">
+      ${lakeOut.map((l) => `<text class="sea${l.out ? " out" : ""}" transform="translate(${f1(l.x)} ${f1(l.y)}) rotate(${f1(l.rot)})" text-anchor="middle" dy="${f1(l.size * 0.35)}" font-size="${l.size}" letter-spacing="0.08em">${l.lines.length === 1 ? esc(l.lines[0]) : l.lines.map((t, i) => `<tspan x="0" dy="${f1(i === 0 ? -((l.lines.length - 1) * l.size * LINE_H) / 2 : l.size * LINE_H)}">${esc(t)}</tspan>`).join("")}</text>`).join("\n      ")}
+      </g>
+      ` : "";
 const golanOutline = golanShape ? `<path class="golan-line" d="${pathOf(golanShape)}" />` : "";
 const body = `<rect class="ocean" width="${WIDTH}" height="${HEIGHT}" />
       <g class="seas">
@@ -1001,7 +1111,7 @@ const body = `<rect class="ocean" width="${WIDTH}" height="${HEIGHT}" />
       ${landMarkup.grey}
       ${landMarkup.euro}
       </g>
-      ${golanOutline ? golanOutline + "\n      " : ""}<g class="labels">
+      ${lakeMarkup}${lakeLabelMarkup}${golanOutline ? golanOutline + "\n      " : ""}<g class="labels">
       ${countryLabels}
       </g>
       <g class="callouts">

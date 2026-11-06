@@ -45,11 +45,17 @@
 /* On a phone the map keeps a readable size and scrolls sideways instead of shrinking its labels. */
 .maps-page .map-open { display: block; width: 100%; padding: 0; margin: 0; border: 0; background: none; border-radius: 14px; overflow: hidden; cursor: default; -webkit-tap-highlight-color: transparent; }
 .maps-page .map-svg { display: block; width: 100%; height: auto; font-family: "Helvetica Neue", Helvetica, Arial, "Segoe UI", sans-serif; }
-/* The tap-to-enlarge hint, and the tap itself, are for narrow screens only. */
-.maps-page .map-hint { display: none; margin: 0 0 0.75rem; text-align: left; color: var(--text-muted); font-size: 0.9rem; }
+/* On a big screen the whole map is sized to fit the window height (no scrolling to see all of it); a click opens it
+   full screen to zoom in on the small labels. On a phone a tap does the same. */
+.maps-page .map-hint { display: block; margin: 0 0 0.75rem; text-align: left; color: var(--text-muted); font-size: 0.9rem; }
+.maps-page .map-hint .hint-touch { display: none; }
+.maps-page .map-open { cursor: zoom-in; }
+@media (min-width: 701px) {
+  .maps-page .map-open { width: min(100%, calc((100vh - 9.5rem) * var(--ratio, 1))); margin: 0 auto; }
+}
 @media (max-width: 700px) {
-  .maps-page .map-hint { display: block; }
-  .maps-page .map-open { cursor: zoom-in; }
+  .maps-page .map-hint .hint-touch { display: inline; }
+  .maps-page .map-hint .hint-mouse { display: none; }
 }
 /* Full-screen viewer (opened by a tap on a phone). */
 .map-viewer { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; background: var(--ocean); }
@@ -79,3 +85,11 @@ html.map-viewer-open, html.map-viewer-open body { overflow: hidden; overscroll-b
 .map-svg .cap { fill: var(--cap-fill); stroke: var(--cap-ring); stroke-width: 1.4; }
 .map-svg .capname { font-weight: 600; fill: var(--label); stroke: var(--label-halo); stroke-width: 2.2px; paint-order: stroke; stroke-linejoin: round; pointer-events: none; }
 .map-svg .sea { font-style: italic; fill: var(--sea-text); pointer-events: none; }
+
+/* Inset (an enlarged region in a corner of the map) and its outline on the main map. */
+.map-svg .inset-outline { fill: none; stroke: var(--leader); stroke-width: 1.2; }
+.map-svg .inset-head { fill: var(--label); }
+.map-svg .inset-title { fill: var(--cap-ring); font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; }
+.map-svg .inset-border { fill: none; stroke: var(--label); stroke-width: 1.6; }
+.map-svg .golan-line { fill: none; stroke: var(--label); stroke-width: 0.9; stroke-dasharray: 3 2; pointer-events: none; }
+.map-svg .lbl.golan { font-style: italic; font-weight: 700; letter-spacing: 0.02em; }

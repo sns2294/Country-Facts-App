@@ -24,11 +24,13 @@ const DARK_MODE_KEY = "countryFacts.darkMode".replace("countryFacts.", "countryF
 
 const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const num = (n) => (Math.round(n * 10) / 10).toString();
+const f1x = num;
 
 // ---------- which shapes belong to which country ----------
 
 const countries = JSON.parse(read("data/countries.json"));
 const capitals = JSON.parse(read("map-data/capitals.json"));
+// (extra labelled points of a region, such as the Gaza Strip, are added once the region is known)
 const numericToA3 = new Map(countries.filter((c) => c.numericCode).map((c) => [c.numericCode, c.alpha3Code]));
 const a3Info = new Map(countries.map((c) => [c.alpha3Code, c]));
 
@@ -37,8 +39,8 @@ const PARENT = { ALA: "FIN", FRO: "DNK", GIB: "ESP", GGY: "GBR", JEY: "GBR", IMN
 // Natural Earth draws these pieces separately (Crimea is split out of Russia by scripts/split-territories.mjs).
 // Following the site's rules (shape-rules.js): a piece of a UN member state that a breakaway or occupier holds
 // is drawn as part of that state (Crimea, Northern Cyprus, Somaliland); Kosovo and Western Sahara have their own cards.
-const NAME_OWNER = { Crimea: "UKR", "N. Cyprus": "CYP", "Cyprus U.N. Buffer Zone": "CYP", Akrotiri: "CYP", Dhekelia: "CYP", Kosovo: "UNK", Somaliland: "SOM", "Réunion": "REU", Mayotte: "MYT" };
-const DISPLAY = { UNK: "Kosovo", VAT: "Vatican City", MKD: "North Macedonia", CZE: "Czechia", BIH: "Bosnia and Herzegovina", GBR: "United Kingdom", COD: "DR Congo", COG: "Republic of the Congo", CIV: "Ivory Coast", STP: "São Tomé and Príncipe", CPV: "Cape Verde", SWZ: "Eswatini" };
+const NAME_OWNER = { Crimea: "UKR", "N. Cyprus": "CYP", "Cyprus U.N. Buffer Zone": "CYP", Akrotiri: "CYP", Dhekelia: "CYP", Kosovo: "UNK", Somaliland: "SOM", "Golan Heights": "SYR", "Réunion": "REU", Mayotte: "MYT" };
+const DISPLAY = { UNK: "Kosovo", VAT: "Vatican City", MKD: "North Macedonia", CZE: "Czechia", BIH: "Bosnia and Herzegovina", GBR: "United Kingdom", COD: "DR Congo", COG: "Republic of the Congo", CIV: "Ivory Coast", STP: "São Tomé and Príncipe", CPV: "Cape Verde", SWZ: "Eswatini", GAZ: "Gaza Strip" };
 const nameOf = (a3) => DISPLAY[a3] || T.getBorderDisplayName(a3Info.get(a3).name);
 const CONTEXT_LABEL_MAX = 15;
 
@@ -81,6 +83,7 @@ const REGIONS = {
   },
   africa: {
     name: "Africa",
+    unit: "countries and territories",
     preciseLabelBoxes: true,
     // The 54 African countries plus Western Sahara, which has its own card on the site.
     members: countries.filter((c) => c.region === "Africa" && (c.sovereign || c.alpha3Code === "ESH")).map((c) => c.alpha3Code),
@@ -107,12 +110,62 @@ const REGIONS = {
     noteExtra: "Drawn in the Lambert azimuthal equal-area projection. Borders are the internationally recognized ones: Somaliland is shown as part of Somalia, and Western Sahara, whose status the UN has not settled (Morocco administers most of it), is shown as its own territory, as on its country page.",
     projectionName: "Lambert azimuthal equal-area",
   },
+  "middle-east": {
+    name: "the Middle East", slug: "Middle East",
+    preciseLabelBoxes: true,
+    unit: "countries and territories",
+    // Western Asia plus Egypt, which spans Africa and the Middle East (it is on the Africa map too).
+    members: ["TUR", "CYP", "SYR", "LBN", "ISR", "PSE", "JOR", "IRQ", "IRN", "KWT", "SAU", "BHR", "QAT", "ARE", "OMN", "YEM", "EGY", "GEO", "ARM", "AZE"],
+    extraColoured: [], share: {},
+    context: ["GRC", "BGR", "UKR", "RUS", "TKM", "UZB", "AFG", "PAK", "KAZ", "LBY", "SDN", "ERI", "ETH", "DJI", "SOM", "ROU"],
+    width: 1650, lon0: 43, lat0: 28, frame: { west: 23.5, east: 63.5, south: 3, north: 43.8 },
+    inset: { region: "middle-east-levant", margin: 14, title: "The Levant, enlarged" },
+    capSide: { ISR: "l", PSE: "t", JOR: "t" }, // crowded Levant: Jerusalem left of its dot, Ramallah and Amman above
+    capFirst: ["PSE", "ISR", "JOR", "LBN"], // ...and named before the country labels are placed
+    capitalNames: ["LBN", "PSE"], // these two also get a capital name next to their pointer-line country label
+    links: [["CYP", "TUR"], ["CYP", "SYR"], ["CYP", "LBN"], ["CYP", "ISR"], ["CYP", "EGY"], ["EGY", "SAU"], ["EGY", "JOR"], ["BHR", "QAT"], ["BHR", "SAU"], ["BHR", "IRN"],
+      ["IRN", "OMN"], ["IRN", "ARE"], ["IRN", "KWT"], ["IRN", "SAU"], ["QAT", "ARE"], ["PSE", "EGY"], ["IRN", "QAT"]],
+    micro: ["BHR", "QAT", "KWT", "LBN", "PSE"],
+    microFixed: {}, microSide: { LBN: "west", PSE: "west", KWT: "east", QAT: "east", BHR: "east" },
+    seas: [
+      { t: "Mediterranean Sea", lon: 29.5, lat: 33.6, rot: 0, size: 12, sp: 0.3 },
+      { t: "Black Sea", lon: 34.5, lat: 42.6, rot: 0, size: 11, sp: 0.3 },
+      { t: "Caspian Sea", lon: 51, lat: 41.2, rot: 0, size: 11, sp: 0.2 },
+      { t: "Aegean Sea", lon: 25.2, lat: 38.6, rot: 0, size: 8.5, sp: 0.1 },
+      { t: "Red Sea", lon: 37.8, lat: 20.4, rot: 52, size: 11, sp: 0.2 },
+      { t: "Persian Gulf", lon: 51.6, lat: 27.4, rot: -36, size: 9, sp: 0.15 },
+      { t: "Gulf of Oman", lon: 58.6, lat: 24.9, rot: -42, size: 8.5, sp: 0.1 },
+      { t: "Gulf of Aden", lon: 47.3, lat: 12.9, rot: -8, size: 10, sp: 0.15 },
+      { t: "Arabian Sea", lon: 61, lat: 17.5, rot: 0, size: 12, sp: 0.25 },
+    ],
+    lede: "Dots mark capital cities; the smallest states are labeled with a pointer line, and an inset enlarges the Levant.",
+    noteExtra: "Drawn in the Lambert azimuthal equal-area projection. Jerusalem's status is disputed: Israel designates it as its capital, while Palestinians claim East Jerusalem as theirs. Borders are the internationally recognized ones: Northern Cyprus is shown as part of Cyprus, the Golan Heights as part of Syria, Abkhazia and South Ossetia as part of Georgia, and Nagorno-Karabakh as part of Azerbaijan. Palestine is the West Bank and Gaza Strip, as on its country page.",
+    projectionName: "Lambert azimuthal equal-area",
+  },
+  // Not a page: the Levant inset of the Middle East map, drawn by the same code with its own projection, then embedded
+  // in that map (colors come from the main map so every country keeps its color).
+  "middle-east-levant": {
+    fragment: true,
+    name: "the Levant",
+    members: ["ISR", "PSE", "LBN", "SYR", "JOR", "EGY", "SAU"],
+    extraColoured: [], share: {}, context: [],
+    golan: true, // label the Golan Heights (part of Syria) and mark it with a dashed outline
+    extraPoints: { GAZ: { name: "Gaza Strip", lat: 31.42, lon: 34.37 } },
+    preciseLabelBoxes: true,
+    width: 440, lon0: 35.5, lat0: 31.8, frame: { west: 33.5, east: 37.3, south: 29.1, north: 34.3 },
+    links: [],
+    micro: ["GAZ"], microFixed: {}, microSide: { GAZ: "west" },
+    seas: [
+      { t: "Mediterranean Sea", lon: 33.9, lat: 33.1, rot: -72, size: 10, sp: 0.2 },
+      { t: "Gulf of Aqaba", lon: 34.95, lat: 28.9, rot: 62, size: 7, sp: 0.1 },
+    ],
+  },
 };
 
 const REGION_ID = process.argv[2];
 if (!REGION_ID) {
   const { execFileSync } = await import("node:child_process");
-  for (const id of Object.keys(REGIONS)) execFileSync(process.execPath, [fileURLToPath(import.meta.url), id], { stdio: "inherit" });
+  for (const id of Object.keys(REGIONS).filter((r) => !REGIONS[r].fragment)) execFileSync(process.execPath, [fileURLToPath(import.meta.url), id], { stdio: "inherit" });
   process.exit(0);
 }
 const R = REGIONS[REGION_ID];
@@ -120,17 +173,21 @@ if (!R) throw new Error(`Unknown region "${REGION_ID}" (have: ${Object.keys(REGI
 const EUROPE = R.members; // (historic name) the countries coloured on this map
 const COLOURED = [...R.members, ...(R.extraColoured || [])];
 const CONTEXT = R.context;
+Object.assign(capitals, R.extraPoints || {});
 
 const topology = JSON.parse(read("data/countries-10m.json"));
 const rawByOwner = new Map(); // alpha3 -> [polygons], polygon = [ring, ring...]
 const geomsByOwner = new Map();
-const clipLat = (ring, keepSouth) => { // Sutherland-Hodgman against one parallel, in degrees
-  const inside = (p) => (keepSouth ? p[1] <= WESTERN_SAHARA_NORTH : p[1] >= WESTERN_SAHARA_NORTH);
+const clipHalf = (ring, axis, value, keepGreater) => { // Sutherland-Hodgman against one meridian or parallel, in degrees
+  const inside = (p) => (keepGreater ? p[axis] >= value : p[axis] <= value);
   const out = [];
   for (let i = 0; i < ring.length; i++) {
     const a = ring[i], b = ring[(i + 1) % ring.length];
     if (inside(a)) out.push(a);
-    if (inside(a) !== inside(b)) out.push([a[0] + ((WESTERN_SAHARA_NORTH - a[1]) * (b[0] - a[0])) / (b[1] - a[1]), WESTERN_SAHARA_NORTH]);
+    if (inside(a) !== inside(b)) {
+      const t = (value - a[axis]) / (b[axis] - a[axis]);
+      out.push(axis === 0 ? [value, a[1] + t * (b[1] - a[1])] : [a[0] + t * (b[0] - a[0]), value]);
+    }
   }
   return out;
 };
@@ -144,66 +201,74 @@ for (const g of topology.objects.countries.geometries) {
 }
 // Somalia + Somaliland are dissolved into one shape so no seam shows. (Europe's merged pieces, such as Cyprus, keep
 // their seam: dissolving them shifted that approved map's labels.)
-const DISSOLVE = new Set(["SOM"]);
-// Natural Earth's Morocco includes the Moroccan-administered part of Western Sahara. The internationally recognized
-// boundary is the 27°40'N parallel (the Tarfaya border), so on maps that show Western Sahara, the part of Morocco's
-// shape south of it is moved to Western Sahara, making the territory one whole.
-const WESTERN_SAHARA_NORTH = 27 + 40 / 60;
+const DISSOLVE = new Set(["SOM", "SYR"]);
 for (const [a3, geoms] of geomsByOwner) {
   const merged = geoms.length > 1 && DISSOLVE.has(a3) ? topojson.merge(topology, geoms) : topojson.feature(topology, { type: "GeometryCollection", geometries: geoms }).features.reduce((m, f) => ({ type: "MultiPolygon", coordinates: [...m.coordinates, ...(f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates)] }), { type: "MultiPolygon", coordinates: [] });
   rawByOwner.set(a3, merged.type === "Polygon" ? [merged.coordinates] : merged.coordinates);
 }
-if (R.members.includes("ESH")) {
-  const north = [], south = [];
-  for (const poly of rawByOwner.get("MAR")) {
-    const open = poly[0].slice(0, -1);
-    const n = clipLat(open, false), so = clipLat(open, true);
-    if (n.length >= 3) north.push([[...n, n[0]], ...poly.slice(1)]);
-    if (so.length >= 3) south.push([[...so, so[0]]]);
-  }
-  rawByOwner.set("MAR", north);
-  // Stitch each southern piece to the Natural Earth Western Sahara outline along the vertices they share (the berm), so no seam shows.
-  const key = (c) => `${c[0]},${c[1]}`;
-  const stitch = (a, b) => { // a, b: open rings; returns one open ring, or null if they do not share exactly one contiguous run
-    const inB = new Set(b.map(key)), inA = new Set(a.map(key));
-    const shared = a.map((c) => inB.has(key(c)));
-    const n = a.length, count = shared.filter(Boolean).length;
-    if (!count || count === n) return null;
-    let start = -1; // first shared vertex after a non-shared one
-    for (let i = 0; i < n; i++) if (shared[i] && !shared[(i + n - 1) % n]) { if (start >= 0) return null; start = i; }
-    if (start < 0) return null;
-    const run = []; // a's shared run, in a's order
-    for (let k = 0; k < count; k++) { if (!shared[(start + k) % n]) return null; run.push(a[(start + k) % n]); }
-    const s0 = key(run[0]), s1 = key(run.at(-1));
-    const aRest = []; // from just after the run, round to just before it
-    for (let k = count; k < n; k++) aRest.push(a[(start + k) % n]);
-    // b: walk from s0's... find s1 in b, then go on (away from the run) until s0
-    const m = b.length, bi = (id) => b.findIndex((c) => key(c) === id);
-    const i1 = bi(s1), i0 = bi(s0);
-    for (const dir of [1, -1]) {
-      const path = [];
-      let i = i1, ok = true;
-      for (let guard = 0; guard < m; guard++) {
-        i = (i + dir + m) % m;
-        if (i === i0) break;
-        if (inA.has(key(b[i]))) { ok = false; break; }
-        path.push(b[i]);
-        if (guard === m - 1) ok = false;
-      }
-      if (ok && path.length) return [run.at(-1), ...aRest, run[0], ...path.reverse()]; // the shared run becomes interior
+// Parts of one country's Natural Earth shape that internationally recognized borders give to another. The part inside
+// `region` (an intersection of half-planes [axis (0 lon, 1 lat), degrees, keep the greater side]) moves from `from` to `to`.
+//  - Western Sahara: Natural Earth's Morocco includes the Moroccan-administered south; the recognized boundary is the
+//    27°40'N parallel (the Tarfaya border).
+// (The Golan Heights are cut out of Israel in the site's data itself, by scripts/split-territories.mjs.)
+const MOVES = [
+  { from: "MAR", to: "ESH", region: [[1, 27 + 40 / 60, false]], what: "Western Sahara" },
+];
+const key = (c) => `${c[0]},${c[1]}`;
+// Join two open rings that share one contiguous run of identical vertices (the arcs their countries share) into one
+// outline, so no seam shows. Returns null if they do not share exactly one run.
+const stitch = (a, b) => {
+  const inB = new Set(b.map(key)), inA = new Set(a.map(key));
+  const shared = a.map((c) => inB.has(key(c)));
+  const n = a.length, count = shared.filter(Boolean).length;
+  if (!count || count === n) return null;
+  let start = -1; // first shared vertex after a non-shared one
+  for (let i = 0; i < n; i++) if (shared[i] && !shared[(i + n - 1) % n]) { if (start >= 0) return null; start = i; }
+  if (start < 0) return null;
+  const run = []; // a's shared run, in a's order
+  for (let k = 0; k < count; k++) { if (!shared[(start + k) % n]) return null; run.push(a[(start + k) % n]); }
+  const s0 = key(run[0]), s1 = key(run.at(-1));
+  const aRest = []; // from just after the run, round to just before it
+  for (let k = count; k < n; k++) aRest.push(a[(start + k) % n]);
+  const m = b.length, bi = (id) => b.findIndex((c) => key(c) === id);
+  const i1 = bi(s1), i0 = bi(s0);
+  for (const dir of [1, -1]) { // b's outer part, from the run's far end round to its near end
+    const path = [];
+    let i = i1, ok = true;
+    for (let guard = 0; guard < m; guard++) {
+      i = (i + dir + m) % m;
+      if (i === i0) break;
+      if (inA.has(key(b[i]))) { ok = false; break; }
+      path.push(b[i]);
+      if (guard === m - 1) ok = false;
     }
-    return null;
-  };
-  let esh = rawByOwner.get("ESH").map((poly) => ({ ring: poly[0].slice(0, -1), holes: poly.slice(1) }));
-  const leftovers = [];
-  for (const poly of south) {
-    const b = poly[0].slice(0, -1);
-    let done = false;
-    for (const e of esh) { const st = stitch(e.ring, b); if (st) { e.ring = st; done = true; break; } }
-    if (!done) leftovers.push(poly);
+    if (ok && path.length) return [run.at(-1), ...aRest, run[0], ...path.reverse()]; // the shared run becomes interior
   }
-  console.log(`Western Sahara: ${south.length} piece(s) of Morocco moved; ${leftovers.length} not stitched`);
-  rawByOwner.set("ESH", [...esh.map((e) => [[...e.ring, e.ring[0]], ...e.holes]), ...leftovers]);
+  return null;
+};
+for (const mv of MOVES.filter((m) => R.members.includes(m.to))) {
+  const rest = [], moved = [];
+  for (const poly of rawByOwner.get(mv.from)) {
+    const open = poly[0].slice(0, -1);
+    const inRegion = mv.region.reduce((r, [ax, v, g]) => clipHalf(r, ax, v, g), open);
+    if (inRegion.length >= 3) moved.push(inRegion);
+    // the rest: the part that fails constraint k while meeting constraints 0..k-1 (disjoint pieces)
+    mv.region.forEach(([ax, v, g], k) => {
+      let r = mv.region.slice(0, k).reduce((q, [ax2, v2, g2]) => clipHalf(q, ax2, v2, g2), open);
+      r = clipHalf(r, ax, v, !g);
+      if (r.length >= 3 && Math.abs(ringArea(r)) > 1e-4) rest.push([[...r, r[0]], ...(k === 0 ? poly.slice(1) : [])]);
+    });
+  }
+  rawByOwner.set(mv.from, rest);
+  const target = rawByOwner.get(mv.to).map((poly) => ({ ring: poly[0].slice(0, -1), holes: poly.slice(1) }));
+  const leftovers = [];
+  for (const b of moved) {
+    let done = false;
+    for (const e of target) { const st = stitch(e.ring, b); if (st) { e.ring = st; done = true; break; } }
+    if (!done) leftovers.push([[...b, b[0]]]);
+  }
+  console.log(`${mv.what}: ${moved.length} piece(s) of ${mv.from} moved to ${mv.to}; ${leftovers.length} not stitched`);
+  rawByOwner.set(mv.to, [...target.map((e) => [[...e.ring, e.ring[0]], ...e.holes]), ...leftovers]);
 }
 for (const a3 of EUROPE) if (!rawByOwner.has(a3)) throw new Error(`No shape for ${a3}`);
 
@@ -389,8 +454,25 @@ function colourGraph(nodes, adj, k) {
   return colour;
 }
 const PALETTE_SIZE = 6;
-const colours = colourGraph(EUROPE.filter((a) => shapes.has(a)), new Map([...adjacency].filter(([a]) => shapes.has(a)).map(([a, s]) => [a, new Set([...s].filter((b) => shapes.has(b)))])), PALETTE_SIZE);
+const colours = process.env.INSET_COLOURS ? new Map(Object.entries(JSON.parse(process.env.INSET_COLOURS))) : colourGraph(EUROPE.filter((a) => shapes.has(a)), new Map([...adjacency].filter(([a]) => shapes.has(a)).map(([a, s]) => [a, new Set([...s].filter((b) => shapes.has(b)))])), PALETTE_SIZE);
 for (const [a, parent] of Object.entries(R.share)) colours.set(a, colours.get(parent)); // e.g. Greenland: part of the Kingdom of Denmark
+
+// An inset (an enlarged region drawn by this same script in its own projection) goes in an empty corner, with a thin
+// outline on the main map showing its area.
+const INSET_HEAD = 24;
+let INSET = null, insetBox = null, insetOutline = "";
+if (R.inset) {
+  const { execFileSync } = await import("node:child_process");
+  const out = execFileSync(process.execPath, [fileURLToPath(import.meta.url), R.inset.region], { env: { ...process.env, INSET_COLOURS: JSON.stringify(Object.fromEntries(colours)) }, encoding: "utf8", maxBuffer: 1 << 28 });
+  for (const line of out.split("\n")) {
+    if (line.startsWith("@@INSET@@")) INSET = JSON.parse(line.slice(9));
+    else if (line.trim()) console.log(`  [inset] ${line}`);
+  }
+  if (!INSET) throw new Error("The inset did not produce a drawing");
+  const m = R.inset.margin;
+  insetBox = [m, HEIGHT - m - INSET_HEAD - INSET.h, m + INSET.w, HEIGHT - m];
+  insetOutline = "M" + INSET.outline.map(([lon, lat]) => project(lon, lat).map(f1x).join(" ")).join("L") + "Z";
+}
 
 // ---------- text fitting ----------
 
@@ -512,7 +594,7 @@ const MICRO = R.micro; // the only countries that get pointer lines
 const CALLOUTS = Object.fromEntries(MICRO.map((a) => [a, true]));
 // Capital-name placement overrides ("r" right, "l" left, "t" above, "b" below).
 const CAP_SIDE = {};
-const CAP_SKIP_NAME = new Set(Object.keys(CALLOUTS)); // their callout carries the name
+const CAP_SKIP_NAME = new Set(Object.keys(CALLOUTS).filter((a) => !(R.capitalNames || []).includes(a))); // their callout carries the name
 
 const capitalPoint = (a3) => {
   const key = a3 === "UNK" ? "KOS" : a3;
@@ -523,6 +605,7 @@ const capitalPoint = (a3) => {
 const labelOut = []; // {a3, name, lines, size, x, y, angle, kind}
 const capOut = [];   // {name, x, y, nx, ny, anchor}
 const calloutOut = [];
+const autoCallouts = [];
 
 // 1) capital dots first (their names are placed last, after the country labels)
 const CAP_SIZE = 9;
@@ -543,6 +626,17 @@ for (const a3 of EUROPE) {
   obstacles.push([x - 4, y - 4, x + 4, y + 4]);
   capDots.push({ a3, cap, x, y });
 }
+if (insetBox) { // keep the main map's labels out of the inset, and check nothing coloured sits under it
+  obstacles.push(insetBox);
+  for (const d of capDots) if (d.x > insetBox[0] - 6 && d.x < insetBox[2] + 6 && d.y > insetBox[1] - 6 && d.y < insetBox[3] + 6) console.log(`WARNING: the inset covers the capital dot of ${d.a3}`);
+}
+
+// Crowded capitals (the Levant) are named first, so the big country labels fit around them rather than over them.
+const namedEarly = new Set();
+for (const a3 of R.capFirst || []) {
+  const d = capDots.find((c) => c.a3 === a3);
+  if (d && !CAP_SKIP_NAME.has(a3)) { nameCapital(d); namedEarly.add(a3); }
+}
 
 // 2) country labels
 const TILTS = [0, -0.35, 0.35, -0.7, 0.7, -1.05, 1.05, Math.PI / 2];
@@ -562,6 +656,35 @@ function labelCountry(a3, { context }) {
   const ob = [fit.pos[0] - hw, fit.pos[1] - hh, fit.pos[0] + hw, fit.pos[1] + hh];
   if (fit.angle) ob.rot = { cx: fit.pos[0], cy: fit.pos[1], w: fit.w + 2, h: fit.h + 2, angle: fit.angle }; // the true tilted rectangle inside that bounding box
   obstacles.push(ob);
+}
+// The Golan Heights (part of Syria) get their own small label and a dashed outline, on maps that ask for it.
+let golanShape = null;
+if (R.golan) {
+  const g = topology.objects.countries.geometries.find((x) => x.properties?.name === "Golan Heights");
+  const geo = topojson.feature(topology, g).geometry;
+  golanShape = projectClean(geo.type === "Polygon" ? [geo.coordinates] : geo.coordinates);
+  // The Golan is a narrow strip: its name goes on the Syrian land just east of it, with a short leader.
+  const [gx, gy] = centroidOf(golanShape);
+  const lines = ["GOLAN", "HEIGHTS"], size = 8;
+  const w = Math.max(...lines.map((l) => textWidth(l, size, SPACING))) + 3, h = size * LINE_H + size * CAP_H + 3;
+  const syria = shapes.get("SYR");
+  let best = null;
+  for (let dy = -60; dy <= 60; dy += 3) for (let dx = 14; dx <= 110; dx += 3) {
+    const box = [gx + dx - w / 2, gy + dy - h / 2, gx + dx + w / 2, gy + dy + h / 2];
+    if (obstacles.some((o) => boxOverlap(o, box))) continue;
+    let ok = true;
+    for (let i = 0; i <= 4 && ok; i++) for (let j = 0; j <= 2; j++) {
+      const px = box[0] + (w * i) / 4, py = box[1] + (h * j) / 2;
+      if (!insidePoly(syria, px, py) || insidePoly(golanShape, px, py)) { ok = false; break; }
+    }
+    if (!ok) continue;
+    const d = Math.hypot(dx, dy);
+    if (!best || d < best.d) best = { d, box, x: gx + dx, y: gy + dy };
+  }
+  if (best) {
+    labelOut.push({ a3: "GLN", name: "Golan Heights", lines, size, x: best.x, y: best.y, angle: 0, kind: "golan", leader: [Math.min(Math.max(gx, best.box[0]), best.box[2]), Math.min(Math.max(gy, best.box[1]), best.box[3]), gx, gy] });
+    obstacles.push(best.box);
+  } else console.log("WARNING: no room for a Golan Heights label");
 }
 // Largest first so the big countries claim their best spots.
 const byArea = (list) => [...list].sort((a, b) => areaOf(shapes.get(b)) - areaOf(shapes.get(a)));
@@ -657,7 +780,6 @@ for (const a3 of MICRO) placeMicro(a3);
 // over its borders (as on the reference map); a pointer-line callout only if even that does not fit.
 const allShapes = [...shapes.values()];
 const onLand = (x, y) => allShapes.some((polys) => insidePoly(polys, x, y));
-const autoCallouts = [];
 const spilled = new Set();
 function centroidOf(polys) {
   const ring = polys.reduce((m, p) => (Math.abs(ringArea(p.rings[0])) > Math.abs(ringArea(m.rings[0])) ? p : m)).rings[0];
@@ -726,8 +848,8 @@ for (const a3 of unlabelled.filter((a) => EUROPE.includes(a) && !spilled.has(a))
   console.log(`note: ${nameOf(a3)} got a 6.5px label`);
 }
 // 4) capital names, wherever they fit without covering a country label (dropped when crowded)
-for (const { a3, cap, x, y } of capDots) {
-  if (CAP_SKIP_NAME.has(a3) || autoCallouts.some((c) => c.a3 === a3)) { capOut.push({ name: null, x, y }); continue; }
+function nameCapital({ a3, cap, x, y }) {
+  if (CAP_SKIP_NAME.has(a3) || autoCallouts.some((c) => c.a3 === a3)) { capOut.push({ name: null, x, y }); return; }
   const w = textWidth(cap.name, CAP_SIZE) * 0.97 + 2, h = CAP_SIZE * 0.9;
   const sides = {
     r: { box: [x + 5, y - h / 2, x + 5 + w, y + h / 2], nx: x + 5.5, ny: y + h * 0.34, anchor: "start" },
@@ -752,11 +874,13 @@ for (const { a3, cap, x, y } of capDots) {
   const blockedBy = (o, b) => boxOverlap(o, b) && (!R.preciseLabelBoxes || !o.rot || hitsTilted(o, b));
   const ok = (side) => side.box[0] >= 4 && side.box[2] <= WIDTH - 4 && side.box[1] >= 4 && side.box[3] <= HEIGHT - 4 && !obstacles.some((o, i) => i >= capDots.length && blockedBy(o, side.box));
   const inOwn = (side) => [[side.box[0], side.box[1]], [side.box[2], side.box[1]], [side.box[0], side.box[3]], [side.box[2], side.box[3]]].every(([cx, cy]) => insidePoly(own, cx, cy));
-  const free = ["r", "l", "b", "t", "tr", "tl", "br", "bl"].map((k) => sides[k]).filter(ok);
-  const chosen = free.find(inOwn) || free[0];
+  const free = [...new Set([R.capSide?.[a3], "r", "l", "b", "t", "tr", "tl", "br", "bl"].filter(Boolean))].map((k) => sides[k]).filter(ok);
+  const wanted = R.capSide?.[a3] && free.find((f) => f === sides[R.capSide[a3]]); // a side pinned in the region's config wins
+  const chosen = wanted || free.find(inOwn) || free[0];
   if (chosen) { obstacles.push(chosen.box); capOut.push({ name: cap.name, x, y, nx: chosen.nx, ny: chosen.ny, anchor: chosen.anchor }); }
   else capOut.push({ name: null, x, y });
 }
+for (const d of capDots) if (!namedEarly.has(d.a3)) nameCapital(d);
 function area_ok(a3) { return areaOf(shapes.get(a3)) > 6000; } // big enough that a name just outside its border is not confusing
 
 
@@ -868,15 +992,8 @@ const seaMarkup = seaOut
   .map((s) => `<text class="sea" transform="translate(${f1(s.x)} ${f1(s.y)}) rotate(${s.rot})" text-anchor="middle" font-size="${s.size}" letter-spacing="${s.sp}em">${esc(s.t)}</text>`)
   .join("\n      ");
 
-const svg = `<svg class="map-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-labelledby="map-title map-desc" xmlns="http://www.w3.org/2000/svg">
-    <title id="map-title">Political map of ${R.name}</title>
-    <desc id="map-desc">${R.name}'s countries, each in a color that differs from its neighbors, with country names, capital cities and the surrounding seas labeled.</desc>
-    <defs>
-      <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%"><feDropShadow dx="1.5" dy="3" stdDeviation="3" class="shadow-flood" /></filter>
-      <clipPath id="frame"><rect width="${WIDTH}" height="${HEIGHT}" rx="14" /></clipPath>
-    </defs>
-    <g clip-path="url(#frame)">
-      <rect class="ocean" width="${WIDTH}" height="${HEIGHT}" />
+const golanOutline = golanShape ? `<path class="golan-line" d="${pathOf(golanShape)}" />` : "";
+const body = `<rect class="ocean" width="${WIDTH}" height="${HEIGHT}" />
       <g class="seas">
       ${seaMarkup}
       </g>
@@ -884,7 +1001,7 @@ const svg = `<svg class="map-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" ar
       ${landMarkup.grey}
       ${landMarkup.euro}
       </g>
-      <g class="labels">
+      ${golanOutline ? golanOutline + "\n      " : ""}<g class="labels">
       ${countryLabels}
       </g>
       <g class="callouts">
@@ -893,7 +1010,48 @@ const svg = `<svg class="map-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" ar
       </g>
       <g class="capitals">
       ${capMarkup}
-      </g>
+      </g>`;
+
+if (R.fragment) {
+  // The inset: hand the drawing and the geographic outline of its rectangle back to the main map's run.
+  const x0 = -X0, y0 = Y0;
+  const inverse = (X, Y) => { // inverse Lambert azimuthal equal-area, SVG units -> degrees
+    const x = X / SCALE + x0, y = y0 - Y / SCALE, rho = Math.hypot(x, y), c = 2 * Math.asin(Math.min(1, rho / 2));
+    const lat = Math.asin(Math.cos(c) * Math.sin(LAT0) + (y * Math.sin(c) * Math.cos(LAT0)) / rho);
+    const lon = LON0 + Math.atan2(x * Math.sin(c), rho * Math.cos(LAT0) * Math.cos(c) - y * Math.sin(LAT0) * Math.sin(c));
+    return [lon / D2R, lat / D2R];
+  };
+  const outline = [];
+  const N = 16;
+  for (let i = 0; i < N; i++) outline.push(inverse((WIDTH * i) / N, 0));
+  for (let i = 0; i < N; i++) outline.push(inverse(WIDTH, (HEIGHT * i) / N));
+  for (let i = 0; i < N; i++) outline.push(inverse(WIDTH - (WIDTH * i) / N, HEIGHT));
+  for (let i = 0; i < N; i++) outline.push(inverse(0, HEIGHT - (HEIGHT * i) / N));
+  console.log("@@INSET@@" + JSON.stringify({ w: WIDTH, h: HEIGHT, body, outline }));
+  process.exit(0);
+}
+
+const insetMarkup = INSET
+  ? `<path class="inset-outline" d="${insetOutline}" />
+      <g class="inset" transform="translate(${f1(insetBox[0])} ${f1(insetBox[1])})">
+        <rect class="inset-head" width="${INSET.w}" height="${INSET_HEAD + 8}" rx="6" />
+        <text class="inset-title" x="10" y="${INSET_HEAD * 0.7}">${esc(R.inset.title)}</text>
+        <svg x="0" y="${INSET_HEAD}" width="${INSET.w}" height="${INSET.h}" viewBox="0 0 ${INSET.w} ${INSET.h}">
+      ${INSET.body}
+        </svg>
+        <rect class="inset-border" width="${INSET.w}" height="${INSET_HEAD + INSET.h}" rx="6" />
+      </g>`
+  : "";
+
+const svg = `<svg class="map-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-labelledby="map-title map-desc" xmlns="http://www.w3.org/2000/svg">
+    <title id="map-title">Political map of ${R.name}</title>
+    <desc id="map-desc">${R.name}'s countries, each in a color that differs from its neighbors, with country names, capital cities and the surrounding seas labeled.${INSET ? " An inset enlarges the Levant." : ""}</desc>
+    <defs>
+      <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%"><feDropShadow dx="1.5" dy="3" stdDeviation="3" class="shadow-flood" /></filter>
+      <clipPath id="frame"><rect width="${WIDTH}" height="${HEIGHT}" rx="14" /></clipPath>
+    </defs>
+    <g clip-path="url(#frame)">
+      ${body}${insetMarkup ? "\n      " + insetMarkup : ""}
     </g>
   </svg>`;
 
@@ -906,21 +1064,21 @@ const TOGGLE_SNIPPET = `(function(){var b=document.getElementById("dark-mode-tog
 const VIEWER_SNIPPET = `(function(){
 var open=document.getElementById("map-open"),viewer=document.getElementById("map-viewer"),stage=document.getElementById("map-stage");
 if(!open||!viewer||!stage)return;
-var narrow=window.matchMedia("(max-width: 700px)"),svg=null,s=1,tx=0,ty=0,base=1,w0=0,h0=0,MAX=10,pts={},last=null,pushed=false,pinch=null;
+var narrow=window.matchMedia("(max-width: 700px)"),svg=null,s=1,tx=0,ty=0,base=1,w0=0,h0=0,MAX=10,minS=1,pts={},last=null,pushed=false,pinch=null;
 function size(){var r=stage.getBoundingClientRect();return[r.width,r.height]}
 function clamp(){var sz=size(),W=w0*s,H=h0*s;
  tx=W<=sz[0]?(sz[0]-W)/2:Math.min(0,Math.max(sz[0]-W,tx));ty=H<=sz[1]?(sz[1]-H)/2:Math.min(0,Math.max(sz[1]-H,ty))}
 function apply(){clamp();svg.style.transform="translate("+tx+"px,"+ty+"px) scale("+s+")"}
-function zoomAt(f,cx,cy){var n=Math.min(MAX,Math.max(1,s*f));f=n/s;tx=cx-(cx-tx)*f;ty=cy-(cy-ty)*f;s=n;apply()}
+function zoomAt(f,cx,cy){var n=Math.min(MAX,Math.max(minS,s*f));f=n/s;tx=cx-(cx-tx)*f;ty=cy-(cy-ty)*f;s=n;apply()}
 function fit(){var sz=size(),ratio=svg.viewBox.baseVal.height/svg.viewBox.baseVal.width;w0=sz[0];h0=w0*ratio;
  svg.style.width=w0+"px";svg.style.height=h0+"px";
- s=Math.min(3,Math.max(1,sz[1]/h0));tx=(sz[0]-w0*s)/2;ty=(sz[1]-h0*s)/2;apply()}
+ if(narrow.matches){minS=1;s=Math.min(3,Math.max(1,sz[1]/h0))}else{minS=Math.min(1,sz[1]/h0);s=minS}tx=(sz[0]-w0*s)/2;ty=(sz[1]-h0*s)/2;apply()}
 function show(){svg=open.querySelector("svg").cloneNode(true);svg.removeAttribute("class");svg.setAttribute("class","map-svg map-svg-big");
  svg.style.minWidth="0";stage.innerHTML="";stage.appendChild(svg);viewer.hidden=false;document.documentElement.classList.add("map-viewer-open");
  fit();document.getElementById("map-close").focus();try{history.pushState({mapViewer:1},"");pushed=true}catch(e){}}
 function hide(fromPop){if(viewer.hidden)return;viewer.hidden=true;document.documentElement.classList.remove("map-viewer-open");stage.innerHTML="";svg=null;
  if(pushed&&!fromPop){pushed=false;try{history.back()}catch(e){}}pushed=false;open.focus()}
-open.addEventListener("click",function(){if(narrow.matches)show()});
+open.addEventListener("click",show);
 window.addEventListener("popstate",function(){if(!viewer.hidden)hide(true)});
 document.addEventListener("keydown",function(e){if(!viewer.hidden&&e.key==="Escape")hide()});
 document.getElementById("map-close").addEventListener("click",function(){hide()});
@@ -938,7 +1096,7 @@ stage.addEventListener("pointermove",function(e){if(!pts[e.pointerId])return;var
 function up(e){delete pts[e.pointerId];pinch=null}
 stage.addEventListener("pointerup",up);stage.addEventListener("pointercancel",up);
 stage.addEventListener("wheel",function(e){e.preventDefault();var p=rel(e);zoomAt(Math.exp(-e.deltaY*0.0015),p[0],p[1])},{passive:false});
-stage.addEventListener("dblclick",function(e){var p=rel(e);zoomAt(s>=MAX/2?1/s:2,p[0],p[1])});
+stage.addEventListener("dblclick",function(e){var p=rel(e);zoomAt(s>=MAX/2?minS/s:2,p[0],p[1])});
 })();`;
 
 const FAVICON = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>`;
@@ -969,19 +1127,19 @@ const page = `<!doctype html>
     </button>
   </header>
   <main class="country-page maps-page">
-    <nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Country Facts</a> <span aria-hidden="true">›</span> <span>More maps</span> <span aria-hidden="true">›</span> <span>${R.name}</span></nav>
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Country Facts</a> <span aria-hidden="true">›</span> <span>More maps</span> <span aria-hidden="true">›</span> <span>${R.slug || R.name}</span></nav>
     <section class="page-card map-card">
       <h1>Political map of ${R.name}</h1>
-      <p class="map-lede">${EUROPE.filter((a) => shapes.has(a)).length} ${R.members.some((a) => a === "ESH") ? "countries and territories" : "countries"}, each colored differently from its neighbors. ${R.lede}</p>
-      <p class="map-hint">Tap the map to open it full size, then pinch to zoom.</p>
-      <button type="button" class="map-open" id="map-open" aria-label="Open the map full size">
+      <p class="map-lede">${EUROPE.filter((a) => shapes.has(a)).length} ${R.unit || "countries"}, each colored differently from its neighbors. ${R.lede}</p>
+      <p class="map-hint"><span class="hint-touch">Tap the map to open it full size, then pinch to zoom.</span><span class="hint-mouse">Click the map to open it full screen, then scroll to zoom and drag to move.</span></p>
+      <button type="button" class="map-open" id="map-open" style="--ratio:${(WIDTH / HEIGHT).toFixed(4)}" aria-label="Open the map full size">
   ${svg}
       </button>
       <p class="map-note">Borders: <a href="https://www.naturalearthdata.com" target="_blank" rel="noopener">Natural Earth</a> (public domain). Capital cities: Natural Earth populated places. ${R.noteExtra}</p>
     </section>
   <div class="map-viewer" id="map-viewer" role="dialog" aria-modal="true" aria-label="Map of ${R.name}, full size" hidden>
     <div class="map-viewer-bar">
-      <span class="map-viewer-help">Pinch to zoom, drag to move</span>
+      <span class="map-viewer-help">Pinch or scroll to zoom, drag to move</span>
       <span class="map-viewer-buttons">
         <button type="button" id="map-zoom-out" aria-label="Zoom out">&minus;</button>
         <button type="button" id="map-zoom-in" aria-label="Zoom in">+</button>

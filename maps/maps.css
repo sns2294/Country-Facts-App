@@ -97,3 +97,9 @@ html.map-viewer-open, html.map-viewer-open body { overflow: hidden; overscroll-b
 /* Lakes: the sea color over the land, edged like a coast; named in the sea style (beside the lake, with a halo, if too big to fit in). */
 .map-svg .lake { fill: var(--ocean); fill-rule: evenodd; stroke: var(--border); stroke-width: 1; stroke-linejoin: round; }
 .map-svg .sea.out { stroke: var(--label-halo); stroke-width: 2.4px; paint-order: stroke; stroke-linejoin: round; }
+
+/* A disputed area (Kashmir): not given to any country, so neutral gray with hatching, and dashed lines where the administered parts meet. */
+.map-svg .disp { fill: var(--ctx); stroke: var(--border); stroke-width: 1; stroke-linejoin: round; }
+.map-svg .disp-hatch { fill: url(#hatch); stroke: none; }
+.map-svg .hatch-line { stroke: var(--ctx-text); stroke-width: 1.1; }
+.map-svg .disp-line { fill: none; stroke: var(--label); stroke-width: 1.1; stroke-dasharray: 7 4; stroke-linecap: butt; }

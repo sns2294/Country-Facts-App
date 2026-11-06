@@ -158,6 +158,28 @@ const REGIONS = {
     noteExtra: "Drawn in the Lambert azimuthal equal-area projection. Baikonur, the space launch site Kazakhstan leases to Russia, is shown as part of Kazakhstan. Kashmir and the Siachen Glacier, which India, Pakistan and China all claim in part, are shown in gray as Natural Earth draws them, with no country label.",
     projectionName: "Lambert azimuthal equal-area",
   },
+  "south-asia": {
+    name: "South Asia",
+    preciseLabelBoxes: true,
+    members: ["IND", "PAK", "BGD", "LKA", "NPL", "BTN", "MDV"],
+    extraColoured: [], share: {},
+    context: ["AFG", "IRN", "CHN", "MMR", "TJK", "OMN"],
+    // Kashmir is not given to any country: hatched, with dashed lines at the lines of control (the site's rule for unsettled disputes).
+    disputed: { label: "Kashmir (disputed)" },
+    width: 1650, lon0: 79, lat0: 18, frame: { west: 59.5, east: 98.5, south: -1.2, north: 37.4 },
+    links: [["NPL", "BTN"], ["BGD", "NPL"], ["BGD", "BTN"], ["LKA", "IND"], ["MDV", "LKA"], ["MDV", "IND"]],
+    micro: ["MDV"], microFixed: {}, microSide: {},
+    seas: [
+      { t: "Arabian Sea", lon: 66.5, lat: 14.5, rot: 0, size: 13, sp: 0.28 },
+      { t: "Bay of Bengal", lon: 87.8, lat: 14.5, rot: 0, size: 13, sp: 0.28 },
+      { t: "Indian Ocean", lon: 79.5, lat: 0.6, rot: 0, size: 14, sp: 0.35 },
+      { t: "Laccadive Sea", lon: 74.6, lat: 8.7, rot: -20, size: 8, sp: 0.15 },
+      { t: "Andaman Sea", lon: 95.6, lat: 11, rot: -62, size: 8.5, sp: 0.15 },
+    ],
+    lede: "Dots mark capital cities; the smallest state is labeled with a pointer line.",
+    noteExtra: "Drawn in the Lambert azimuthal equal-area projection. Kashmir is disputed: India and Pakistan each administer part of it and claim all of it, and China administers Aksai Chin and the Shaksgam Valley, which India claims. The map assigns none of it to a country; it is hatched, with dashed lines where the administered parts meet. The Siachen Glacier is shown the same way.",
+    projectionName: "Lambert azimuthal equal-area",
+  },
   // Not a page: the Levant inset of the Middle East map, drawn by the same code with its own projection, then embedded
   // in that map (colors come from the main map so every country keeps its color).
   "middle-east-levant": {
@@ -468,6 +490,34 @@ const lakes = [];
   lakes.sort((a, b) => b.area - a.area);
 }
 
+// ---------- disputed areas (Kashmir; map-data/disputed.json, see scripts/extract-disputed.mjs) ----------
+// Not given to any country: drawn hatched over the countries, with dashed lines where two administered parts meet.
+let disputed = null;
+if (R.disputed) {
+  const areas = JSON.parse(read("map-data/disputed.json"));
+  const shapes = projectClean(areas.flatMap((a) => a.p));
+  // Edges two different areas share are the lines of control (and the line of actual control): dashed. Found by matching vertices.
+  const edgeKey = (a, b) => `${a[0]},${a[1]}>${b[0]},${b[1]}`;
+  const owner = new Map();
+  areas.forEach((a, ai) => a.p.forEach((poly) => poly.forEach((ring) => ring.forEach((pt, i) => owner.set(edgeKey(pt, ring[(i + 1) % ring.length]), ai)))));
+  const runs = [];
+  areas.forEach((a, ai) => a.p.forEach((poly) => poly.forEach((ring) => {
+    const n = ring.length, shared = ring.map((pt, i) => { const o = owner.get(edgeKey(ring[(i + 1) % n], pt)); return o !== undefined && o > ai; }); // each shared edge once, from the lower-numbered area
+    if (shared.every(Boolean) || !shared.some(Boolean)) return;
+    let start = shared.findIndex((v, i) => !v && shared[(i + 1) % n]); // an edge before a shared run
+    start = (start + 1) % n;
+    let run = null;
+    for (let k = 0; k < n; k++) {
+      const i = (start + k) % n;
+      if (shared[i]) { run = run || [ring[i]]; run.push(ring[(i + 1) % n]); } else if (run) { runs.push(run); run = null; }
+    }
+    if (run) runs.push(run);
+  })));
+  console.log(`disputed areas: ${areas.length}, ${runs.length} line(s) of control`);
+  const xs = shapes.flatMap((p) => p.rings[0].map((q) => q[0])), ys = shapes.flatMap((p) => p.rings[0].map((q) => q[1]));
+  disputed = { shapes, runs: runs.map((r) => r.map(([lon, lat]) => project(lon, lat))), bbox: { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) } };
+}
+
 // ---------- colouring: no two neighbours (by land or a narrow sea) share a colour ----------
 
 const adjacency = new Map(EUROPE.map((a) => [a, new Set()]));
@@ -529,6 +579,8 @@ function textWidth(text, size, spacing = 0) {
 const CAP_H = 0.72;
 
 // Rasterise a country's main polygons (with holes) into a coverage grid, optionally rotated.
+// Areas no country label may cover (a disputed area), when a region has one; null otherwise.
+let BLOCK = null;
 const CELL = 2;
 function rasterise(polys, angle, extraBlocked) {
   const cos = Math.cos(-angle), sin = Math.sin(-angle);
@@ -562,6 +614,7 @@ function rasterise(polys, angle, extraBlocked) {
     const ox = x * Math.cos(angle) - y * Math.sin(angle), oy = x * Math.sin(angle) + y * Math.cos(angle);
     if (ox < 4 || ox > WIDTH - 4 || oy < 4 || oy > HEIGHT - 4) { grid[j * cols + i] = 0; continue; }
     if (extraBlocked && extraBlocked.some(([bx0, by0, bx1, by1]) => ox >= bx0 && ox <= bx1 && oy >= by0 && oy <= by1)) grid[j * cols + i] = 0;
+    else if (BLOCK && ox >= BLOCK.x0 && ox <= BLOCK.x1 && oy >= BLOCK.y0 && oy <= BLOCK.y1 && insidePoly(BLOCK.shapes, ox, oy)) grid[j * cols + i] = 0;
   }
   // Summed-area table.
   const sat = new Int32Array((cols + 1) * (rows + 1));
@@ -671,6 +724,19 @@ for (const a3 of EUROPE) {
 if (insetBox) { // keep the main map's labels out of the inset, and check nothing coloured sits under it
   obstacles.push(insetBox);
   for (const d of capDots) if (d.x > insetBox[0] - 6 && d.x < insetBox[2] + 6 && d.y > insetBox[1] - 6 && d.y < insetBox[3] + 6) console.log(`WARNING: the inset covers the capital dot of ${d.a3}`);
+}
+
+// The disputed area's name goes in it first, and no country label may cover it.
+if (disputed) {
+  const fit = fitLabel(disputed.shapes, R.disputed.label, { maxSize: 14, minSize: 7, blocked: obstacles, angles: [0, -0.35, 0.35, -0.7, 0.7, -1.05, 1.05, Math.PI / 2] });
+  if (fit) {
+    labelOut.push({ a3: "DISP", name: R.disputed.label, lines: fit.lines, size: fit.size, x: fit.pos[0], y: fit.pos[1], angle: fit.angle, kind: "dispute" });
+    const c = Math.abs(Math.cos(fit.angle)), sn = Math.abs(Math.sin(fit.angle));
+    const ob = [fit.pos[0] - ((fit.w * c + fit.h * sn) / 2 + 1), fit.pos[1] - ((fit.w * sn + fit.h * c) / 2 + 1), fit.pos[0] + ((fit.w * c + fit.h * sn) / 2 + 1), fit.pos[1] + ((fit.w * sn + fit.h * c) / 2 + 1)];
+    if (fit.angle) ob.rot = { cx: fit.pos[0], cy: fit.pos[1], w: fit.w + 2, h: fit.h + 2, angle: fit.angle };
+    obstacles.push(ob);
+  } else console.log("WARNING: no room for the disputed-area label");
+  BLOCK = { ...disputed.bbox, shapes: disputed.shapes };
 }
 
 // Crowded capitals (the Levant) are named first, so the big country labels fit around them rather than over them.
@@ -1094,6 +1160,13 @@ const seaMarkup = seaOut
   .map((s) => `<text class="sea" transform="translate(${f1(s.x)} ${f1(s.y)}) rotate(${s.rot})" text-anchor="middle" font-size="${s.size}" letter-spacing="${s.sp}em">${esc(s.t)}</text>`)
   .join("\n      ");
 
+const disputedD = disputed ? pathOf(disputed.shapes) : "";
+const disputedMarkup = disputed ? `<g class="disputed">
+        <path class="disp" d="${disputedD}" />
+        <path class="disp-hatch" d="${disputedD}" />
+        <path class="disp-line" d="${disputed.runs.map((r) => "M" + r.map(([x, y]) => `${f1(x)} ${f1(y)}`).join("L")).join("")}" />
+      </g>
+      ` : "";
 const lakeMarkup = lakes.length ? `<g class="lakes">
       ${lakes.map((l) => `<path class="lake" d="${pathOf(l.polys)}" />`).join("\n      ")}
       </g>
@@ -1111,7 +1184,7 @@ const body = `<rect class="ocean" width="${WIDTH}" height="${HEIGHT}" />
       ${landMarkup.grey}
       ${landMarkup.euro}
       </g>
-      ${lakeMarkup}${lakeLabelMarkup}${golanOutline ? golanOutline + "\n      " : ""}<g class="labels">
+      ${disputedMarkup}${lakeMarkup}${lakeLabelMarkup}${golanOutline ? golanOutline + "\n      " : ""}<g class="labels">
       ${countryLabels}
       </g>
       <g class="callouts">
@@ -1156,7 +1229,8 @@ const insetMarkup = INSET
 const svg = `<svg class="map-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-labelledby="map-title map-desc" xmlns="http://www.w3.org/2000/svg">
     <title id="map-title">Political map of ${R.name}</title>
     <desc id="map-desc">${R.name}'s countries, each in a color that differs from its neighbors, with country names, capital cities and the surrounding seas labeled.${INSET ? " An inset enlarges the Levant." : ""}</desc>
-    <defs>
+    <defs>${disputed ? `
+      <pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="hatch-line" x1="0" y1="0" x2="0" y2="5" /></pattern>` : ""}
       <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%"><feDropShadow dx="1.5" dy="3" stdDeviation="3" class="shadow-flood" /></filter>
       <clipPath id="frame"><rect width="${WIDTH}" height="${HEIGHT}" rx="14" /></clipPath>
     </defs>

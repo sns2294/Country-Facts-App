@@ -40,7 +40,7 @@ const PARENT = { ALA: "FIN", FRO: "DNK", GIB: "ESP", GGY: "GBR", JEY: "GBR", IMN
 // Following the site's rules (shape-rules.js): a piece of a UN member state that a breakaway or occupier holds
 // is drawn as part of that state (Crimea, Northern Cyprus, Somaliland); Kosovo and Western Sahara have their own cards.
 const NAME_OWNER = { Crimea: "UKR", "N. Cyprus": "CYP", "Cyprus U.N. Buffer Zone": "CYP", Akrotiri: "CYP", Dhekelia: "CYP", Kosovo: "UNK", Somaliland: "SOM", "Golan Heights": "SYR", Baikonur: "KAZ", "Siachen Glacier": "XSI", "Réunion": "REU", Mayotte: "MYT" };
-const DISPLAY = { UNK: "Kosovo", VAT: "Vatican City", MKD: "North Macedonia", CZE: "Czechia", BIH: "Bosnia and Herzegovina", GBR: "United Kingdom", COD: "DR Congo", COG: "Republic of the Congo", CIV: "Ivory Coast", STP: "São Tomé and Príncipe", CPV: "Cape Verde", SWZ: "Eswatini", GAZ: "Gaza Strip", XKU: "Southern Kurils (disputed)", XSN: "Senkaku/Diaoyu Is. (disputed)", XDK: "Dokdo/Takeshima (disputed)", XPA: "Paracel Is. (disputed)", XSP: "Spratly Is. (disputed)", XSC: "Scarborough Shoal (disputed)" }; // X-codes: marks that are not countries (cannot clash with an alpha-3)
+const DISPLAY = { UNK: "Kosovo", VAT: "Vatican City", MKD: "North Macedonia", CZE: "Czechia", BIH: "Bosnia and Herzegovina", GBR: "United Kingdom", COD: "DR Congo", COG: "Republic of the Congo", CIV: "Ivory Coast", STP: "São Tomé and Príncipe", CPV: "Cape Verde", SWZ: "Eswatini", GAZ: "Gaza Strip", XKU: "Southern Kurils (disputed)", XSN: "Senkaku/Diaoyu Is. (disputed)", XDK: "Dokdo/Takeshima (disputed)", XPA: "Paracel Is. (disputed)", XSP: "Spratly Is. (disputed)", XSC: "Scarborough Shoal (disputed)", XNV: "Navassa Island (disputed)", XIA: "Isla Aves (disputed)", XSE: "Serranilla Bank (disputed)", XBN: "Bajo Nuevo Bank (disputed)" }; // X-codes: marks that are not countries (cannot clash with an alpha-3)
 const nameOf = (a3) => R.names?.[a3] || DISPLAY[a3] || T.getBorderDisplayName(a3Info.get(a3).name); // R.names: this region's own label text
 const CONTEXT_LABEL_MAX = 15;
 
@@ -48,6 +48,21 @@ const CONTEXT_LABEL_MAX = 15;
 // members: the coloured countries. context: grey neighbours that get a muted label where they fit.
 // share: a territory drawn in another country's colour. links: extra "touching" pairs (narrow seas) for the colouring.
 // micro: tiny countries labelled outside with a pointer line, in the order they are placed (side: which way the label goes).
+// Labels of the Caribbean territories: each with its parent in parentheses.
+const TERRITORY_NAMES = {
+  PRI: "Puerto Rico (United States)", VIR: "U.S. Virgin Islands (United States)", VGB: "British Virgin Islands (United Kingdom)",
+  CYM: "Cayman Islands (United Kingdom)", TCA: "Turks and Caicos Islands (United Kingdom)", AIA: "Anguilla (United Kingdom)",
+  MSR: "Montserrat (United Kingdom)", GLP: "Guadeloupe (France)", MTQ: "Martinique (France)", MAF: "Saint Martin (France)",
+  BLM: "Saint Barthélemy (France)", ABW: "Aruba (Netherlands)", CUW: "Curaçao (Netherlands)", SXM: "Sint Maarten (Netherlands)",
+};
+// Where each Caribbean territory's dot and pointer line sit (its main town or island centre); the capitals file has sovereign states only.
+const TERRITORY_POINTS = {
+  PRI: { lat: 18.47, lon: -66.11 }, VIR: { lat: 18.34, lon: -64.93 }, VGB: { lat: 18.43, lon: -64.62 }, CYM: { lat: 19.29, lon: -81.37 },
+  TCA: { lat: 21.46, lon: -71.14 }, AIA: { lat: 18.22, lon: -63.06 }, MSR: { lat: 16.74, lon: -62.19 }, GLP: { lat: 16.2, lon: -61.55 },
+  MTQ: { lat: 14.65, lon: -61.02 }, ABW: { lat: 12.52, lon: -70.03 }, CUW: { lat: 12.12, lon: -68.93 }, SXM: { lat: 18.03, lon: -63.07 },
+  MAF: { lat: 18.08, lon: -63.07 }, BLM: { lat: 17.9, lon: -62.83 },
+};
+const withNames = (points, names) => Object.fromEntries(Object.entries(points).map(([a, p]) => [a, { ...p, name: names[a] }]));
 const REGIONS = {
   europe: {
     name: "Europe",
@@ -157,6 +172,77 @@ const REGIONS = {
     lede: "Dots mark capital cities.",
     noteExtra: "Drawn in the Lambert azimuthal equal-area projection. Baikonur, the space launch site Kazakhstan leases to Russia, is shown as part of Kazakhstan. Kashmir and the Siachen Glacier, which India, Pakistan and China all claim in part, are shown in gray as Natural Earth draws them, with no country label.",
     projectionName: "Lambert azimuthal equal-area",
+  },
+  "central-america-caribbean": {
+    name: "Central America and the Caribbean",
+    preciseLabelBoxes: true,
+    members: ["MEX", "GTM", "BLZ", "HND", "SLV", "NIC", "CRI", "PAN", "CUB", "JAM", "HTI", "DOM", "BHS", "ATG", "KNA", "DMA", "LCA", "VCT", "GRD", "BRB", "TTO"],
+    // Territories are drawn in their parent's colour (the United States' from the North America map, the others' from the Europe
+    // map), with the parent in parentheses. Natural Earth's shapes for these are named, not numbered, so they are claimed here.
+    extraColoured: ["PRI", "VIR", "MAF", "GLP", "MTQ", "BLM", "VGB", "CYM", "TCA", "AIA", "MSR", "ABW", "CUW", "BES", "SXM"], share: {},
+    fixedColours: {
+      PRI: ["north-america", "USA"], VIR: ["north-america", "USA"],
+      MAF: "FRA", GLP: "FRA", MTQ: "FRA", BLM: "FRA",
+      VGB: "GBR", CYM: "GBR", TCA: "GBR", AIA: "GBR", MSR: "GBR",
+      ABW: "NLD", CUW: "NLD", BES: "NLD", SXM: "NLD",
+    },
+    nameOwner: { Guadeloupe: "GLP", Martinique: "MTQ", "Bonaire, Sint Eustatius and Saba": "BES", "USNB Guantanamo Bay": "CUB" }, // Guantanamo Bay is leased, not ceded: part of Cuba
+    names: { ...TERRITORY_NAMES, BES: "Bonaire (Netherlands)" },
+    context: ["USA", "COL", "VEN", "GUY", "SUR"],
+    disputed: [
+      { group: "navassa", marker: true }, { group: "birdisland", marker: true }, { group: "serranilla", marker: true }, { group: "bajonuevo", marker: true },
+    ],
+    extraPoints: {
+      ...withNames(TERRITORY_POINTS, TERRITORY_NAMES),
+      BES: { name: "Bonaire (Netherlands)", lat: 12.15, lon: -68.27 },
+      XNV: { name: "Navassa Island (disputed)", lat: 18.41, lon: -75.01, gap: 12 }, XIA: { name: "Isla Aves (disputed)", lat: 15.69, lon: -63.64, gap: 12 },
+      XSE: { name: "Serranilla Bank (disputed)", lat: 15.82, lon: -79.85, gap: 12 }, XBN: { name: "Bajo Nuevo Bank (disputed)", lat: 15.87, lon: -78.64, gap: 12 },
+    },
+    inset: { region: "central-america-caribbean-lesser-antilles", margin: 14, title: "The Lesser Antilles, enlarged", corner: "top-right" },
+    width: 1650, lon0: -77, lat0: 17,
+    frame: { points: [[-98, 17], [-98, 28.5], [-80, 41.5], [-54.5, 41.5], [-54.5, 10], [-60, 6.8], [-78, 6.5], [-86, 7.5], [-95, 13.5]], margin: 0.02 },
+    links: [
+      ["CUB", "BHS"], ["CUB", "HTI"], ["CUB", "JAM"], ["CUB", "CYM"], ["CUB", "MEX"], ["JAM", "HTI"], ["JAM", "CYM"], ["HTI", "BHS"], ["HTI", "TCA"], ["DOM", "TCA"],
+      ["BHS", "TCA"], ["DOM", "PRI"], ["PRI", "VGB"], ["VIR", "VGB"], ["AIA", "SXM"], ["AIA", "MAF"], ["SXM", "MAF"], ["MAF", "BES"], ["BLM", "SXM"],
+      ["BLM", "BES"], ["BLM", "KNA"], ["BES", "KNA"], ["KNA", "MSR"], ["KNA", "ATG"], ["MSR", "ATG"], ["MSR", "GLP"], ["ATG", "GLP"], ["GLP", "DMA"], ["DMA", "MTQ"],
+      ["MTQ", "LCA"], ["LCA", "VCT"], ["VCT", "GRD"], ["GRD", "TTO"], ["BRB", "LCA"], ["BRB", "VCT"], ["CUW", "VEN"], ["HND", "CYM"],
+    ],
+    micro: ["SLV", "CYM", "TCA", "ABW", "CUW", "BES", "PRI", "XNV", "XIA", "XSE", "XBN"], microFixed: {}, microSide: {}, balancedMicroLabels: true,
+    dots: ["CYM", "TCA", "ABW", "CUW", "BES", "AIA", "MSR", "BLM", "SXM", "MAF", "VGB"],
+    unlabelled: ["ATG", "KNA", "DMA", "LCA", "VCT", "GRD", "BRB", "TTO", "GLP", "MTQ", "VIR", "VGB", "MSR", "AIA", "SXM", "MAF", "BLM"], // named in the inset instead
+    seas: [
+      { t: "Caribbean Sea", lon: -75.5, lat: 14.6, rot: 0, size: 13, sp: 0.3 },
+      { t: "Gulf of Mexico", lon: -90, lat: 25.3, rot: 0, size: 11, sp: 0.25 },
+      { t: "Atlantic Ocean", lon: -71, lat: 31, rot: 0, size: 13, sp: 0.3 },
+      { t: "Pacific Ocean", lon: -93.5, lat: 9.6, rot: -30, size: 12, sp: 0.3 },
+      { t: "Gulf of Honduras", lon: -87.6, lat: 16.2, rot: 0, size: 6.5, sp: 0.1 },
+      { t: "Straits of Florida", lon: -80, lat: 24, rot: -20, size: 6, sp: 0.08 },
+      { t: "Windward Passage", lon: -74.1, lat: 19.9, rot: -45, size: 6, sp: 0.08 },
+      { t: "Gulf of Tehuantepec", lon: -95, lat: 15.1, rot: 0, size: 6.5, sp: 0.1 },
+      { t: "Bay of Campeche", lon: -93.5, lat: 19.9, rot: 0, size: 6.5, sp: 0.1 },
+    ],
+    lede: "Dots mark capital cities. Territories are in their parent country's color, with the parent in parentheses; an inset enlarges the Lesser Antilles.",
+    noteExtra: "Drawn in the Lambert azimuthal equal-area projection. Belize's border with Guatemala is the internationally recognized line; Guatemala claims part of Belize, and the dispute is pending before the International Court of Justice. Areas claimed by more than one country are given to none and marked, not to scale: Navassa Island (administered by the United States, claimed by Haiti), Isla Aves (administered by Venezuela, claimed by others) and the Serranilla and Bajo Nuevo banks (administered by Colombia, claimed by several countries). Guantánamo Bay, which the United States leases from Cuba, is shown as part of Cuba. The Dutch territories are not in the Netherlands' Europe-map color, because Sint Maarten shares an island with French Saint Martin.",
+    projectionName: "Lambert azimuthal equal-area",
+  },
+  // Not a page: the Lesser Antilles inset of the Central America and Caribbean map (same code, its own projection, the main map's colors).
+  "central-america-caribbean-lesser-antilles": {
+    fragment: true,
+    name: "the Lesser Antilles",
+    members: ["ATG", "KNA", "DMA", "LCA", "VCT", "GRD", "BRB", "TTO"],
+    extraColoured: ["PRI", "VIR", "MAF", "GLP", "MTQ", "BLM", "VGB", "AIA", "MSR", "BES", "SXM"], share: {}, context: [],
+    nameOwner: { Guadeloupe: "GLP", Martinique: "MTQ", "Bonaire, Sint Eustatius and Saba": "BES" },
+    names: { ...TERRITORY_NAMES, BES: "Sint Eustatius and Saba (Netherlands)" },
+    extraPoints: { ...withNames(TERRITORY_POINTS, TERRITORY_NAMES), BES: { name: "Sint Eustatius and Saba (Netherlands)", lat: 17.49, lon: -62.97 } },
+    preciseLabelBoxes: true, balancedMicroLabels: "only",
+    micro: ["VGB", "VIR", "PRI", "AIA", "MAF", "SXM", "BLM", "BES", "KNA", "MSR", "ATG", "GLP", "DMA", "MTQ", "LCA", "VCT", "GRD", "BRB", "TTO"], microFixed: {}, microSide: { PRI: "south", VGB: "north" }, microPad: 5,
+    dots: ["VIR", "VGB", "AIA", "SXM", "MAF", "BLM", "BES", "MSR"],
+    width: 520, lon0: -62.5, lat0: 14.4, frame: { west: -65.9, east: -59.1, south: 9.7, north: 19.1 },
+    links: [],
+    seas: [
+      { t: "Caribbean Sea", lon: -64.9, lat: 12.9, rot: 0, size: 9, sp: 0.2 },
+      { t: "Atlantic Ocean", lon: -59.6, lat: 16.3, rot: -80, size: 9, sp: 0.2 },
+    ],
   },
   "north-america": {
     name: "North America",
@@ -353,8 +439,9 @@ const clipHalf = (ring, axis, value, keepGreater) => { // Sutherland-Hodgman aga
   return out;
 };
 for (const g of topology.objects.countries.geometries) {
-  let a3 = g.id ? numericToA3.get(String(g.id).padStart(3, "0")) : NAME_OWNER[g.properties.name];
-  if (g.properties.name in NAME_OWNER) a3 = NAME_OWNER[g.properties.name];
+  const owners = R.nameOwner ? { ...NAME_OWNER, ...R.nameOwner } : NAME_OWNER; // R.nameOwner: shapes this region draws as part of a country
+  let a3 = g.id ? numericToA3.get(String(g.id).padStart(3, "0")) : owners[g.properties.name];
+  if (g.properties.name in owners) a3 = owners[g.properties.name];
   if (!a3) continue;
   a3 = R.parent?.[a3] || PARENT[a3] || a3; // R.parent: territories this region draws as part of their parent (Puerto Rico in the US)
   if (!geomsByOwner.has(a3)) geomsByOwner.set(a3, []);
@@ -705,15 +792,38 @@ function colourGraph(nodes, adj, k, fixed = new Map()) {
   return colour;
 }
 const PALETTE_SIZE = 6;
-// A territory drawn in its parent's colour from another map (Greenland in Denmark's colour from the Europe map).
+// Territories drawn in their parent's colour from another map (Greenland in Denmark's colour from the Europe map). A value is a
+// parent code (its colour on the Europe map) or [map, parent code]. Territories of one parent form a family and share one
+// colour; if a family's colour is also its neighbour's (Sint Maarten and Saint Martin share an island, the Netherlands and
+// France being the same colour on the Europe map), the later family takes the first colour that is free, and says so.
 function fixedColours() {
   const fixed = new Map();
   if (!R.fixedColours) return fixed;
-  const europe = read("maps/europe/index.html");
-  for (const [a, from] of Object.entries(R.fixedColours)) {
-    const m = europe.match(new RegExp(`<path class="c c(\\d+)" data-code="${from}"`));
-    if (!m) throw new Error(`No colour for ${from} on the Europe map`);
-    if (shapes.has(a)) fixed.set(a, Number(m[1]));
+  const pageColour = (map, code) => {
+    const m = read(`maps/${map}/index.html`).match(new RegExp(`<path class="c c(\\d+)" data-code="${code}"`));
+    if (!m) throw new Error(`No colour for ${code} on the ${map} map`);
+    return Number(m[1]);
+  };
+  const families = new Map();
+  for (const [a, src] of Object.entries(R.fixedColours)) {
+    if (!shapes.has(a)) continue;
+    const [map, code] = Array.isArray(src) ? src : ["europe", src];
+    const key = `${map}:${code}`;
+    if (!families.has(key)) families.set(key, { code, colour: pageColour(map, code), members: [] });
+    families.get(key).members.push(a);
+  }
+  const done = [];
+  for (const f of families.values()) {
+    const clash = (c) => done.some((g) => g.colour === c && g.members.some((m) => f.members.some((n) => adjacency.get(m)?.has(n))));
+    if (clash(f.colour)) {
+      const was = f.colour;
+      let c = 0;
+      while (clash(c)) c++;
+      f.colour = c;
+      console.log(`note: ${f.code}'s territories (${f.members.join(", ")}) are colour ${c}, not ${was}, to differ from their neighbours`);
+    }
+    done.push(f);
+    for (const m of f.members) fixed.set(m, f.colour);
   }
   return fixed;
 }
@@ -733,8 +843,24 @@ if (R.inset) {
   }
   if (!INSET) throw new Error("The inset did not produce a drawing");
   const m = R.inset.margin;
-  insetBox = [m, HEIGHT - m - INSET_HEAD - INSET.h, m + INSET.w, HEIGHT - m];
+  insetBox = R.inset.corner === "top-right" ? [WIDTH - m - INSET.w, m, WIDTH - m, m + INSET_HEAD + INSET.h] : [m, HEIGHT - m - INSET_HEAD - INSET.h, m + INSET.w, HEIGHT - m];
   insetOutline = "M" + INSET.outline.map(([lon, lat]) => project(lon, lat).map(f1x).join(" ")).join("L") + "Z";
+  { // check: every place the inset shows is inside the outline on this map, and nothing outside it is
+    const lp = (lon, lat) => { const l = lon * D2R, p = lat * D2R, l0 = INSET.proj.lon0 * D2R, p0 = INSET.proj.lat0 * D2R;
+      const k = Math.sqrt(2 / (1 + Math.sin(p0) * Math.sin(p) + Math.cos(p0) * Math.cos(p) * Math.cos(l - l0)));
+      return [(k * Math.cos(p) * Math.sin(l - l0) + INSET.proj.x0) * INSET.proj.scale, (INSET.proj.y0 - k * (Math.cos(p0) * Math.sin(p) - Math.sin(p0) * Math.cos(p) * Math.cos(l - l0))) * INSET.proj.scale]; };
+    const poly = INSET.outline.map(([lon, lat]) => project(lon, lat));
+    const inPoly = ([x, y]) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) if (poly[i][1] > y !== poly[j][1] > y && x < ((poly[j][0] - poly[i][0]) * (y - poly[i][1])) / (poly[j][1] - poly[i][1]) + poly[i][0]) c = !c; return c; };
+    let bad = 0, total = 0;
+    const lons = INSET.outline.map((q) => q[0]), lats = INSET.outline.map((q) => q[1]);
+    for (let lon = Math.min(...lons) - 1; lon <= Math.max(...lons) + 1; lon += 0.1) for (let lat = Math.min(...lats) - 1; lat <= Math.max(...lats) + 1; lat += 0.1) {
+      const [ix, iy] = lp(lon, lat), inInset = ix >= 1 && ix <= INSET.w - 1 && iy >= 1 && iy <= INSET.h - 1, outInset = ix < -1 || ix > INSET.w + 1 || iy < -1 || iy > INSET.h + 1;
+      if (!inInset && !outInset) continue; // on the edge itself
+      total++;
+      if (inInset !== inPoly(project(lon, lat))) bad++;
+    }
+    console.log(`inset outline check: ${bad} of ${total} places disagree`);
+  }
 }
 
 // ---------- text fitting ----------
@@ -1015,6 +1141,7 @@ function placeMicro(a3) {
   const words = name.split(" ");
   const variants = [[name]];
   if (words.length > 1) variants.push([words.slice(0, 1).join(" "), words.slice(1).join(" ")]);
+  if (R.balancedMicroLabels === "only" && words.length > 2) variants.splice(1, 1); // (replacing the first-word split below)
   if (R.balancedMicroLabels && words.length > 2) { // two lines of about equal width ("SAINT PIERRE AND" / "MIQUELON (FRANCE)")
     let split = 1, gapMin = Infinity;
     for (let k = 1; k < words.length; k++) {
@@ -1039,21 +1166,36 @@ function placeMicro(a3) {
     }
     console.log(`note: fixed spot for ${nameOf(a3)} is taken; using open water instead`);
   }
+  const pad = R.microPad || 0;
+  for (const strict of pad ? [true, false] : [false]) { // first without any pointer line through another label; if that leaves no place, allow it
+  if (best) break;
   for (const lines of variants) {
     const w = Math.max(...lines.map((l) => textWidth(l, CALL_SIZE, 0.04))) + 4, h = lines.length * CALL_LINE + 1;
     for (let cy = y - 190; cy <= y + 190; cy += 4) for (let cx = x - 190; cx <= x + 190; cx += 4) {
       if (MICRO_SIDE[a3] === "east" && cx < x + 8) continue;
       if (MICRO_SIDE[a3] === "west" && cx > x - 8) continue;
       if (MICRO_SIDE[a3] === "south" && cy < y + 8) continue;
+      if (MICRO_SIDE[a3] === "north" && cy > y - 8) continue;
       const box = [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
       if (box[0] < 8 || box[2] > WIDTH - 8 || box[1] < 8 || box[3] > HEIGHT - 8) continue;
-      if (obstacles.some((o) => boxOverlap(o, box))) continue;
+      const padded = pad ? [box[0] - pad, box[1] - pad, box[2] + pad, box[3] + pad] : box; // R.microPad: keep pointer labels apart
+      if (obstacles.some((o) => boxOverlap(o, padded))) continue;
       let wet = true;
-      for (let i = 0; i <= 14 && wet; i++) for (let j = 0; j <= 4; j++) if (countryAtMask(box[0] - 0.5 + ((box[2] - box[0] + 1) * i) / 14, box[1] - 0.5 + ((box[3] - box[1] + 1) * j) / 4)) { wet = false; break; }
+      const nI = pad ? 40 : 14, nJ = pad ? 8 : 4; // a denser check keeps labels off tiny islands
+      for (let i = 0; i <= nI && wet; i++) for (let j = 0; j <= nJ; j++) if (countryAtMask(box[0] - 0.5 + ((box[2] - box[0] + 1) * i) / nI, box[1] - 0.5 + ((box[3] - box[1] + 1) * j) / nJ)) { wet = false; break; }
       if (!wet) continue;
       const nx = Math.min(Math.max(x, box[0]), box[2]), ny = Math.min(Math.max(y, box[1]), box[3]);
       const d = Math.hypot(nx - x, ny - y);
       if (cap.gap && d < cap.gap) continue; // a mark that must stay visible keeps its label at a distance
+      if (strict) { // the pointer line must not run through another label
+        const len = Math.hypot(nx - x, ny - y);
+        let crosses = false;
+        for (let t = 5; t < len - 1 && !crosses; t += 3) {
+          const px = x + ((nx - x) * t) / len, py = y + ((ny - y) * t) / len;
+          crosses = obstacles.some((o) => o[2] - o[0] > 12 && o[3] - o[1] > 5 && px >= o[0] && px <= o[2] && py >= o[1] && py <= o[3]);
+        }
+        if (crosses) continue;
+      }
       if (d > (best ? best.score : 400)) continue;
       const crossed = new Set();
       for (let t = 1; t < 30; t++) { const c = countryAtMask(x + ((nx - x) * t) / 30, y + ((ny - y) * t) / 30); if (c && c !== a3) crossed.add(c); }
@@ -1061,11 +1203,17 @@ function placeMicro(a3) {
       if (!best || score < best.score) best = { score, d, crossed: crossed.size, lines, w, h, box, nx, ny };
     }
   }
+  } // strictness
   if (!best) { console.log(`WARNING: no open water found for ${a3}`); return; }
   obstacles.push(best.box);
+  if (R.microPad) { // the pointer line itself is kept clear by later labels
+    const len = Math.hypot(best.nx - x, best.ny - y);
+    for (let t = 0; t <= len; t += 4) obstacles.push([x + ((best.nx - x) * t) / len - 1.5, y + ((best.ny - y) * t) / len - 1.5, x + ((best.nx - x) * t) / len + 1.5, y + ((best.ny - y) * t) / len + 1.5]);
+  }
   calloutOut.push({ a3, name: nameOf(a3), x, y, lines: best.lines, box: best.box, nx: best.nx, ny: best.ny });
   console.log(`callout ${nameOf(a3)}: line ${Math.round(best.d)} long, crosses ${best.crossed} other countr${best.crossed === 1 ? "y" : "ies"}`);
 }
+if (R.microPad) for (const a3 of MICRO) { const pt = capitalPoint(a3); if (pt) obstacles.push([pt.xy[0] - 4, pt.xy[1] - 4, pt.xy[0] + 4, pt.xy[1] + 4]); } // the islands' own marks stay clear
 for (const a3 of MICRO) placeMicro(a3);
 // 3a) countries too small for a full-size label: a small label centred on the country that may spill
 // over its borders (as on the reference map); a pointer-line callout only if even that does not fit.
@@ -1083,7 +1231,7 @@ function centroidOf(polys) {
 }
 const SPILL_SIZES = [8, 7.5, 7, 6.5];
 const OFFS = [[0, 0], [0, -9], [0, 9], [-10, 0], [10, 0], [-10, -9], [10, -9], [-10, 9], [10, 9], [0, -18], [0, 18], [-20, 0], [20, 0], [-20, -12], [20, -12], [-20, 12], [20, 12], [0, -27], [0, 27], [-32, 0], [32, 0]];
-for (const a3 of byArea(unlabelled.filter((a) => EUROPE.includes(a)))) {
+for (const a3 of byArea(unlabelled.filter((a) => EUROPE.includes(a) && !(R.unlabelled || []).includes(a)))) {
   const polys = bigPolys(shapes.get(a3), a3);
   const [gx, gy] = centroidOf(polys);
   const long = nameOf(a3).length > 11;
@@ -1120,7 +1268,7 @@ for (const a3 of byArea(unlabelled.filter((a) => EUROPE.includes(a)))) {
     spilled.add(a3);
   }
 }
-for (const a3 of unlabelled.filter((a) => EUROPE.includes(a) && !spilled.has(a))) {
+for (const a3 of unlabelled.filter((a) => EUROPE.includes(a) && !spilled.has(a) && !(R.unlabelled || []).includes(a))) {
   // Last resort: a tiny label near the country's centre, on the free spot closest to it.
   const [gx, gy] = centroidOf(bigPolys(shapes.get(a3), a3));
   const text = nameOf(a3).toUpperCase();
@@ -1140,7 +1288,7 @@ for (const a3 of unlabelled.filter((a) => EUROPE.includes(a) && !spilled.has(a))
 }
 // 4) capital names, wherever they fit without covering a country label (dropped when crowded)
 function nameCapital({ a3, cap, x, y }) {
-  if (CAP_SKIP_NAME.has(a3) || autoCallouts.some((c) => c.a3 === a3)) { capOut.push({ name: null, x, y }); return; }
+  if (CAP_SKIP_NAME.has(a3) || autoCallouts.some((c) => c.a3 === a3) || (R.unlabelled || []).includes(a3)) { capOut.push({ name: null, x, y }); return; }
   const w = textWidth(cap.name, CAP_SIZE) * 0.97 + 2, h = CAP_SIZE * 0.9;
   const sides = {
     r: { box: [x + 5, y - h / 2, x + 5 + w, y + h / 2], nx: x + 5.5, ny: y + h * 0.34, anchor: "start" },
@@ -1402,7 +1550,7 @@ if (R.fragment) {
   for (let i = 0; i < N; i++) outline.push(inverse(WIDTH, (HEIGHT * i) / N));
   for (let i = 0; i < N; i++) outline.push(inverse(WIDTH - (WIDTH * i) / N, HEIGHT));
   for (let i = 0; i < N; i++) outline.push(inverse(0, HEIGHT - (HEIGHT * i) / N));
-  console.log("@@INSET@@" + JSON.stringify({ w: WIDTH, h: HEIGHT, body, outline }));
+  console.log("@@INSET@@" + JSON.stringify({ w: WIDTH, h: HEIGHT, body, outline, proj: { lon0: R.lon0, lat0: R.lat0, scale: SCALE, x0: X0, y0: Y0 } }));
   process.exit(0);
 }
 

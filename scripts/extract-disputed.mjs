@@ -10,7 +10,7 @@
 // Siachen Glacier). Only the areas the maps show are kept, in named groups. "kashmir": Indian-administered Jammu and Kashmir (with Ladakh), Azad
 // Kashmir, Gilgit-Baltistan, Aksai Chin and the Shaksgam Valley (Chinese-administered), the Siachen Glacier, and
 // Demchok (a small Indian-administered part of Ladakh that China claims). "kurils", "senkaku" and "dokdo": the Southern Kuril
-// Islands, the Senkaku / Diaoyu Islands and Dokdo / Takeshima; "paracels", "spratlys" and "scarborough" in the South China Sea.
+// Islands, the Senkaku / Diaoyu Islands and Dokdo / Takeshima; "paracels", "spratlys" and "scarborough" in the South China Sea; "navassa", "birdisland", "serranilla" and "bajonuevo" in the Caribbean.
 //
 // Output: [{ group, name, admin, note, p: [polygon, ...] }], a polygon being [outer ring, ...inner rings] of [lon, lat].
 
@@ -29,6 +29,12 @@ const GROUPS = {
   paracels: ["Paracel Is."], // administered by China, claimed by Vietnam and Taiwan
   spratlys: ["Spratly Is."], // claimed in whole or part by China, Taiwan, Vietnam, the Philippines, Malaysia and Brunei
   scarborough: ["Scarborough Reef"], // Scarborough Shoal: claimed by China, the Philippines and Taiwan
+  navassa: ["Navassa I."], // administered by the United States, claimed by Haiti
+  birdisland: ["Bird Island"], // Isla Aves: administered by Venezuela, claimed by others
+  // Natural Earth's names for these two banks are swapped relative to their positions (Serranilla Bank is the one near
+  // 79.9 W, Bajo Nuevo Bank the one near 78.6 W), so they are grouped by position here: administered by Colombia, claimed by others.
+  serranilla: ["Bajo Nuevo Bank (Petrel Is.)"],
+  bajonuevo: ["Serranilla Bank"],
 };
 const groupOf = (name) => Object.keys(GROUPS).find((g) => GROUPS[g].includes(name));
 const WANTED = Object.values(GROUPS).flat();

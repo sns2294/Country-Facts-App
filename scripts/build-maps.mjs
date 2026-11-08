@@ -78,6 +78,7 @@ const REGIONS = {
     // Jan Mayen is Norwegian but sits in an unnumbered shape with Svalbard (beyond the top edge, apart from Bear Island, which is not given to Norway): drawn in Norway's color, no label.
     pieces: [{ name: "Svalbard and Jan Mayen", box: [-10, -7, 70.5, 71.5], to: "NOR", what: "Jan Mayen" }],
     names: { GRL: "Greenland (Kingdom of Denmark)", FRO: "Faroe Islands (Denmark)" },
+    capClear: { CZE: 2 }, labelLines: { CZE: 2 }, // Prague's dot sat against the top-left of the Czech label: more room round it, and the name kept on two lines
     extraPoints: { FRO: { name: "Faroe Islands (Denmark)", lat: 62.01, lon: -6.77, gap: 10 } },
     dots: ["FRO"], dotOnly: ["FRO"],
     context: ["TUR", "MAR", "DZA", "TUN", "LBY", "EGY", "SYR", "KAZ", "GEO", "ARM", "AZE", "IRQ", "LBN", "ISR", "JOR"],
@@ -1102,12 +1103,13 @@ function nameVariants(name) {
 }
 const SPACING = 0.05;
 const LINE_H = 1.08;
-function fitLabel(polys, name, { maxSize, minSize, blocked, angles = [0] }) {
+function fitLabel(polys, name, { maxSize, minSize, blocked, angles = [0], lines }) {
   const rasters = new Map(angles.map((a) => [a, rasterise(polys, a, blocked)]));
   let best = null;
   for (const angle of angles) {
     const g = rasters.get(angle);
     for (const variant of nameVariants(name)) {
+      if (lines && variant.lines.length !== lines) continue; // R.labelLines: a country whose name is kept to this many lines
       for (let size = maxSize; size >= minSize; size -= 0.5) {
         const w = Math.max(...variant.lines.map((l) => textWidth(l, size, SPACING))) + size * 0.3;
         const h = (variant.lines.length - 1) * size * LINE_H + size * CAP_H + size * 0.3;
@@ -1163,7 +1165,8 @@ for (const a3 of EUROPE) {
   if (!cap || !shapes.has(a3)) continue;
   const [x, y] = cap.xy;
   if (x < 6 || x > WIDTH - 6 || y < 6 || y > HEIGHT - 6) continue;
-  obstacles.push([x - 4, y - 4, x + 4, y + 4]);
+  const clear = 4 + (R.capClear?.[a3] || 0); // R.capClear: extra room kept round a capital's dot, so a country label never touches it
+  obstacles.push([x - clear, y - clear, x + clear, y + clear]);
   capDots.push({ a3, cap, x, y });
 }
 if (insetBox) { // keep the main map's labels out of the inset, and check nothing coloured sits under it
@@ -1203,6 +1206,7 @@ function labelCountry(a3, { context }) {
     minSize: context ? 10 : 8.5,
     blocked: obstacles,
     angles: context ? [0] : TILTS,
+    lines: R.labelLines?.[a3],
   });
   if (!fit) { unlabelled.push(a3); return; }
   labelOut.push({ a3, name: nameOf(a3), lines: fit.lines, size: fit.size, x: fit.pos[0], y: fit.pos[1], angle: fit.angle, kind: context ? "context" : "country" });

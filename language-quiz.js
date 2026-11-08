@@ -140,7 +140,7 @@
       code: country.alpha2Code,
       promptType: "text",
       promptLabel: "What is the official language of",
-      prompt: country.name,
+      prompt: root.CountryText ? root.CountryText.nameWithThe(country) : country.name, // "the Netherlands" (country-text.js loads first in the page)
       correctAnswer: correct,
       options: shuffle([correct, ...options]),
     };

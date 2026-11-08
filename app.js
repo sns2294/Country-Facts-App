@@ -128,6 +128,7 @@
     missingGdp,
     getPredominantReligion,
     buildOverview,
+    nameWithThe,
   } = window.CountryText;
 
   function setStatus(message, isError = false) {
@@ -297,7 +298,7 @@
     factCard.innerHTML = `
       <button type="button" class="back-to-map">&uarr; Back to ${backTargetLabel()}</button>
       <div class="card-header">
-        ${flagUrl ? `<img class="flag" src="${flagUrl}" alt="Flag of ${country.name}" />` : ""}
+        ${flagUrl ? `<img class="flag" src="${flagUrl}" alt="Flag of ${nameWithThe(country)}" />` : ""}
         <div>
           <h2>${country.name}</h2>
           ${showNativeName ? `<p class="native-name">${country.nativeName}</p>` : ""}
@@ -351,7 +352,7 @@
         <p class="overview">${buildOverview(country)}</p>
         ${
           country.sovereign
-            ? `<a class="full-page-link" href="country/${pageSlug(country)}/">Full page for ${getBorderDisplayName(country.name)} &rarr;</a>`
+            ? `<a class="full-page-link" href="country/${pageSlug(country)}/">Full page for ${nameWithThe(country)} &rarr;</a>`
             : ""
         }
       </div>
@@ -415,7 +416,7 @@
     syncSelection({ recenter });
     scrollIntoViewOnPhone(factCard);
     shownCountryName = country.name;
-    setStatus(`Showing facts for ${country.name}.`);
+    setStatus(`Showing facts for ${nameWithThe(country)}.`);
   }
 
   // The typed name fits more than one country: ask which, with a button each.
@@ -2421,7 +2422,7 @@
         const countries = await ensureQuizCountries();
         return countries.filter((c) => c.capital);
       },
-      getPrompt: (c) => c.name,
+      getPrompt: (c) => nameWithThe(c),
       getAnswer: (c) => c.capital,
     },
     religion: {
@@ -2434,7 +2435,7 @@
           .map((c) => ({ ...c, religion: getPredominantReligion(c) }))
           .filter((c) => c.religion);
       },
-      getPrompt: (c) => c.name,
+      getPrompt: (c) => nameWithThe(c),
       getAnswer: (c) => c.religion,
     },
     language: {
@@ -2445,7 +2446,7 @@
         const countries = await ensureQuizCountries();
         return countries.filter((c) => c.languages?.length && LanguageQuiz.isInhabited(c));
       },
-      getPrompt: (c) => c.name,
+      getPrompt: (c) => nameWithThe(c),
       getAnswer: (c) => LanguageQuiz.primaryLanguage(c),
       buildQuestions: (pool, order) => LanguageQuiz.buildLanguageQuestions(pool, QUIZ_QUESTION_COUNT, order),
     },
@@ -2865,7 +2866,7 @@
       else quizBonusRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
       if (!isPhone()) quizCapitalGuessInput.focus({ preventScroll: true });
     } else {
-      quizGeoFeedback.textContent = `Not quite — the highlighted country is ${question.country.name}.`;
+      quizGeoFeedback.textContent = `Not quite — the highlighted country is ${nameWithThe(question.country)}.`;
       quizGeoFeedback.classList.add("wrong");
       quizGeoNextBtn.hidden = false;
       quizGeoNextBtn.textContent = quizState.index === quizState.questions.length - 1 ? "See Score" : "Next Question";

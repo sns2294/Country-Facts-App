@@ -1,5 +1,5 @@
 // Builds one static page per sovereign country (country/<slug>/index.html),
-// plus a country index, sitemap.xml and robots.txt, from data/countries.json.
+// plus a country index, the "More maps" hub (maps/index.html), sitemap.xml and robots.txt, from data/countries.json.
 // The pages are plain files, so GitHub Pages serves them as they are.
 //
 //   node scripts/build-pages.mjs                          # every sovereign country
@@ -17,6 +17,8 @@ import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { MAP_REGIONS } from "./map-regions.mjs";
+import { OG_W, OG_H, socialTags as socialTagsFor } from "./social-tags.mjs";
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -86,6 +88,26 @@ const unknownOnly = SPEC_ONLY.filter((s) => ![...slugOf.values()].includes(s));
 if (unknownOnly.length) throw new Error(`Unknown slug(s) in --only: ${unknownOnly.join(", ")}`);
 const built = sovereign.filter((c) => !SPEC_ONLY.length || SPEC_ONLY.includes(slugOf.get(c.alpha3Code)));
 const hasPage = new Set(built.map((c) => c.alpha3Code));
+
+// ---------- regional maps ----------
+// A country is "on" a regional map when that map draws it in color (a path with its code), not when it is only gray context.
+// Read from the maps' own pages, so the links follow the maps. Two hand rules, then a check that no country is left out.
+const MAP_ADD = { VAT: ["europe"] }; // Vatican City is labeled on the Europe map but is too small to have a shape of its own
+const MAP_ONLY = { MEX: "north-america", USA: "north-america" }; // also on a second map, but not shown there as a whole: southern Mexico on the Central America and Caribbean map, Hawaii on Oceania
+const mapIdsOf = new Map(); // alpha3 -> ids of the maps it is on, in MAP_REGIONS order
+for (const { id } of MAP_REGIONS) {
+  const html = read(`maps/${id}/index.html`);
+  const svg = html.match(/<svg class="map-svg"[\s\S]*?<\/svg>\s*<\/button>/)?.[0];
+  if (!svg) throw new Error(`No map found in maps/${id}/index.html`);
+  for (const code of new Set([...svg.matchAll(/<path class="c c\d" data-code="([A-Z]+)"/g)].map((m) => m[1]))) {
+    if (!mapIdsOf.has(code)) mapIdsOf.set(code, []);
+    mapIdsOf.get(code).push(id);
+  }
+}
+for (const [code, ids] of Object.entries(MAP_ADD)) mapIdsOf.set(code, [...new Set([...(mapIdsOf.get(code) || []), ...ids])]);
+for (const [code, id] of Object.entries(MAP_ONLY)) mapIdsOf.set(code, [id]);
+for (const c of sovereign) if (!mapIdsOf.get(c.alpha3Code)?.length) throw new Error(`${c.name} is on none of the regional maps (see MAP_ADD in scripts/build-pages.mjs)`);
+const mapsOf = (country) => mapIdsOf.get(country.alpha3Code).map((id) => MAP_REGIONS.find((m) => m.id === id));
 
 // Land neighbours, as the app's fact card lists them (country-text.js).
 const borderCountries = (country) => T.getBorderChips(country, allCountries);
@@ -652,7 +674,7 @@ function buildMap(country, og = false) {
 <path class="map-country" d="${own}"/>
 ${dots.size ? `<g class="map-dots">${[...dots.values()].join("")}</g>\n` : ""}${ring}
 </svg>`;
-  return `<svg class="country-map" viewBox="0 0 800 ${height}" role="img" aria-label="Map showing the location of ${esc(displayName(country))}" preserveAspectRatio="xMidYMid slice">
+  return `<svg class="country-map" viewBox="0 0 800 ${height}" role="img" aria-label="Map showing the location of ${esc(T.nameWithThe(country))}" preserveAspectRatio="xMidYMid slice">
 <rect width="800" height="${height}" class="map-sea"/>
 <path class="map-land" d="${others.join("")}"/>
 <path class="map-country" d="${own}"/>
@@ -686,7 +708,8 @@ function metaDescription(country, name, chips) {
   }
   // Borders are left out entirely for a country that has none.
   if (chips.length) {
-    const names = chips.map((c) => c.name);
+    // a bordering country reads with its article in a sentence ("borders Austria, the Czech Republic ..."); a territory's "Name (Parent)" chip stays as it is
+    const names = chips.map((c) => { const full = byAlpha3.get(c.code); return full && full.name === c.name ? T.nameWithThe(full) : c.name; });
     optional.push(names.length > 4 ? `borders ${names.slice(0, 4).join(", ")} and ${names.length - 4} more` : `borders ${listWords(names)}`);
   }
   if (typeof country.area === "number") optional.push(`area ${country.area.toLocaleString("en-US")} km²`);
@@ -718,30 +741,13 @@ function introText(country, name) {
 // and outline on a small map. Chrome (headless) turns an HTML/SVG card into the PNG, so
 // the build needs Google Chrome installed; the card's hash is kept in og/manifest.json
 // and a PNG is only redrawn when its card changes.
-const OG_W = 1200;
-const OG_H = 630;
 const OG_DIR = "og";
 const OG_NAME = "og/manifest.json";
 const CHROME = process.env.CHROME_PATH || ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/usr/bin/google-chrome", "/usr/bin/chromium"].find((p) => fs.existsSync(p));
 const OG_ONLY = (process.argv.find((a) => a.startsWith("--og-only=")) || "").slice(10).split(",").filter(Boolean);
 const NO_OG = process.argv.includes("--no-og");
 
-const socialTags = ({ title, description, image }) => {
-  const url = `${BASE_URL}/${image}`;
-  return [
-    `<meta property="og:type" content="website" />`,
-    `<meta property="og:site_name" content="${SITE_NAME}" />`,
-    `<meta property="og:title" content="${esc(title)}" />`,
-    `<meta property="og:description" content="${esc(description)}" />`,
-    `<meta property="og:image" content="${url}" />`,
-    `<meta property="og:image:width" content="${OG_W}" />`,
-    `<meta property="og:image:height" content="${OG_H}" />`,
-    `<meta name="twitter:card" content="summary_large_image" />`,
-    `<meta name="twitter:title" content="${esc(title)}" />`,
-    `<meta name="twitter:description" content="${esc(description)}" />`,
-    `<meta name="twitter:image" content="${url}" />`,
-  ].join("\n  ");
-};
+const socialTags = ({ title, description, image }) => socialTagsFor({ baseUrl: BASE_URL, siteName: SITE_NAME, title, description, image });
 
 const OG_CSS = `
 *{box-sizing:border-box;margin:0}
@@ -851,6 +857,34 @@ h1{position:absolute;left:64px;top:462px;width:${COLUMN}px;white-space:nowrap;fo
 <div class="flag"><img src="${flagUri}"></div><h1>${nameHtml}</h1><div class="map">${map}</div><div class="url">countryfacts.app</div>`;
 }
 
+// The preview card of a regional map: its name, and the map itself (light version) on its ocean color, in the same dark style.
+function ogMap({ id, name }) {
+  const page = read(`maps/${id}/index.html`);
+  const svg = page.match(/<svg class="map-svg"[\s\S]*?<\/svg>\s*<\/button>/)[0].replace(/\s*<\/button>$/, "");
+  const [, vw, vh] = svg.match(/viewBox="0 0 (\d+) (\d+)"/).map(Number);
+  const BOX_W = 600, BOX_H = 534, k = Math.min(BOX_W / vw, BOX_H / vh);
+  const COLUMN = 430;
+  const wrap = (size) => {
+    const lines = [""];
+    for (const word of name.split(" ")) {
+      const line = lines.at(-1), next = line ? `${line} ${word}` : word;
+      if (!line || next.length * size * 0.58 <= COLUMN) lines[lines.length - 1] = next;
+      else lines.push(word);
+    }
+    return lines;
+  };
+  let size = 92;
+  while (size > 40 && (wrap(size).length > 3 || wrap(size).some((l) => l.length * size * 0.58 > COLUMN))) size -= 2;
+  const css = read("maps/maps.css");
+  return `<!doctype html><meta charset="utf-8"><style>${css}${OG_CSS}
+.title{position:absolute;left:64px;top:150px;width:${COLUMN}px;font-size:${size}px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.kind{position:absolute;left:64px;bottom:112px;font-size:34px;color:#9aa2ad}
+.mapbox{position:absolute;left:560px;top:48px;width:${BOX_W}px;height:${BOX_H}px;border-radius:18px;overflow:hidden;background:#cfe6f2;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 36px rgba(0,0,0,.5);outline:2px solid rgba(255,255,255,.14)}
+.mapbox .map-svg{display:block;width:${Math.round(vw * k)}px;height:${Math.round(vh * k)}px}
+</style><div class="accent"></div>${OG_BRAND}
+<div class="title">${wrap(size).map(esc).join("<br>")}</div><div class="kind">Political map</div><div class="maps-page mapbox">${svg}</div><div class="url">countryfacts.app</div>`;
+}
+
 function renderOgImages(cards) {
   // cards: Map of "og/<name>.png" -> html. Redraws only the cards whose hash changed.
   const manifestFile = path.join(ROOT, OG_NAME);
@@ -894,7 +928,7 @@ const TOGGLE_SNIPPET = `(function(){var b=document.getElementById("dark-mode-tog
 
 const FAVICON = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>`;
 
-const FOOTER = `<footer class="site-footer">
+const footer = (up) => `<footer class="site-footer">
     <p>Data last updated: ${esc(updatedLong)}</p>
     <p class="data-credits">
       Data:
@@ -905,8 +939,15 @@ const FOOTER = `<footer class="site-footer">
       <a href="https://www.naturalearthdata.com" target="_blank" rel="noopener">Natural Earth</a>,
       <a href="https://flagicons.lipis.dev" target="_blank" rel="noopener">flag-icons</a>.
     </p>
-    <p class="footer-feedback"><a href="mailto:hello@countryfacts.app">Send feedback</a></p>
+    <p class="footer-feedback"><a href="${up}maps/">Maps</a> <span aria-hidden="true">·</span> <a href="mailto:hello@countryfacts.app">Send feedback</a></p>
   </footer>`;
+
+// The top navigation: the same three tabs as the app's (index.html), as plain links, for the static pages. `current` marks the page's own tab.
+const siteNav = (up, current) => `<nav class="section-nav" aria-label="Site sections">
+      <a href="${up}">Explore</a>
+      <a href="${up}?section=quiz">Quiz</a>
+      <a href="${up}maps/"${current === "maps" ? ' aria-current="page"' : ""}>Maps</a>
+    </nav>`;
 
 function shell({ depth, title, description, canonical, jsonLd, body, ogImage }) {
   const up = "../".repeat(depth);
@@ -944,7 +985,7 @@ ${socialTags({ title, description, image: ogImage })}
     </button>
   </header>
 ${body}
-  ${FOOTER}
+  ${footer(up)}
   <script>${TOGGLE_SNIPPET}</script>
 </body>
 </html>
@@ -980,7 +1021,7 @@ function countryPage(country) {
     .join("");
   const bordersMarkup = chips.length
     ? `<div class="borders-section"><h2 class="stat-heading">Bordering countries</h2><div class="borders-list">${chipMarkup}</div></div>`
-    : `<div class="borders-section"><h2 class="stat-heading">Bordering countries</h2><p class="no-borders">${esc(name)} has no land borders.</p></div>`;
+    : `<div class="borders-section"><h2 class="stat-heading">Bordering countries</h2><p class="no-borders">${esc(T.sentenceName(country))} has no land borders.</p></div>`;
 
   const stat = (label, value) => `<div class="stat"><dt>${label}</dt><dd>${value}</dd></div>`;
   const facts = [
@@ -1006,12 +1047,18 @@ function countryPage(country) {
         .join("")}</div></section>`
     : "";
 
+  // "See Germany on the Europe map →", or for a country on two maps "See Egypt on the Africa map → or the Middle East map →".
+  const mapLinks = mapsOf(country)
+    .map((m, i) => `<a href="../../maps/${m.id}/">${i === 0 ? `See ${esc(T.nameWithThe(country))} on the ` : "the "}${esc(m.name)} map <span aria-hidden="true">→</span></a>`)
+    .join(' <span class="map-link-or">or</span> ');
+
   const app = `../../?country=${code}`;
   const body = `  <main class="country-page">
+    ${siteNav("../../")}
     <nav class="crumbs" aria-label="Breadcrumb"><a href="../../">${SITE_NAME}</a> <span aria-hidden="true">›</span> <a href="../">Countries</a> <span aria-hidden="true">›</span> <span>${esc(name)}</span></nav>
     <article class="fact-card">
       <div class="card-header">
-        <img class="flag" src="../../${esc(country.flags.svg)}" alt="Flag of ${esc(name)}" width="64" height="43" />
+        <img class="flag" src="../../${esc(country.flags.svg)}" alt="Flag of ${esc(T.nameWithThe(country))}" width="64" height="43" />
         <div>
           <h1>${esc(name)}</h1>
           ${showNative ? `<p class="native-name">${esc(country.nativeName)}</p>` : ""}
@@ -1025,11 +1072,11 @@ function countryPage(country) {
         ${bordersMarkup}
       </div>
     </article>
-    ${map ? `<section class="page-card"><h2>Where is ${esc(name)}?</h2>${map}</section>` : ""}
+    ${map ? `<section class="page-card"><h2>Where is ${esc(T.nameWithThe(country))}?</h2>${map}<p class="map-link">${mapLinks}</p></section>` : ""}
     <section class="page-card cta">
       <h2>Explore and practice</h2>
       <div class="cta-links">
-        <a class="quiz-btn-primary" href="${app}&amp;view=globe">See ${esc(name)} on the globe</a>
+        <a class="quiz-btn-primary" href="${app}&amp;view=globe">See ${esc(T.nameWithThe(country))} on the globe</a>
         <a class="quiz-btn-secondary" href="${app}&amp;view=map">Flat map</a>
         <a class="quiz-btn-secondary" href="../../?section=quiz">Take a quiz</a>
       </div>
@@ -1082,6 +1129,7 @@ function indexPage() {
   const title = `All Countries: Facts, Capitals & Populations | ${SITE_NAME}`;
   const description = `Facts for ${built.length} countries: capital, population, languages, religion and neighbours, each with a flag and map.`;
   const body = `  <main class="country-page">
+    ${siteNav("../")}
     <nav class="crumbs" aria-label="Breadcrumb"><a href="../">${SITE_NAME}</a> <span aria-hidden="true">›</span> <span>Countries</span></nav>
     <h1 class="index-title">Countries of the world</h1>
     ${jumps}
@@ -1090,8 +1138,53 @@ function indexPage() {
   return shell({ depth: 1, title, description, canonical, body, ogImage: "og/home.png" });
 }
 
+// The "More maps" hub (/maps/): a card for each regional map (thumbnails from scripts/build-map-thumbs.mjs), then a placeholder
+// for the population density map still to come. Each map's page is written by scripts/build-maps.mjs.
+function mapsHubPage() {
+  for (const { id } of MAP_REGIONS) {
+    for (const theme of ["light", "dark"]) {
+      if (!fs.existsSync(path.join(ROOT, `maps/thumbs/${id}-${theme}.webp`))) throw new Error(`Missing maps/thumbs/${id}-${theme}.webp. Run: node scripts/build-map-thumbs.mjs`);
+    }
+  }
+  const cards = MAP_REGIONS.map(
+    ({ id, name, blurb }) => `<li><a class="hub-card" href="${id}/">
+        <img class="hub-thumb hub-thumb-light" src="thumbs/${id}-light.webp" alt="" width="640" height="480" loading="lazy" decoding="async" />
+        <img class="hub-thumb hub-thumb-dark" src="thumbs/${id}-dark.webp" alt="" width="640" height="480" loading="lazy" decoding="async" />
+        <span class="hub-card-body"><span class="hub-card-title">${esc(name)}</span><span class="hub-card-text">${esc(blurb)}</span></span>
+      </a></li>`
+  ).join("\n      ");
+  const soon = `<li><div class="hub-card hub-card-soon">
+        <span class="hub-soon-art" aria-hidden="true"><span class="hub-soon-badge">Coming soon</span></span>
+        <span class="hub-card-body"><span class="hub-card-title">Population density</span><span class="hub-card-text">A world map shaded by how crowded each country is.</span></span>
+      </div></li>`;
+  const canonical = `${BASE_URL}/maps/`;
+  const title = `Political Maps of the World by Region | ${SITE_NAME}`;
+  const description = `Labeled political maps of ${MAP_REGIONS.length} world regions, each with every country, capital city and sea named.`;
+  const body = `  <main class="country-page maps-hub">
+    ${siteNav("../", "maps")}
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="../">${SITE_NAME}</a> <span aria-hidden="true">›</span> <span>Maps</span></nav>
+    <h1 class="index-title">Maps</h1>
+    <p class="hub-intro">Labeled political maps of every region of the world, with each country, capital city and sea named. Pick a region to open its map.</p>
+    <ul class="hub-grid">
+      ${cards}
+      ${soon}
+    </ul>
+  </main>`;
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: SITE_NAME, item: `${BASE_URL}/` },
+        { "@type": "ListItem", position: 2, name: "Maps", item: canonical },
+      ],
+    },
+  ];
+  return shell({ depth: 1, title, description, canonical, jsonLd, body, ogImage: "og/home.png" });
+}
+
 function sitemap() {
-  const urls = [`${BASE_URL}/`, `${BASE_URL}/country/`, ...built.map((c) => `${BASE_URL}/country/${slugOf.get(c.alpha3Code)}/`)];
+  const urls = [`${BASE_URL}/`, `${BASE_URL}/country/`, `${BASE_URL}/maps/`, ...MAP_REGIONS.map((m) => `${BASE_URL}/maps/${m.id}/`), ...built.map((c) => `${BASE_URL}/country/${slugOf.get(c.alpha3Code)}/`)];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map((u) => `  <url><loc>${esc(u)}</loc><lastmod>${updatedDay}</lastmod></url>`).join("\n")}
@@ -1123,6 +1216,7 @@ let outputs_index; // index.html with its robots block updated
 const outputs = new Map();
 outputs.set("index.html", outputs_index);
 outputs.set("country/index.html", indexPage());
+outputs.set("maps/index.html", mapsHubPage());
 for (const c of built) outputs.set(`country/${slugOf.get(c.alpha3Code)}/index.html`, countryPage(c));
 outputs.set("country/world-land.svg", worldLandSvg());
 outputs.set("sitemap.xml", sitemap());
@@ -1131,6 +1225,7 @@ outputs.set("robots.txt", robots());
 // The preview cards: og/home.png for the homepage and country index, og/<slug>.png per country.
 const ogCards = new Map([["og/home.png", ogHome()]]);
 for (const c of built) ogCards.set(`og/${slugOf.get(c.alpha3Code)}.png`, ogCountry(c));
+for (const m of MAP_REGIONS) ogCards.set(`og/map-${m.id}.png`, ogMap(m));
 
 if (OG_ONLY.length) {
   // Samples: draw just these cards and leave every other file alone.

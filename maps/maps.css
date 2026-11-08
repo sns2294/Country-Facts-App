@@ -105,3 +105,5 @@ html.map-viewer-open, html.map-viewer-open body { overflow: hidden; overscroll-b
 .map-svg .disp-line { fill: none; stroke: var(--label); stroke-width: 1.1; stroke-dasharray: 7 4; stroke-linecap: butt; }
 .map-svg .disp-dot { fill: var(--ctx); stroke: var(--label); stroke-width: 0.9; stroke-dasharray: 2 1.5; }
 .map-svg .disp-dot-hatch { fill: url(#hatch); stroke: none; }
+.maps-page .map-back { display: inline-block; margin: 0 0 0.6rem; color: var(--accent); font-size: 0.85rem; text-decoration: none; }
+.maps-page .map-back:hover, .maps-page .map-back:focus-visible { text-decoration: underline; }

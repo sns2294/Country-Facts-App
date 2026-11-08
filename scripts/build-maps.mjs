@@ -14,12 +14,17 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { socialTags } from "./social-tags.mjs";
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (f) => fs.readFileSync(path.join(ROOT, f), "utf8");
 const topojson = require(path.join(ROOT, "vendor/topojson-client.min.js"));
 const T = require(path.join(ROOT, "country-text.js"));
+// site.config.json: the maps are noindex like every other page until `indexable` is true (then scripts/build-pages.mjs lists them in sitemap.xml).
+const SITE_CONFIG = JSON.parse(read("site.config.json"));
+const INDEXABLE = SITE_CONFIG.indexable === true;
+const BASE_URL = SITE_CONFIG.baseUrl.replace(/\/+$/, "");
 const DARK_MODE_KEY = "countryFacts.darkMode".replace("countryFacts.", "countryFactsApp.");
 
 const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -67,13 +72,18 @@ const REGIONS = {
   europe: {
     name: "Europe",
     members: countries.filter((c) => c.region === "Europe" && (c.sovereign || c.alpha3Code === "UNK") && c.alpha3Code !== "SJM").map((c) => c.alpha3Code),
-    extraColoured: ["GRL"], share: { GRL: "DNK" },
+    extraColoured: ["GRL"], share: { GRL: "DNK", FRO: "DNK" },
+    // Territories are labeled "Name (Parent)", as on the other maps. The Faroe Islands are drawn in Denmark's color (they are part of its shape, too
+    // small to label in place), so they get a dot in that color and a pointer label. Svalbard lies beyond the top edge of this frame.
+    names: { GRL: "Greenland (Kingdom of Denmark)", FRO: "Faroe Islands (Denmark)" },
+    extraPoints: { FRO: { name: "Faroe Islands (Denmark)", lat: 62.01, lon: -6.77, gap: 10 } },
+    dots: ["FRO"], dotOnly: ["FRO"],
     context: ["TUR", "MAR", "DZA", "TUN", "LBY", "EGY", "SYR", "KAZ", "GEO", "ARM", "AZE", "IRQ", "LBN", "ISR", "JOR"],
     lon0: 10, lat0: 52, frame: { west: -25.5, east: 43, south: 34.2, north: 71.6 },
     links: [["UNK", "SRB"], ["UNK", "ALB"], ["UNK", "MKD"], ["UNK", "MNE"], // Kosovo has no border list
       ["DNK", "SWE"], ["DNK", "NOR"], ["GBR", "FRA"], ["EST", "FIN"], ["ITA", "MLT"], ["ITA", "HRV"], ["GRC", "ITA"],
       ["GBR", "NOR"], ["LVA", "SWE"], ["POL", "SWE"], ["DEU", "SWE"], ["CYP", "GRC"], ["ISL", "GBR"], ["ISL", "NOR"], ["DNK", "ISL"], ["ESP", "ITA"], ["FRA", "ITA"]],
-    micro: ["SMR", "MCO", "AND", "VAT", "LUX", "LIE", "MLT"], // the only countries that get pointer lines
+    micro: ["SMR", "MCO", "AND", "VAT", "LUX", "LIE", "MLT", "FRO"], // the only countries (and the Faroe Islands) that get pointer lines
     microFixed: { LIE: [710, 654] }, // Liechtenstein: a short line north into southern Germany (by Lake Constance), not the far-off Mediterranean
     microSide: { SMR: "east", VAT: "west" }, // San Marino's label goes in the Adriatic (east of it); the Vatican's in the Tyrrhenian Sea
     seas: [
@@ -1757,7 +1767,9 @@ const page = `<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Map of ${R.name}: Countries, Capitals &amp; Seas | Country Facts</title>
   <meta name="description" content="A colorful political map of ${R.name} with every country, capital city and sea labeled." />
-  <meta name="robots" content="noindex" />
+  <link rel="canonical" href="${BASE_URL}/maps/${REGION_ID}/" />
+${INDEXABLE ? "" : `  <meta name="robots" content="noindex" />\n`}  <meta property="og:url" content="${BASE_URL}/maps/${REGION_ID}/" />
+  ${socialTags({ baseUrl: BASE_URL, siteName: "Country Facts", title: `Map of ${R.name}: Countries, Capitals & Seas | Country Facts`, description: `A colorful political map of ${R.name} with every country, capital city and sea labeled.`, image: `og/map-${REGION_ID}.png` })}
   <link rel="icon" href="${FAVICON}" />
   <link rel="icon" type="image/png" sizes="192x192" href="../../favicon-192.png" />
   <script>${THEME_SNIPPET}</script>
@@ -1776,8 +1788,9 @@ const page = `<!doctype html>
     </button>
   </header>
   <main class="country-page maps-page">
-    <nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Country Facts</a> <span aria-hidden="true">›</span> <span>More maps</span> <span aria-hidden="true">›</span> <span>${R.slug || R.name}</span></nav>
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Country Facts</a> <span aria-hidden="true">›</span> <a href="../">Maps</a> <span aria-hidden="true">›</span> <span>${R.slug || R.name}</span></nav>
     <section class="page-card map-card">
+      <a class="map-back" href="../">← All maps</a>
       <h1>Political map of ${R.name}</h1>
       <p class="map-lede">${EUROPE.filter((a) => shapes.has(a)).length} ${R.unit || "countries"}, each colored differently from its neighbors. ${R.lede}</p>
       <p class="map-hint"><span class="hint-touch">Tap the map to open it full size, then pinch to zoom.</span><span class="hint-mouse">Click the map to open it full screen, then scroll to zoom and drag to move.</span></p>

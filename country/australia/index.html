@@ -27,8 +27,8 @@
   <link rel="icon" type="image/png" sizes="192x192" href="../../favicon-192.png" />
   <link rel="apple-touch-icon" href="../../apple-touch-icon.png" />
   <script>try{var s=localStorage.getItem("countryFactsApp.darkMode");var d=s===null?matchMedia("(prefers-color-scheme: dark)").matches:s==="true";document.documentElement.classList.toggle("dark",d)}catch(e){}</script>
-  <link rel="stylesheet" href="../../style.css?v=d964e15e" />
-  <link rel="stylesheet" href="../../country-page.css?v=8119815f" />
+  <link rel="stylesheet" href="../../style.css?v=b265418c" />
+  <link rel="stylesheet" href="../../country-page.css?v=53aaf759" />
   <script type="application/ld+json">[{"@context":"https://schema.org","@type":"Country","name":"Australia","url":"https://countryfacts.app/country/australia/","image":"https://countryfacts.app/data/flags/au.svg","description":"Australia facts: capital Canberra, population 27.6 million, language English, area 7,692,024 km². Flag, map and quiz."},{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Country Facts","item":"https://countryfacts.app/"},{"@type":"ListItem","position":2,"name":"Countries","item":"https://countryfacts.app/country/"},{"@type":"ListItem","position":3,"name":"Australia","item":"https://countryfacts.app/country/australia/"}]}]</script>
 </head>
 <body>
@@ -42,6 +42,11 @@
     </button>
   </header>
   <main class="country-page">
+    <nav class="section-nav" aria-label="Site sections">
+      <a href="../../">Explore</a>
+      <a href="../../?section=quiz">Quiz</a>
+      <a href="../../maps/">Maps</a>
+    </nav>
     <nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Country Facts</a> <span aria-hidden="true">›</span> <a href="../">Countries</a> <span aria-hidden="true">›</span> <span>Australia</span></nav>
     <article class="fact-card">
       <div class="card-header">
@@ -81,7 +86,7 @@
 
 </svg>
 <rect class="map-inset-frame" x="14" y="14" width="250" height="158"/>
-</svg></section>
+</svg><p class="map-link"><a href="../../maps/oceania/">See Australia on the Oceania map <span aria-hidden="true">→</span></a></p></section>
     <section class="page-card cta">
       <h2>Explore and practice</h2>
       <div class="cta-links">
@@ -103,7 +108,7 @@
       <a href="https://www.naturalearthdata.com" target="_blank" rel="noopener">Natural Earth</a>,
       <a href="https://flagicons.lipis.dev" target="_blank" rel="noopener">flag-icons</a>.
     </p>
-    <p class="footer-feedback"><a href="mailto:hello@countryfacts.app">Send feedback</a></p>
+    <p class="footer-feedback"><a href="../../maps/">Maps</a> <span aria-hidden="true">·</span> <a href="mailto:hello@countryfacts.app">Send feedback</a></p>
   </footer>
   <script>(function(){var b=document.getElementById("dark-mode-toggle"),i=document.getElementById("dark-mode-icon"),r=document.documentElement;function sync(){var d=r.classList.contains("dark");b.setAttribute("aria-pressed",String(d));i.textContent=d?"\u2600\uFE0F":"\uD83C\uDF19"}sync();b.addEventListener("click",function(){var d=!r.classList.contains("dark");r.classList.toggle("dark",d);try{localStorage.setItem("countryFactsApp.darkMode",String(d))}catch(e){}sync()})})();</script>
 </body>

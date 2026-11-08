@@ -57,6 +57,8 @@ then open http://localhost:8000. This server sends no-cache headers so edits alw
 ### Country pages
 `node scripts/build-pages.mjs` writes `country/`, `sitemap.xml`, `robots.txt` and the link-preview images in `og/` (1200x630 PNGs for Open Graph and Twitter cards, drawn with headless Google Chrome, which must be installed; only changed cards are redrawn, tracked in `og/manifest.json`; `--no-og` skips them); `--check` verifies they are up to date. `node scripts/check-insets.mjs` verifies that on every page the locator inset holds the whole country (or its ring) with a margin and is not cropped.
 
+The regional political maps (`maps/<region>/`) are written by `node scripts/build-maps.mjs` (one region by name, or all). The "More maps" hub at `/maps/` is written by `build-pages.mjs`; its card thumbnails (`maps/thumbs/`, a light and a dark one per map, drawn from each map's own page with headless Chrome) come from `node scripts/build-map-thumbs.mjs`, which `build-pages.mjs` expects to have been run after the maps change (`--check` on either script reports anything out of date). The list of maps and their card text is `scripts/map-regions.mjs`. Map pages are `noindex` until `indexable` is true in `site.config.json`, and `sitemap.xml` already lists the hub and every map.
+
 ### Cache-busting
 `index.html` and `app.js` carry content-hash version strings (`app.js?v=…`, `DATA_VERSION`) so a deployed change loads immediately instead of waiting for browser caches to expire; unchanged files keep their URL and stay cached. After changing `style.css`, any script, `world-map.svg` or anything in `data/`, run this before committing:
 

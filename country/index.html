@@ -27,8 +27,8 @@
   <link rel="icon" type="image/png" sizes="192x192" href="../favicon-192.png" />
   <link rel="apple-touch-icon" href="../apple-touch-icon.png" />
   <script>try{var s=localStorage.getItem("countryFactsApp.darkMode");var d=s===null?matchMedia("(prefers-color-scheme: dark)").matches:s==="true";document.documentElement.classList.toggle("dark",d)}catch(e){}</script>
-  <link rel="stylesheet" href="../style.css?v=d964e15e" />
-  <link rel="stylesheet" href="../country-page.css?v=8119815f" />
+  <link rel="stylesheet" href="../style.css?v=b265418c" />
+  <link rel="stylesheet" href="../country-page.css?v=53aaf759" />
 </head>
 <body>
   <header class="app-header">
@@ -41,6 +41,11 @@
     </button>
   </header>
   <main class="country-page">
+    <nav class="section-nav" aria-label="Site sections">
+      <a href="../">Explore</a>
+      <a href="../?section=quiz">Quiz</a>
+      <a href="../maps/">Maps</a>
+    </nav>
     <nav class="crumbs" aria-label="Breadcrumb"><a href="../">Country Facts</a> <span aria-hidden="true">›</span> <span>Countries</span></nav>
     <h1 class="index-title">Countries of the world</h1>
     <nav class="region-jumps" aria-label="Jump to a continent"><a href="#region-africa">Africa <span>54</span></a><a href="#region-americas">Americas <span>35</span></a><a href="#region-asia">Asia <span>47</span></a><a href="#region-europe">Europe <span>45</span></a><a href="#region-oceania">Oceania <span>14</span></a></nav>
@@ -61,7 +66,7 @@
       <a href="https://www.naturalearthdata.com" target="_blank" rel="noopener">Natural Earth</a>,
       <a href="https://flagicons.lipis.dev" target="_blank" rel="noopener">flag-icons</a>.
     </p>
-    <p class="footer-feedback"><a href="mailto:hello@countryfacts.app">Send feedback</a></p>
+    <p class="footer-feedback"><a href="../maps/">Maps</a> <span aria-hidden="true">·</span> <a href="mailto:hello@countryfacts.app">Send feedback</a></p>
   </footer>
   <script>(function(){var b=document.getElementById("dark-mode-toggle"),i=document.getElementById("dark-mode-icon"),r=document.documentElement;function sync(){var d=r.classList.contains("dark");b.setAttribute("aria-pressed",String(d));i.textContent=d?"\u2600\uFE0F":"\uD83C\uDF19"}sync();b.addEventListener("click",function(){var d=!r.classList.contains("dark");r.classList.toggle("dark",d);try{localStorage.setItem("countryFactsApp.darkMode",String(d))}catch(e){}sync()})})();</script>
 </body>

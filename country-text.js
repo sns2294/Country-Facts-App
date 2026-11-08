@@ -116,6 +116,25 @@
     return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
   }
 
+  // Names that read with "the" in a sentence ("Where is the Netherlands?"). One list for everything that builds sentences:
+  // the app, the static pages (scripts/build-pages.mjs) and the quiz prompts. Keyed by alpha-3 code. A name that already
+  // starts with "The" is never given a second one. Names used as labels (titles, headings, chips, map labels) stay bare.
+  const NAMES_WITH_THE = new Set([
+    // countries
+    "BHS", "CAF", "COM", "CZE", "DOM", "COD", "GMB", "MDV", "MHL", "NLD", "PHL", "COG", "SYC", "SLB", "ARE", "GBR", "USA",
+    // territories
+    "ALA", "IOT", "VGB", "CYM", "CCK", "COK", "FLK", "FRO", "ATF", "IMN", "MNP", "PCN", "TCA", "VIR", "UMI",
+  ]);
+  // "the Netherlands" in the middle of a sentence; the plain name for everyone else.
+  function nameWithThe(country) {
+    return NAMES_WITH_THE.has(country.alpha3Code) && !/^the\s/i.test(country.name) ? `the ${country.name}` : country.name;
+  }
+  // The same at the start of a sentence: "The Netherlands is ...".
+  function sentenceName(country) {
+    const name = nameWithThe(country);
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+
   function withArticle(phrase) {
     // "uni-" and "eu-" are pronounced with a consonant sound ("a unitary
     // republic"), except "unincorporated".
@@ -128,26 +147,25 @@
   // `phrase` is a replacement noun phrase for the default template; `lead` is
   // a full opening clause for the overview, used when no noun phrase fits.
   const GOVERNMENT_OVERRIDES = {
-    theocratic: { card: "Theocratic", lead: (c) => `${c.name}'s government is theocratic` },
-    authoritarian: { card: "Authoritarian", lead: (c) => `${c.name}'s government is authoritarian` },
-    "in transition": { card: "In transition", lead: (c) => `${c.name}'s government is in transition` },
+    theocratic: { card: "Theocratic", lead: (c) => `${sentenceName(c)}'s government is theocratic` },
+    authoritarian: { card: "Authoritarian", lead: (c) => `${sentenceName(c)}'s government is authoritarian` },
+    "in transition": { card: "In transition", lead: (c) => `${sentenceName(c)}'s government is in transition` },
     "formerly, semi-presidential republic": {
       card: "Military junta since a 2023 coup; previously a semi-presidential republic",
-      lead: (c) => `${c.name} has been governed by a military junta since a 2023 coup`,
+      lead: (c) => `${sentenceName(c)} has been governed by a military junta since a 2023 coup`,
       separateSentence: true,
     },
     "administered as an overseas territory of Australia": {
       card: "Administered as an overseas territory of Australia",
-      lead: (c) => `${c.name} is administered as an overseas territory of Australia`,
+      lead: (c) => `${sentenceName(c)} is administered as an overseas territory of Australia`,
     },
     "legal status of territory and issue of sovereignty unresolved": {
       card: "Disputed; sovereignty unresolved",
-      lead: (c) => `${c.name}'s legal status and the issue of its sovereignty are unresolved`,
+      lead: (c) => `${sentenceName(c)}'s legal status and the issue of its sovereignty are unresolved`,
     },
     "a commonwealth in political union with and under the sovereignty of the US": {
       card: "Commonwealth in political union with the United States",
       phrase: "commonwealth in political union with the United States",
-      subject: "The Northern Mariana Islands",
     },
     "Republic of Cyprus - presidential republic": {
       card: "Presidential republic",
@@ -238,7 +256,7 @@
     const govType = override?.phrase || country.governmentType;
     const govPhrase = govType ? withArticle(govType) : country.parent?.phrase || "";
 
-    let overview = override?.subject || country.name;
+    let overview = sentenceName(country);
     if (govPhrase && regionPhrase) {
       overview += ` is ${govPhrase}, ${regionPhrase}.`;
     } else if (govPhrase || regionPhrase) {
@@ -270,6 +288,8 @@
     missingGdp,
     getPredominantReligion,
     buildOverview,
+    nameWithThe,
+    sentenceName,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.CountryText = api;

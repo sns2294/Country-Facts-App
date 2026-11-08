@@ -195,6 +195,47 @@ main {
   background: var(--accent);
 }
 
+/* The Explore and Quiz tabs (a tablist) and the Maps link share one bar: on the app page the tablist sits beside the link,
+   on the static pages all three are links (the page's own one marked aria-current). */
+.section-nav {
+  align-items: baseline;
+}
+
+.section-nav [role="tablist"] {
+  display: flex;
+  gap: 2.5rem;
+}
+
+.section-nav a {
+  position: relative;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  font-weight: 500;
+  line-height: normal;
+  padding: 0 0 0.75rem;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.section-nav a:hover {
+  color: var(--text);
+}
+
+.section-nav a[aria-current="page"] {
+  color: var(--accent);
+}
+
+.section-nav a[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
 .segmented-control {
   display: inline-flex;
   gap: 0.15rem;

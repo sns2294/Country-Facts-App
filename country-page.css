@@ -274,3 +274,163 @@
     flex: 1 1 100%;
   }
 }
+
+/* The tab bar at the top of a static page (the same bar as the app's): centered over the page's column. */
+.country-page .section-nav {
+  margin: 0 auto 0.25rem;
+}
+
+/* The "More maps" hub (maps/): a grid of cards, one per regional map. */
+.country-page.maps-hub {
+  max-width: 1100px;
+}
+
+.maps-hub .index-title {
+  margin: 0;
+}
+
+.maps-hub .hub-intro {
+  margin: -0.5rem 0 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.hub-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 620px) {
+  .hub-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 940px) {
+  .hub-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.hub-grid > li {
+  display: flex;
+  min-width: 0;
+}
+
+.hub-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px var(--shadow);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a.hub-card:hover,
+a.hub-card:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+a.hub-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The thumbnails come in a light and a dark version (the maps' own colors); show the one that matches the theme. */
+.hub-thumb {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+}
+
+.hub-thumb-dark,
+:root.dark .hub-thumb-light {
+  display: none;
+}
+
+:root.dark .hub-thumb-dark {
+  display: block;
+}
+
+.hub-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.85rem 1rem 1rem;
+}
+
+.hub-card-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+a.hub-card .hub-card-title::after {
+  content: " →";
+  color: var(--accent);
+  font-weight: 400;
+}
+
+.hub-card-text {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+/* The placeholder for a map still to come: not a link, so no hover and a dashed edge. */
+.hub-card-soon {
+  background: transparent;
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.hub-soon-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4 / 3;
+  background: repeating-linear-gradient(135deg, var(--surface) 0 14px, var(--bg) 14px 28px);
+  border-bottom: 1px dashed var(--border);
+}
+
+.hub-soon-badge {
+  padding: 0.3rem 0.8rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+/* "See Germany on the Europe map →" under the locator map on a country page (two links, joined by "or", for a country on two maps). */
+.country-page .map-link {
+  margin: 0.9rem 0 0;
+  line-height: 1.9;
+}
+
+.country-page .map-link a {
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.country-page .map-link a:hover,
+.country-page .map-link a:focus-visible {
+  text-decoration: underline;
+}
+
+.country-page .map-link-or {
+  color: var(--text-muted);
+}

@@ -40,7 +40,7 @@ const PARENT = { ALA: "FIN", FRO: "DNK", GIB: "ESP", GGY: "GBR", JEY: "GBR", IMN
 // Following the site's rules (shape-rules.js): a piece of a UN member state that a breakaway or occupier holds
 // is drawn as part of that state (Crimea, Northern Cyprus, Somaliland); Kosovo and Western Sahara have their own cards.
 const NAME_OWNER = { Crimea: "UKR", "N. Cyprus": "CYP", "Cyprus U.N. Buffer Zone": "CYP", Akrotiri: "CYP", Dhekelia: "CYP", Kosovo: "UNK", Somaliland: "SOM", "Golan Heights": "SYR", Baikonur: "KAZ", "Siachen Glacier": "XSI", "Réunion": "REU", Mayotte: "MYT" };
-const DISPLAY = { UNK: "Kosovo", VAT: "Vatican City", MKD: "North Macedonia", CZE: "Czechia", BIH: "Bosnia and Herzegovina", GBR: "United Kingdom", COD: "DR Congo", COG: "Republic of the Congo", CIV: "Ivory Coast", STP: "São Tomé and Príncipe", CPV: "Cape Verde", SWZ: "Eswatini", GAZ: "Gaza Strip", XKU: "Southern Kurils (disputed)", XSN: "Senkaku/Diaoyu Is. (disputed)", XDK: "Dokdo/Takeshima (disputed)", XPA: "Paracel Is. (disputed)", XSP: "Spratly Is. (disputed)", XSC: "Scarborough Shoal (disputed)", XNV: "Navassa Island (disputed)", XIA: "Isla Aves (disputed)", XSE: "Serranilla Bank (disputed)", XBN: "Bajo Nuevo Bank (disputed)" }; // X-codes: marks that are not countries (cannot clash with an alpha-3)
+const DISPLAY = { UNK: "Kosovo", VAT: "Vatican City", MKD: "North Macedonia", CZE: "Czechia", BIH: "Bosnia and Herzegovina", GBR: "United Kingdom", COD: "DR Congo", COG: "Republic of the Congo", CIV: "Ivory Coast", STP: "São Tomé and Príncipe", CPV: "Cape Verde", SWZ: "Eswatini", GAZ: "Gaza Strip", XKU: "Southern Kurils (disputed)", XSN: "Senkaku/Diaoyu Is. (disputed)", XDK: "Dokdo/Takeshima (disputed)", XPA: "Paracel Is. (disputed)", XSP: "Spratly Is. (disputed)", XSC: "Scarborough Shoal (disputed)", XNV: "Navassa Island (disputed)", XIA: "Isla Aves (disputed)", XMH: "Matthew and Hunter Is. (disputed)", XSE: "Serranilla Bank (disputed)", XBN: "Bajo Nuevo Bank (disputed)" }; // X-codes: marks that are not countries (cannot clash with an alpha-3)
 const nameOf = (a3) => R.names?.[a3] || DISPLAY[a3] || T.getBorderDisplayName(a3Info.get(a3).name); // R.names: this region's own label text
 const CONTEXT_LABEL_MAX = 15;
 
@@ -448,6 +448,74 @@ const REGIONS = {
       { t: "Gulf of Aqaba", lon: 34.95, lat: 28.9, rot: 62, size: 7, sp: 0.1 },
     ],
   },
+  oceania: {
+    name: "Oceania",
+    preciseLabelBoxes: true,
+    members: ["AUS", "NZL", "PNG", "FJI", "SLB", "VUT", "WSM", "TON", "KIR", "TUV", "NRU", "MHL", "FSM", "PLW"],
+    // Territories are drawn in their parent's colour (France's, the United Kingdom's and the United States' from the Europe and
+    // North America maps; Australia's and New Zealand's from this map, through R.share), with the parent in parentheses.
+    // Hawaii (a state) is in the frame because the Mariana and Line Islands put it there. many territory shapes are too small to see (and Tokelau's Nukunonu is missing from the data): each territory also gets a dot in its color.
+    extraColoured: ["NCL", "PYF", "WLF", "PCN", "GUM", "ASM", "MNP", "UMI", "USA", "COK", "NIU", "TKL", "NFK"],
+    share: { COK: "NZL", NIU: "NZL", TKL: "NZL", NFK: "AUS" },
+    fixedColours: { NCL: "FRA", PYF: "FRA", WLF: "FRA", PCN: "GBR", GUM: ["north-america", "USA"], ASM: ["north-america", "USA"], MNP: ["north-america", "USA"], UMI: ["north-america", "USA"], USA: ["north-america", "USA"] },
+    nameOwner: { "Coral Sea Is.": "AUS" },
+    names: {
+      NCL: "New Caledonia (France)", PYF: "French Polynesia (France)", WLF: "Wallis and Futuna (France)", PCN: "Pitcairn Islands (United Kingdom)",
+      GUM: "Guam (United States)", ASM: "American Samoa (United States)", MNP: "Northern Mariana Islands (United States)",
+      UMI: "U.S. Minor Outlying Islands (United States)", USA: "Hawaii (United States)",
+      COK: "Cook Islands (New Zealand)", NIU: "Niue (New Zealand)", TKL: "Tokelau (New Zealand)", NFK: "Norfolk Island (Australia)",
+    },
+    extraPoints: {
+      NCL: { name: "New Caledonia (France)", lat: -21.3, lon: 165.6, gap: 14 }, PYF: { name: "French Polynesia (France)", lat: -17.535, lon: -149.57, gap: 14 },
+      WLF: { name: "Wallis and Futuna (France)", lat: -13.28, lon: -176.17, gap: 14 }, PCN: { name: "Pitcairn Islands (United Kingdom)", lat: -25.066, lon: -130.1, gap: 14 },
+      GUM: { name: "Guam (United States)", lat: 13.45, lon: 144.78, gap: 14 }, ASM: { name: "American Samoa (United States)", lat: -14.27, lon: -170.7, gap: 14 },
+      MNP: { name: "Northern Mariana Islands (United States)", lat: 15.19, lon: 145.75, gap: 14 }, UMI: { name: "U.S. Minor Outlying Islands (United States)", lat: 5.88, lon: -162.08, gap: 14 },
+      USA: { name: "Hawaii (United States)", lat: 20.5, lon: -157.0, gap: 14 },
+      XMH: { name: "Matthew and Hunter Is. (disputed)", lat: -22.37, lon: 171.68, gap: 14 },
+      COK: { name: "Cook Islands (New Zealand)", lat: -21.2, lon: -159.78, gap: 14 }, NIU: { name: "Niue (New Zealand)", lat: -19.05, lon: -169.87, gap: 14 },
+      TKL: { name: "Tokelau (New Zealand)", lat: -9.17, lon: -171.85, gap: 14 }, NFK: { name: "Norfolk Island (Australia)", lat: -29.04, lon: 167.95, gap: 14 },
+    },
+    context: ["IDN", "PHL", "TLS", "MYS"],
+    // Fiji, an independent country, takes the one palette colour (5) that no country or territory parent on this map uses, so it cannot be mistaken for a territory of Australia.
+    colourOverride: { FJI: 5 },
+    // Matthew and Hunter Islands (administered by France, claimed by Vanuatu) are given to neither: Natural Earth draws Matthew Island
+    // inside New Caledonia, so it is cut out, and one hatched oval marks both islands (Hunter is not in the data). Not to scale.
+    carve: [{ from: "NCL", box: [171.1, 171.6, -22.5, -22.2], what: "Matthew Island" }],
+    disputed: [{ group: "matthew-hunter", marker: true, ring: true, at: [[171.32, -22.33], [172.05, -22.4]] }],
+    capitalNames: ["NZL"], // New Zealand's capital is named beside its pointer-line label, as Canberra and Port Moresby are
+    minRing: 0.0005, // keep the atolls (all of Tuvalu's nine, the Marshall and Gilbert Islands) as specks
+    width: 1650, lon0: 174.5, lat0: -13,
+    // Framed by Australia's west and south, Tasmania, New Zealand's south, Pitcairn, Hawaii, the Marianas and Palau.
+    frame: { points: [[113.0, -26.5], [113.4, -21.7], [114.5, -34.4], [146.4, -43.7], [166.5, -46.8], [167.6, -47.4], [179, -47.9], [-176.3, -44.6], [-123.6, -25.4], [-123.6, -22], [-134, -9], [-154.6, 18.8], [-154.6, 22.4], [-160.6, 22.4], [145.9, 20.7], [135, 8.6], [130.8, 3], [125, 6.5]], margin: 0.025 },
+    links: [
+      ["AUS", "PNG"], ["AUS", "NZL"], ["AUS", "VUT"], ["AUS", "NCL"], ["AUS", "SLB"], ["PNG", "SLB"], ["PNG", "FSM"], ["PNG", "PLW"], ["PNG", "NRU"],
+      ["SLB", "VUT"], ["SLB", "NRU"], ["SLB", "KIR"], ["SLB", "NCL"], ["VUT", "NCL"], ["VUT", "FJI"], ["NCL", "FJI"], ["NCL", "NZL"], ["NZL", "FJI"], ["NZL", "TON"],
+      ["FJI", "TON"], ["FJI", "WLF"], ["FJI", "TUV"], ["FJI", "WSM"], ["WLF", "WSM"], ["WLF", "TON"], ["WLF", "TUV"],
+      ["WSM", "ASM"], ["WSM", "TON"], ["WSM", "TKL"], ["WSM", "NIU"], ["ASM", "TON"], ["ASM", "NIU"], ["ASM", "TKL"], ["ASM", "COK"], ["TON", "NIU"],
+      ["TUV", "KIR"], ["TUV", "TKL"], ["TUV", "NRU"], ["KIR", "NRU"], ["KIR", "MHL"], ["KIR", "TKL"], ["KIR", "COK"], ["KIR", "UMI"], ["KIR", "ASM"], ["KIR", "USA"],
+      ["NRU", "MHL"], ["NRU", "FSM"], ["MHL", "FSM"], ["MHL", "UMI"], ["MHL", "GUM"], ["FSM", "PLW"], ["FSM", "GUM"], ["FSM", "MNP"], ["PLW", "GUM"],
+      ["NIU", "COK"], ["COK", "PYF"], ["COK", "TKL"], ["PYF", "PCN"], ["UMI", "TKL"], ["NFK", "NCL"], ["NFK", "NZL"], ["NFK", "VUT"],
+    ],
+    micro: ["KIR", "TUV", "NRU", "MHL", "FSM", "PLW", "GUM", "MNP", "WSM", "ASM", "TON", "NIU", "COK", "TKL", "WLF", "FJI", "VUT", "SLB", "NCL", "XMH", "NFK", "PYF", "PCN", "USA", "UMI", "NZL"],
+    microFixed: {}, microSide: { XMH: "south" }, balancedMicroLabels: true,
+    dots: ["NCL", "PYF", "WLF", "PCN", "GUM", "ASM", "MNP", "UMI", "USA", "COK", "NIU", "TKL", "NFK"], dotOnly: ["NCL", "PYF", "WLF", "PCN", "GUM", "ASM", "MNP", "UMI", "USA", "COK", "NIU", "TKL", "NFK"], // (the shapes of most are too small to see; Tokelau's Nukunonu is not in the data)
+    seas: [
+      { t: "North Pacific Ocean", lon: -178, lat: 17, rot: 0, size: 15, sp: 0.3 },
+      { t: "South Pacific Ocean", lon: -150, lat: -34, rot: 0, size: 15, sp: 0.3 },
+      { t: "Philippine Sea", lon: 136, lat: 17, rot: 0, size: 10, sp: 0.2 },
+      { t: "Coral Sea", lon: 154.5, lat: -17, rot: 0, size: 10, sp: 0.2 },
+      { t: "Tasman Sea", lon: 160, lat: -38, rot: -20, size: 10, sp: 0.2 },
+      { t: "Arafura Sea", lon: 135, lat: -9.2, rot: 0, size: 8, sp: 0.15 },
+      { t: "Timor Sea", lon: 126, lat: -12.2, rot: 0, size: 8, sp: 0.15 },
+      { t: "Solomon Sea", lon: 153, lat: -7.6, rot: 0, size: 7.5, sp: 0.1 },
+      { t: "Bismarck Sea", lon: 148, lat: -3.3, rot: 0, size: 7, sp: 0.1 },
+      { t: "Indian Ocean", lon: 113, lat: -24, rot: -80, size: 11, sp: 0.3 },
+      { t: "Great Australian Bight", lon: 130, lat: -35.6, rot: 0, size: 8, sp: 0.15 },
+          ],
+    lede: "Dots mark capital cities. Territories are in their parent country's color, with the parent in parentheses; the small island states and territories are labeled with a pointer line.",
+    noteExtra: "Drawn in the Lambert azimuthal equal-area projection, centered on the Pacific so that nothing is split at the 180° line. Hawaii, a U.S. state, is shown because it falls in the frame. The U.S. Minor Outlying Islands are a scattering of small, mostly uninhabited islands and reefs (Wake Island, Johnston Atoll, Palmyra Atoll, Kingman Reef, Jarvis, Baker and Howland); they are in the United States' color but too small to see, and one label stands for them all, at Palmyra. Tokelau is in New Zealand's color: the map data draws two of its three atolls (Fakaofo and Atafu) as part of New Zealand's shape, and the dot marks the third, Nukunonu, which it lacks. Matthew and Hunter Islands are administered by France and claimed by Vanuatu. The Minerva Reefs are claimed by both Tonga and Fiji. The map assigns none of them to a country: Matthew and Hunter are shown as one hatched mark, not to scale, with Matthew Island cut out of New Caledonia's shape, and the Minerva Reefs, which are not in the map data, are not drawn. The Coral Sea Islands and the Ashmore and Cartier Islands are in Australia's color but too small to see. New Zealand's subantarctic islands and Australia's Macquarie Island lie beyond the bottom edge, and Christmas Island and the Cocos (Keeling) Islands beyond the left edge.",
+    projectionName: "Lambert azimuthal equal-area",
+  },
 };
 
 const REGION_ID = process.argv[2];
@@ -559,6 +627,16 @@ for (const mv of MOVES.filter((m) => R.members.includes(m.to))) {
   console.log(`${mv.what}: ${moved.length} piece(s) of ${mv.from} moved to ${mv.to}; ${leftovers.length} not stitched`);
   rawByOwner.set(mv.to, [...target.map((e) => [[...e.ring, e.ring[0]], ...e.holes]), ...leftovers]);
 }
+// R.carve: pieces of a country's shape that this region does not give to it (Matthew Island, which France and Vanuatu both claim).
+// A polygon whose bounding-box centre lies in `box` [west, east, south, north] is dropped.
+for (const cv of R.carve || []) {
+  const [x0, x1, y0, y1] = cv.box, before = rawByOwner.get(cv.from).length;
+  rawByOwner.set(cv.from, rawByOwner.get(cv.from).filter((poly) => {
+    const xs = poly[0].map((q) => q[0]), ys = poly[0].map((q) => q[1]), cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    return !(cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1);
+  }));
+  console.log(`carved ${before - rawByOwner.get(cv.from).length} piece(s) out of ${cv.from} (${cv.what})`);
+}
 for (const a3 of EUROPE) if (!rawByOwner.has(a3)) throw new Error(`No shape for ${a3}`);
 
 // ---------- projection (Lambert azimuthal equal-area, centred per region; Europe uses the EU's ETRS89 centre) ----------
@@ -626,6 +704,8 @@ const boxClip = (x0, y0, x1, y1) => ({
 });
 const viewWindow = boxClip(-30, -30, WIDTH + 30, HEIGHT + 30);
 
+// Rings smaller than this (square SVG units) are dropped as specks. R.minRing lowers it for a region of atolls (Oceania).
+const MIN_RING = R.minRing ?? 0.05;
 function ringArea(r) {
   let s = 0;
   for (let i = 0; i < r.length; i++) { const a = r[i], b = r[(i + 1) % r.length]; s += a[0] * b[1] - b[0] * a[1]; }
@@ -665,7 +745,7 @@ function projectCountry(polys) {
       r = densify(r);
       if (r.length < 3) return;
       r = clipRing(r.map(([lo, la]) => project(lo, la)), viewWindow.inside, viewWindow.cross);
-      if (r.length < 3 || Math.abs(ringArea(r)) < 0.05) return;
+      if (r.length < 3 || Math.abs(ringArea(r)) < MIN_RING) return;
       rings.push(r);
     });
     if (rings.length && ringArea(poly[0].length ? rings[0] : rings[0]) !== 0) result.push({ rings });
@@ -694,7 +774,7 @@ function projectClean(polys) {
       r = densify(r);
       if (r.length < 3) return null;
       r = clipRing(r.map(([lo, la]) => project(lo, la)), viewWindow.inside, viewWindow.cross);
-      return r.length >= 3 && Math.abs(ringArea(r)) >= 0.05 ? r : null;
+      return r.length >= 3 && Math.abs(ringArea(r)) >= MIN_RING ? r : null;
     })();
     if (!outer) continue;
     const rings = [outer];
@@ -703,7 +783,7 @@ function projectClean(polys) {
       r = densify(r);
       if (r.length < 3) continue;
       r = clipRing(r.map(([lo, la]) => project(lo, la)), viewWindow.inside, viewWindow.cross);
-      if (r.length >= 3 && Math.abs(ringArea(r)) >= 0.05) rings.push(r);
+      if (r.length >= 3 && Math.abs(ringArea(r)) >= MIN_RING) rings.push(r);
     }
     out.push({ rings });
   }
@@ -737,7 +817,7 @@ const LAKE_NAMES = {
   "South Aral Sea": "Aral Sea", "North Aral Sea": "", "Lago Titicaca": "Lake Titicaca", "Lago de Nicaragua": "Lake Nicaragua",
   "Lac Moeru": "Lake Mweru", "Buhayrat ath Tharthar": "Lake Tharthar", "Kaliningradskiy Zaliv": "Vistula Lagoon", "Zalew Wislany": "",
   "Hongze Hu": "Hongze Lake", "Qinghai Hu": "Qinghai Lake", "Khövsgöl Nuur": "Lake Khövsgöl", "Uvs Nuur": "Uvs Lake",
-  "Réservoir Manicouagan": "Manicouagan Reservoir", "Lake Razazah": "", "Lake Pskov": "", Syvash: "", "Georgian Bay": "", "North Channel": "",
+  "Réservoir Manicouagan": "Manicouagan Reservoir", "Lake Razazah": "", "Lake Eyre North": "Lake Eyre", "Lake Eyre South": "", "Lake Pskov": "", Syvash: "", "Georgian Bay": "", "North Channel": "",
   "Saginaw Bay": "", "McLeod Bay": "", "St. Marys River": "", "Whitefish Bay": "", "Laguna Madre": "", "Lake Srednye Kuyto": "", "Ozero Yarroto Vtoroye": "",
 };
 const LAKE_MIN_AREA = 14; // square SVG units; smaller ones are specks
@@ -785,7 +865,7 @@ if (R.disputed) {
     })));
     const markers = [];
     if (cfg.marker) {
-      const pts = areas.flatMap((a) => a.p.flatMap((poly) => poly[0]));
+      const pts = cfg.at || areas.flatMap((a) => a.p.flatMap((poly) => poly[0])); // cfg.at: [lon, lat] points, for a mark whose area is not in disputed.json
       const lo = Math.min(...pts.map((q) => q[0])), hi = Math.max(...pts.map((q) => q[0])), la = Math.min(...pts.map((q) => q[1])), lb = Math.max(...pts.map((q) => q[1]));
       const [mx, my] = project((lo + hi) / 2, (la + lb) / 2);
       if (mx > 6 && mx < WIDTH - 6 && my > 6 && my < HEIGHT - 6) {
@@ -805,9 +885,11 @@ if (R.disputed) {
 // ---------- colouring: no two neighbours (by land or a narrow sea) share a colour ----------
 
 // Colored nodes: the members, plus (where a region fixes colors, as North America does) its extra territories.
-const NODES = R.fixedColours ? COLOURED : EUROPE;
+// A territory in R.share takes a member's colour on this map (the Cook Islands in New Zealand's), so it is not coloured itself:
+// its neighbours count as the member's, which keeps them from sharing that colour.
+const NODES = (R.fixedColours ? COLOURED : EUROPE).filter((a) => !(a in R.share));
 const adjacency = new Map(NODES.map((a) => [a, new Set()]));
-const link = (a, b) => { if (adjacency.has(a) && adjacency.has(b) && a !== b) { adjacency.get(a).add(b); adjacency.get(b).add(a); } };
+const link = (a, b) => { a = R.share[a] || a; b = R.share[b] || b; if (adjacency.has(a) && adjacency.has(b) && a !== b) { adjacency.get(a).add(b); adjacency.get(b).add(a); } };
 for (const c of countries) for (const b of c.borders || []) link(c.alpha3Code, b);
 for (const [a, b] of R.links) link(a, b);
 
@@ -870,6 +952,7 @@ function fixedColours() {
 }
 const colours = process.env.INSET_COLOURS ? new Map(Object.entries(JSON.parse(process.env.INSET_COLOURS))) : colourGraph(NODES.filter((a) => shapes.has(a)), new Map([...adjacency].filter(([a]) => shapes.has(a)).map(([a, s]) => [a, new Set([...s].filter((b) => shapes.has(b)))])), PALETTE_SIZE, fixedColours());
 for (const [a, parent] of Object.entries(R.share)) colours.set(a, colours.get(parent)); // e.g. Greenland: part of the Kingdom of Denmark
+for (const [a, c] of Object.entries(R.colourOverride || {})) colours.set(a, c); // a colour a region sets by hand (Fiji on the Oceania map: one no parent of a territory uses)
 
 // An inset (an enlarged region drawn by this same script in its own projection) goes in an empty corner, with a thin
 // outline on the main map showing its area.
@@ -1512,7 +1595,8 @@ const countryLabels = labelOut
     return `<text class="lbl ${l.kind}" transform="translate(${f1(l.x)} ${f1(l.y)})${rot}" font-size="${f1(l.size)}" dy="${f1(l.size * CAP_H * 0.5)}">${textLines(l.lines, l.size)}</text>`;
   })
   .join("\n      ");
-const territoryDots = (R.dots || []).filter((a) => shapes.has(a) && capitalPoint(a)).map((a) => { const [x, y] = capitalPoint(a).xy; return `<circle class="c c${colours.get(a)}" cx="${f1(x)}" cy="${f1(y)}" r="2.6" />`; }).join("\n      ");
+// R.dotOnly: territories drawn as a dot even without a visible shape (Tokelau has none in the data).
+const territoryDots = (R.dots || []).filter((a) => (shapes.has(a) || (R.dotOnly || []).includes(a)) && capitalPoint(a)).map((a) => { const [x, y] = capitalPoint(a).xy; return `<circle class="c c${colours.get(a)}" cx="${f1(x)}" cy="${f1(y)}" r="2.6" />`; }).join("\n      ");
 const capMarkup = (territoryDots ? territoryDots + "\n      " : "") + capOut
   .map((c) => `<circle class="cap" cx="${f1(c.x)}" cy="${f1(c.y)}" r="2.6" />` + (c.name ? `<text class="capname" x="${f1(c.nx)}" y="${f1(c.ny)}" text-anchor="${c.anchor}" font-size="${CAP_SIZE}">${esc(c.name)}</text>` : ""))
   .join("\n      ");

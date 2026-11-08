@@ -107,3 +107,43 @@ html.map-viewer-open, html.map-viewer-open body { overflow: hidden; overscroll-b
 .map-svg .disp-dot-hatch { fill: url(#hatch); stroke: none; }
 .maps-page .map-back { display: inline-block; margin: 0 0 0.6rem; color: var(--accent); font-size: 0.85rem; text-decoration: none; }
 .maps-page .map-back:hover, .maps-page .map-back:focus-visible { text-decoration: underline; }
+
+/* density:start (written by scripts/build-density-map.mjs: the population density map's palette) */
+.maps-page { --d0: #ffed75; --d1: #ffd08d; --d2: #ffa674; --d3: #fe7262; --d4: #f7066f; --d5: #ba007b; --d6: #77117e; --d7: #2f1761; --nodata: #adadad; --mk-ring: #ffffff; --legend-bg: rgba(255, 255, 255, 0.95); --legend-line: rgba(30, 50, 70, 0.28); }
+:root.dark .maps-page { --d0: #fff7d0; --d1: #fed397; --d2: #feab7b; --d3: #fe7c6c; --d4: #ff3c7d; --d5: #de028e; --d6: #a80c93; --d7: #46297e; --nodata: #404040; --mk-ring: #ffffff; --legend-bg: rgba(11, 18, 25, 0.95); --legend-line: rgba(255, 255, 255, 0.28); }
+.map-svg .d0 { fill: var(--d0); } .map-svg .d1 { fill: var(--d1); } .map-svg .d2 { fill: var(--d2); } .map-svg .d3 { fill: var(--d3); } .map-svg .d4 { fill: var(--d4); } .map-svg .d5 { fill: var(--d5); } .map-svg .d6 { fill: var(--d6); } .map-svg .d7 { fill: var(--d7); } .map-svg .dnd { fill: var(--nodata); }
+/* the ring keeps its width on screen (1.5px) whatever the map's size or zoom, so the small circles stay outlined on a phone and in the full-screen viewer */
+.map-svg .mk { stroke: var(--mk-ring); stroke-width: 1.5px; vector-effect: non-scaling-stroke; paint-order: stroke; }
+.map-svg .mk-leader { stroke: var(--leader); stroke-width: 0.7; }
+.map-svg .lbl.dens { font-weight: 700; letter-spacing: 0.01em; stroke-width: 2.2px; }
+.map-svg .lbl.k0 { fill: #1d1f24; stroke: rgba(255, 255, 255, 0.5); }
+.map-svg .lbl.k1 { fill: #1d1f24; stroke: rgba(255, 255, 255, 0.5); }
+.map-svg .lbl.k2 { fill: #1d1f24; stroke: rgba(255, 255, 255, 0.5); }
+.map-svg .lbl.k3 { fill: #1d1f24; stroke: rgba(255, 255, 255, 0.5); }
+.map-svg .lbl.k4 { fill: #1d1f24; stroke: rgba(255, 255, 255, 0.5); }
+.map-svg .lbl.k5 { fill: #ffffff; stroke: rgba(0, 0, 0, 0.45); }
+.map-svg .lbl.k6 { fill: #ffffff; stroke: rgba(0, 0, 0, 0.45); }
+.map-svg .lbl.k7 { fill: #ffffff; stroke: rgba(0, 0, 0, 0.45); }
+.map-svg .lbl.knd { fill: #1d1f24; stroke: rgba(255, 255, 255, 0.5); }
+:root.dark .maps-page .map-svg .lbl.k0 { fill: #1d1f24; stroke: rgba(255, 255, 255, 0.5); }
+:root.dark .maps-page .map-svg .lbl.k1 { fill: #1d1f24; stroke: rgba(255, 255, 255, 0.5); }
+:root.dark .maps-page .map-svg .lbl.k2 { fill: #1d1f24; stroke: rgba(255, 255, 255, 0.5); }
+:root.dark .maps-page .map-svg .lbl.k3 { fill: #1d1f24; stroke: rgba(255, 255, 255, 0.5); }
+:root.dark .maps-page .map-svg .lbl.k4 { fill: #1d1f24; stroke: rgba(255, 255, 255, 0.5); }
+:root.dark .maps-page .map-svg .lbl.k5 { fill: #ffffff; stroke: rgba(0, 0, 0, 0.45); }
+:root.dark .maps-page .map-svg .lbl.k6 { fill: #ffffff; stroke: rgba(0, 0, 0, 0.45); }
+:root.dark .maps-page .map-svg .lbl.k7 { fill: #ffffff; stroke: rgba(0, 0, 0, 0.45); }
+:root.dark .maps-page .map-svg .lbl.knd { fill: #ffffff; stroke: rgba(0, 0, 0, 0.45); }
+.map-svg .legend-box { fill: var(--legend-bg); stroke: var(--legend-line); stroke-width: 1; }
+.map-svg .legend-title { font-size: 12.5px; font-weight: 700; fill: var(--label); }
+.map-svg .legend-text { font-size: 11.5px; fill: var(--label); }
+.map-svg .legend-sw { stroke: var(--legend-line); stroke-width: 0.8; }
+.maps-page .map-caption { margin: 0.9rem 0 0; color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; }
+/* The instruction line: touch wording on touch screens, pointer wording elsewhere. */
+.maps-page .map-hint .hint-tap { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .maps-page .map-hint .hint-tap { display: inline; }
+  .maps-page .map-hint .hint-click { display: none; }
+}
+.maps-page .map-viewer-help.is-reading { color: var(--text); font-weight: 600; }
+/* density:end */

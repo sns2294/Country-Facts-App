@@ -17,7 +17,7 @@ import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { MAP_REGIONS } from "./map-regions.mjs";
+import { MAP_REGIONS, ALL_MAPS } from "./map-regions.mjs";
 import { OG_W, OG_H, socialTags as socialTagsFor } from "./social-tags.mjs";
 
 const require = createRequire(import.meta.url);
@@ -858,7 +858,7 @@ h1{position:absolute;left:64px;top:462px;width:${COLUMN}px;white-space:nowrap;fo
 }
 
 // The preview card of a regional map: its name, and the map itself (light version) on its ocean color, in the same dark style.
-function ogMap({ id, name }) {
+function ogMap({ id, name, kind = "Political map" }) {
   const page = read(`maps/${id}/index.html`);
   const svg = page.match(/<svg class="map-svg"[\s\S]*?<\/svg>\s*<\/button>/)[0].replace(/\s*<\/button>$/, "");
   const [, vw, vh] = svg.match(/viewBox="0 0 (\d+) (\d+)"/).map(Number);
@@ -882,7 +882,7 @@ function ogMap({ id, name }) {
 .mapbox{position:absolute;left:560px;top:48px;width:${BOX_W}px;height:${BOX_H}px;border-radius:18px;overflow:hidden;background:#cfe6f2;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 36px rgba(0,0,0,.5);outline:2px solid rgba(255,255,255,.14)}
 .mapbox .map-svg{display:block;width:${Math.round(vw * k)}px;height:${Math.round(vh * k)}px}
 </style><div class="accent"></div>${OG_BRAND}
-<div class="title">${wrap(size).map(esc).join("<br>")}</div><div class="kind">Political map</div><div class="maps-page mapbox">${svg}</div><div class="url">countryfacts.app</div>`;
+<div class="title">${wrap(size).map(esc).join("<br>")}</div><div class="kind">${esc(kind)}</div><div class="maps-page mapbox">${svg}</div><div class="url">countryfacts.app</div>`;
 }
 
 function renderOgImages(cards) {
@@ -1138,36 +1138,31 @@ function indexPage() {
   return shell({ depth: 1, title, description, canonical, body, ogImage: "og/home.png" });
 }
 
-// The "More maps" hub (/maps/): a card for each regional map (thumbnails from scripts/build-map-thumbs.mjs), then a placeholder
-// for the population density map still to come. Each map's page is written by scripts/build-maps.mjs.
+// The "More maps" hub (/maps/): a card for each regional map, then one for each themed map such as population density (thumbnails
+// from scripts/build-map-thumbs.mjs). Each map's page is written by scripts/build-maps.mjs or its own script.
 function mapsHubPage() {
-  for (const { id } of MAP_REGIONS) {
+  for (const { id } of ALL_MAPS) {
     for (const theme of ["light", "dark"]) {
       if (!fs.existsSync(path.join(ROOT, `maps/thumbs/${id}-${theme}.webp`))) throw new Error(`Missing maps/thumbs/${id}-${theme}.webp. Run: node scripts/build-map-thumbs.mjs`);
     }
   }
-  const cards = MAP_REGIONS.map(
+  const cards = ALL_MAPS.map(
     ({ id, name, blurb }) => `<li><a class="hub-card" href="${id}/">
         <img class="hub-thumb hub-thumb-light" src="thumbs/${id}-light.webp" alt="" width="640" height="480" loading="lazy" decoding="async" />
         <img class="hub-thumb hub-thumb-dark" src="thumbs/${id}-dark.webp" alt="" width="640" height="480" loading="lazy" decoding="async" />
         <span class="hub-card-body"><span class="hub-card-title">${esc(name)}</span><span class="hub-card-text">${esc(blurb)}</span></span>
       </a></li>`
   ).join("\n      ");
-  const soon = `<li><div class="hub-card hub-card-soon">
-        <span class="hub-soon-art" aria-hidden="true"><span class="hub-soon-badge">Coming soon</span></span>
-        <span class="hub-card-body"><span class="hub-card-title">Population density</span><span class="hub-card-text">A world map shaded by how crowded each country is.</span></span>
-      </div></li>`;
   const canonical = `${BASE_URL}/maps/`;
   const title = `Political Maps of the World by Region | ${SITE_NAME}`;
-  const description = `Labeled political maps of ${MAP_REGIONS.length} world regions, each with every country, capital city and sea named.`;
+  const description = `Labeled political maps of ${MAP_REGIONS.length} world regions, each with every country, capital city and sea named, and a world map of population density.`;
   const body = `  <main class="country-page maps-hub">
     ${siteNav("../", "maps")}
     <nav class="crumbs" aria-label="Breadcrumb"><a href="../">${SITE_NAME}</a> <span aria-hidden="true">›</span> <span>Maps</span></nav>
     <h1 class="index-title">Maps</h1>
-    <p class="hub-intro">Labeled political maps of every region of the world, with each country, capital city and sea named. Pick a region to open its map.</p>
+    <p class="hub-intro">Labeled political maps of every region of the world, with each country, capital city and sea named. Pick a region to open its map, or see how crowded each country is on the population density map.</p>
     <ul class="hub-grid">
       ${cards}
-      ${soon}
     </ul>
   </main>`;
   const jsonLd = [
@@ -1184,7 +1179,7 @@ function mapsHubPage() {
 }
 
 function sitemap() {
-  const urls = [`${BASE_URL}/`, `${BASE_URL}/country/`, `${BASE_URL}/maps/`, ...MAP_REGIONS.map((m) => `${BASE_URL}/maps/${m.id}/`), ...built.map((c) => `${BASE_URL}/country/${slugOf.get(c.alpha3Code)}/`)];
+  const urls = [`${BASE_URL}/`, `${BASE_URL}/country/`, `${BASE_URL}/maps/`, ...ALL_MAPS.map((m) => `${BASE_URL}/maps/${m.id}/`), ...built.map((c) => `${BASE_URL}/country/${slugOf.get(c.alpha3Code)}/`)];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map((u) => `  <url><loc>${esc(u)}</loc><lastmod>${updatedDay}</lastmod></url>`).join("\n")}
@@ -1225,7 +1220,7 @@ outputs.set("robots.txt", robots());
 // The preview cards: og/home.png for the homepage and country index, og/<slug>.png per country.
 const ogCards = new Map([["og/home.png", ogHome()]]);
 for (const c of built) ogCards.set(`og/${slugOf.get(c.alpha3Code)}.png`, ogCountry(c));
-for (const m of MAP_REGIONS) ogCards.set(`og/map-${m.id}.png`, ogMap(m));
+for (const m of ALL_MAPS) ogCards.set(`og/map-${m.id}.png`, ogMap(m));
 
 if (OG_ONLY.length) {
   // Samples: draw just these cards and leave every other file alone.

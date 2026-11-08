@@ -1,0 +1,899 @@
+{
+ "indicator": "EN.POP.DNST",
+ "description": "Population density, people per km² of land area",
+ "source": "World Bank, https://data.worldbank.org/indicator/EN.POP.DNST",
+ "year": 2023,
+ "note": "Entries with source \"national\" are computed (population / area) from the national statistics recorded on them, not from the World Bank. Countries and territories not listed have no data.",
+ "values": {
+  "AFG": {
+   "density": 63.56,
+   "source": "worldbank"
+  },
+  "ALB": {
+   "density": 88.02,
+   "source": "worldbank"
+  },
+  "DZA": {
+   "density": 19.38,
+   "source": "worldbank"
+  },
+  "ASM": {
+   "density": 238.8,
+   "source": "worldbank"
+  },
+  "AND": {
+   "density": 172.77,
+   "source": "worldbank"
+  },
+  "AGO": {
+   "density": 29.48,
+   "source": "worldbank"
+  },
+  "ATG": {
+   "density": 211.94,
+   "source": "worldbank"
+  },
+  "ARG": {
+   "density": 16.64,
+   "source": "worldbank"
+  },
+  "ARM": {
+   "density": 105.12,
+   "source": "worldbank"
+  },
+  "ABW": {
+   "density": 596.44,
+   "source": "worldbank"
+  },
+  "AUS": {
+   "density": 3.47,
+   "source": "worldbank"
+  },
+  "AUT": {
+   "density": 110.66,
+   "source": "worldbank"
+  },
+  "AZE": {
+   "density": 122.85,
+   "source": "worldbank"
+  },
+  "BHS": {
+   "density": 39.9,
+   "source": "worldbank"
+  },
+  "BHR": {
+   "density": 1971.32,
+   "source": "worldbank"
+  },
+  "BGD": {
+   "density": 1317.25,
+   "source": "worldbank"
+  },
+  "BRB": {
+   "density": 656.6,
+   "source": "worldbank"
+  },
+  "BLR": {
+   "density": 45.22,
+   "source": "worldbank"
+  },
+  "BEL": {
+   "density": 386.3,
+   "source": "worldbank"
+  },
+  "BLZ": {
+   "density": 18.02,
+   "source": "worldbank"
+  },
+  "BEN": {
+   "density": 125.14,
+   "source": "worldbank"
+  },
+  "BMU": {
+   "density": 1198.11,
+   "source": "worldbank"
+  },
+  "BTN": {
+   "density": 20.62,
+   "source": "worldbank"
+  },
+  "BOL": {
+   "density": 11.25,
+   "source": "worldbank"
+  },
+  "BIH": {
+   "density": 62.21,
+   "source": "worldbank"
+  },
+  "BWA": {
+   "density": 4.38,
+   "source": "worldbank"
+  },
+  "BRA": {
+   "density": 25.26,
+   "source": "worldbank"
+  },
+  "VGB": {
+   "density": 258.18,
+   "source": "worldbank"
+  },
+  "BRN": {
+   "density": 87.09,
+   "source": "worldbank"
+  },
+  "BGR": {
+   "density": 59.38,
+   "source": "worldbank"
+  },
+  "BFA": {
+   "density": 84.16,
+   "source": "worldbank"
+  },
+  "BDI": {
+   "density": 533.08,
+   "source": "worldbank"
+  },
+  "KHM": {
+   "density": 98.71,
+   "source": "worldbank"
+  },
+  "CMR": {
+   "density": 60.02,
+   "source": "worldbank"
+  },
+  "CAN": {
+   "density": 4.56,
+   "source": "worldbank"
+  },
+  "CPV": {
+   "density": 129.61,
+   "source": "worldbank"
+  },
+  "CYM": {
+   "density": 304.33,
+   "source": "worldbank"
+  },
+  "CAF": {
+   "density": 8.27,
+   "source": "worldbank"
+  },
+  "TCD": {
+   "density": 15.34,
+   "source": "worldbank"
+  },
+  "CHL": {
+   "density": 26.46,
+   "source": "worldbank"
+  },
+  "CHN": {
+   "density": 150.26,
+   "source": "worldbank"
+  },
+  "COL": {
+   "density": 47.16,
+   "source": "worldbank"
+  },
+  "COM": {
+   "density": 456.95,
+   "source": "worldbank"
+  },
+  "CRI": {
+   "density": 100.98,
+   "source": "worldbank"
+  },
+  "HRV": {
+   "density": 68.97,
+   "source": "worldbank"
+  },
+  "CUB": {
+   "density": 106.17,
+   "source": "worldbank"
+  },
+  "CUW": {
+   "density": 348.32,
+   "source": "worldbank"
+  },
+  "CYP": {
+   "density": 145.56,
+   "source": "worldbank"
+  },
+  "CZE": {
+   "density": 140.79,
+   "source": "worldbank"
+  },
+  "DNK": {
+   "density": 148.67,
+   "source": "worldbank"
+  },
+  "DJI": {
+   "density": 49.74,
+   "source": "worldbank"
+  },
+  "DMA": {
+   "density": 88.56,
+   "source": "worldbank"
+  },
+  "DOM": {
+   "density": 235.1,
+   "source": "worldbank"
+  },
+  "COD": {
+   "density": 46.66,
+   "source": "worldbank"
+  },
+  "ECU": {
+   "density": 72.4,
+   "source": "worldbank"
+  },
+  "EGY": {
+   "density": 115.06,
+   "source": "worldbank"
+  },
+  "SLV": {
+   "density": 304.52,
+   "source": "worldbank"
+  },
+  "GNQ": {
+   "density": 65.86,
+   "source": "worldbank"
+  },
+  "ERI": {
+   "density": 28.73,
+   "source": "worldbank"
+  },
+  "EST": {
+   "density": 32.07,
+   "source": "worldbank"
+  },
+  "SWZ": {
+   "density": 71.54,
+   "source": "worldbank"
+  },
+  "ETH": {
+   "density": 114.68,
+   "source": "worldbank"
+  },
+  "FRO": {
+   "density": 39.71,
+   "source": "worldbank"
+  },
+  "FJI": {
+   "density": 50.58,
+   "source": "worldbank"
+  },
+  "FIN": {
+   "density": 18.37,
+   "source": "worldbank"
+  },
+  "FRA": {
+   "density": 126.86,
+   "source": "worldbank"
+  },
+  "PYF": {
+   "density": 80.99,
+   "source": "worldbank"
+  },
+  "GAB": {
+   "density": 9.64,
+   "source": "worldbank"
+  },
+  "GMB": {
+   "density": 266.59,
+   "source": "worldbank"
+  },
+  "GEO": {
+   "density": 65,
+   "source": "worldbank"
+  },
+  "DEU": {
+   "density": 238.35,
+   "source": "worldbank"
+  },
+  "GHA": {
+   "density": 148.5,
+   "source": "worldbank"
+  },
+  "GIB": {
+   "density": 3847.1,
+   "source": "worldbank"
+  },
+  "GRC": {
+   "density": 80.74,
+   "source": "worldbank"
+  },
+  "GRL": {
+   "density": 0.14,
+   "source": "worldbank"
+  },
+  "GRD": {
+   "density": 340.35,
+   "source": "worldbank"
+  },
+  "GUM": {
+   "density": 307.77,
+   "source": "worldbank"
+  },
+  "GTM": {
+   "density": 169.14,
+   "source": "worldbank"
+  },
+  "GIN": {
+   "density": 58.63,
+   "source": "worldbank"
+  },
+  "GNB": {
+   "density": 76.58,
+   "source": "worldbank"
+  },
+  "GUY": {
+   "density": 3.91,
+   "source": "worldbank"
+  },
+  "HTI": {
+   "density": 422.26,
+   "source": "worldbank"
+  },
+  "HND": {
+   "density": 95.14,
+   "source": "worldbank"
+  },
+  "HKG": {
+   "density": 7177.24,
+   "source": "worldbank"
+  },
+  "HUN": {
+   "density": 105.11,
+   "source": "worldbank"
+  },
+  "ISL": {
+   "density": 3.82,
+   "source": "worldbank"
+  },
+  "IND": {
+   "density": 483.68,
+   "source": "worldbank"
+  },
+  "IDN": {
+   "density": 148.59,
+   "source": "worldbank"
+  },
+  "IRN": {
+   "density": 55.85,
+   "source": "worldbank"
+  },
+  "IRQ": {
+   "density": 103.83,
+   "source": "worldbank"
+  },
+  "IRL": {
+   "density": 77.1,
+   "source": "worldbank"
+  },
+  "IMN": {
+   "density": 147.14,
+   "source": "worldbank"
+  },
+  "ISR": {
+   "density": 455.13,
+   "source": "worldbank"
+  },
+  "ITA": {
+   "density": 199.46,
+   "source": "worldbank"
+  },
+  "CIV": {
+   "density": 98.01,
+   "source": "worldbank"
+  },
+  "JAM": {
+   "density": 262.21,
+   "source": "worldbank"
+  },
+  "JPN": {
+   "density": 341.61,
+   "source": "worldbank"
+  },
+  "JOR": {
+   "density": 128.83,
+   "source": "worldbank"
+  },
+  "KAZ": {
+   "density": 7.53,
+   "source": "worldbank"
+  },
+  "KEN": {
+   "density": 95.27,
+   "source": "worldbank"
+  },
+  "KIR": {
+   "density": 163.42,
+   "source": "worldbank"
+  },
+  "UNK": {
+   "density": 145.6,
+   "source": "national",
+   "year": 2024,
+   "population": 1585566,
+   "populationDate": "April 2024 census",
+   "populationSource": "Kosovo Agency of Statistics, 2024 census",
+   "area": 10887,
+   "areaSource": "Kosovo Agency of Statistics / Wikipedia infobox"
+  },
+  "KWT": {
+   "density": 272.36,
+   "source": "worldbank"
+  },
+  "KGZ": {
+   "density": 37.02,
+   "source": "worldbank"
+  },
+  "LAO": {
+   "density": 33.21,
+   "source": "worldbank"
+  },
+  "LVA": {
+   "density": 30.27,
+   "source": "worldbank"
+  },
+  "LBN": {
+   "density": 564.37,
+   "source": "worldbank"
+  },
+  "LSO": {
+   "density": 76.14,
+   "source": "worldbank"
+  },
+  "LBR": {
+   "density": 57.03,
+   "source": "worldbank"
+  },
+  "LBY": {
+   "density": 4.15,
+   "source": "worldbank"
+  },
+  "LIE": {
+   "density": 249.04,
+   "source": "worldbank"
+  },
+  "LTU": {
+   "density": 45.87,
+   "source": "worldbank"
+  },
+  "LUX": {
+   "density": 258.86,
+   "source": "worldbank"
+  },
+  "MAC": {
+   "density": 20384.38,
+   "source": "worldbank"
+  },
+  "MDG": {
+   "density": 53.62,
+   "source": "worldbank"
+  },
+  "MWI": {
+   "density": 223.85,
+   "source": "worldbank"
+  },
+  "MYS": {
+   "density": 106.91,
+   "source": "worldbank"
+  },
+  "MDV": {
+   "density": 1765.08,
+   "source": "worldbank"
+  },
+  "MLI": {
+   "density": 19.48,
+   "source": "worldbank"
+  },
+  "MLT": {
+   "density": 1753.92,
+   "source": "worldbank"
+  },
+  "MHL": {
+   "density": 214.51,
+   "source": "worldbank"
+  },
+  "MRT": {
+   "density": 4.87,
+   "source": "worldbank"
+  },
+  "MUS": {
+   "density": 624.32,
+   "source": "worldbank"
+  },
+  "MEX": {
+   "density": 66.74,
+   "source": "worldbank"
+  },
+  "FSM": {
+   "density": 160.67,
+   "source": "worldbank"
+  },
+  "MDA": {
+   "density": 85.44,
+   "source": "worldbank"
+  },
+  "MCO": {
+   "density": 18692.9,
+   "source": "worldbank"
+  },
+  "MNG": {
+   "density": 2.23,
+   "source": "worldbank"
+  },
+  "MNE": {
+   "density": 46.36,
+   "source": "worldbank"
+  },
+  "MAR": {
+   "density": 84.5,
+   "source": "worldbank"
+  },
+  "MOZ": {
+   "density": 42.77,
+   "source": "worldbank"
+  },
+  "MMR": {
+   "density": 82.94,
+   "source": "worldbank"
+  },
+  "NAM": {
+   "density": 3.6,
+   "source": "worldbank"
+  },
+  "NRU": {
+   "density": 565.48,
+   "source": "worldbank"
+  },
+  "NPL": {
+   "density": 207.15,
+   "source": "worldbank"
+  },
+  "NLD": {
+   "density": 530.95,
+   "source": "worldbank"
+  },
+  "NCL": {
+   "density": 15.6,
+   "source": "worldbank"
+  },
+  "NZL": {
+   "density": 19.75,
+   "source": "worldbank"
+  },
+  "NIC": {
+   "density": 56.7,
+   "source": "worldbank"
+  },
+  "NER": {
+   "density": 20.65,
+   "source": "worldbank"
+  },
+  "NGA": {
+   "density": 250.21,
+   "source": "worldbank"
+  },
+  "PRK": {
+   "density": 219.4,
+   "source": "worldbank"
+  },
+  "MKD": {
+   "density": 72.47,
+   "source": "worldbank"
+  },
+  "MNP": {
+   "density": 98.78,
+   "source": "worldbank"
+  },
+  "NOR": {
+   "density": 15.15,
+   "source": "worldbank"
+  },
+  "OMN": {
+   "density": 16.31,
+   "source": "worldbank"
+  },
+  "PAK": {
+   "density": 321.07,
+   "source": "worldbank"
+  },
+  "PLW": {
+   "density": 38.62,
+   "source": "worldbank"
+  },
+  "PSE": {
+   "density": 857.39,
+   "source": "worldbank"
+  },
+  "PAN": {
+   "density": 60.11,
+   "source": "worldbank"
+  },
+  "PNG": {
+   "density": 22.94,
+   "source": "worldbank"
+  },
+  "PRY": {
+   "density": 17.28,
+   "source": "worldbank"
+  },
+  "PER": {
+   "density": 26.44,
+   "source": "worldbank"
+  },
+  "PHL": {
+   "density": 385.32,
+   "source": "worldbank"
+  },
+  "POL": {
+   "density": 119.79,
+   "source": "worldbank"
+  },
+  "PRT": {
+   "density": 115.48,
+   "source": "worldbank"
+  },
+  "PRI": {
+   "density": 361.19,
+   "source": "worldbank"
+  },
+  "QAT": {
+   "density": 231.16,
+   "source": "worldbank"
+  },
+  "COG": {
+   "density": 18.11,
+   "source": "worldbank"
+  },
+  "ROU": {
+   "density": 82.85,
+   "source": "worldbank"
+  },
+  "RUS": {
+   "density": 8.78,
+   "source": "worldbank"
+  },
+  "RWA": {
+   "density": 587.06,
+   "source": "worldbank"
+  },
+  "KNA": {
+   "density": 179.15,
+   "source": "worldbank"
+  },
+  "LCA": {
+   "density": 293.91,
+   "source": "worldbank"
+  },
+  "MAF": {
+   "density": 519.15,
+   "source": "worldbank"
+  },
+  "VCT": {
+   "density": 260.47,
+   "source": "worldbank"
+  },
+  "WSM": {
+   "density": 77.94,
+   "source": "worldbank"
+  },
+  "SMR": {
+   "density": 553.27,
+   "source": "worldbank"
+  },
+  "STP": {
+   "density": 240.49,
+   "source": "worldbank"
+  },
+  "SAU": {
+   "density": 15.68,
+   "source": "worldbank"
+  },
+  "SEN": {
+   "density": 93.89,
+   "source": "worldbank"
+  },
+  "SRB": {
+   "density": 75.62,
+   "source": "worldbank"
+  },
+  "SYC": {
+   "density": 262.09,
+   "source": "worldbank"
+  },
+  "SLE": {
+   "density": 117.21,
+   "source": "worldbank"
+  },
+  "SGP": {
+   "density": 8178.07,
+   "source": "worldbank"
+  },
+  "SXM": {
+   "density": 1257.32,
+   "source": "worldbank"
+  },
+  "SVK": {
+   "density": 112.87,
+   "source": "worldbank"
+  },
+  "SVN": {
+   "density": 105.31,
+   "source": "worldbank"
+  },
+  "SLB": {
+   "density": 28.58,
+   "source": "worldbank"
+  },
+  "SOM": {
+   "density": 29.26,
+   "source": "worldbank"
+  },
+  "ZAF": {
+   "density": 52.11,
+   "source": "worldbank"
+  },
+  "KOR": {
+   "density": 529.84,
+   "source": "worldbank"
+  },
+  "SSD": {
+   "density": 18.17,
+   "source": "worldbank"
+  },
+  "ESP": {
+   "density": 96.76,
+   "source": "worldbank"
+  },
+  "LKA": {
+   "density": 356.24,
+   "source": "worldbank"
+  },
+  "SDN": {
+   "density": 26.79,
+   "source": "worldbank"
+  },
+  "SUR": {
+   "density": 3.92,
+   "source": "worldbank"
+  },
+  "SWE": {
+   "density": 25.87,
+   "source": "worldbank"
+  },
+  "CHE": {
+   "density": 224.98,
+   "source": "worldbank"
+  },
+  "SYR": {
+   "density": 128.49,
+   "source": "worldbank"
+  },
+  "TWN": {
+   "density": 647.1,
+   "source": "national",
+   "year": 2023,
+   "population": 23424442,
+   "populationDate": "end of 2023",
+   "populationSource": "Ministry of the Interior (Taiwan), as reported by Taiwan News",
+   "area": 36197,
+   "areaSource": "Taiwan at a Glance 2023-2024 (total area, including the outlying islands)"
+  },
+  "TJK": {
+   "density": 74.86,
+   "source": "worldbank"
+  },
+  "TZA": {
+   "density": 75.36,
+   "source": "worldbank"
+  },
+  "THA": {
+   "density": 140.35,
+   "source": "worldbank"
+  },
+  "TLS": {
+   "density": 93.09,
+   "source": "worldbank"
+  },
+  "TGO": {
+   "density": 151.2,
+   "source": "worldbank"
+  },
+  "TON": {
+   "density": 145.27,
+   "source": "worldbank"
+  },
+  "TTO": {
+   "density": 266.68,
+   "source": "worldbank"
+  },
+  "TUN": {
+   "density": 78.53,
+   "source": "worldbank"
+  },
+  "TUR": {
+   "density": 110.87,
+   "source": "worldbank"
+  },
+  "TKM": {
+   "density": 15.67,
+   "source": "worldbank"
+  },
+  "TCA": {
+   "density": 48.72,
+   "source": "worldbank"
+  },
+  "TUV": {
+   "density": 377.54,
+   "source": "worldbank"
+  },
+  "VIR": {
+   "density": 301.49,
+   "source": "worldbank"
+  },
+  "UGA": {
+   "density": 242.65,
+   "source": "worldbank"
+  },
+  "UKR": {
+   "density": 65.12,
+   "source": "worldbank"
+  },
+  "ARE": {
+   "density": 147.62,
+   "source": "worldbank"
+  },
+  "GBR": {
+   "density": 283.25,
+   "source": "worldbank"
+  },
+  "USA": {
+   "density": 36.81,
+   "source": "worldbank"
+  },
+  "URY": {
+   "density": 19.36,
+   "source": "worldbank"
+  },
+  "UZB": {
+   "density": 80.91,
+   "source": "worldbank"
+  },
+  "VUT": {
+   "density": 26.29,
+   "source": "worldbank"
+  },
+  "VAT": {
+   "density": 2004.5,
+   "source": "national",
+   "year": 2024,
+   "population": 882,
+   "populationDate": "31 December 2024",
+   "populationSource": "Governorate of Vatican City State (residents, citizens and non-citizens)",
+   "area": 0.44,
+   "areaSource": "Governorate of Vatican City State"
+  },
+  "VEN": {
+   "density": 32.09,
+   "source": "worldbank"
+  },
+  "VNM": {
+   "density": 320.18,
+   "source": "worldbank"
+  },
+  "YEM": {
+   "density": 74.61,
+   "source": "worldbank"
+  },
+  "ZMB": {
+   "density": 27.88,
+   "source": "worldbank"
+  },
+  "ZWE": {
+   "density": 42.24,
+   "source": "worldbank"
+  }
+ }
+}

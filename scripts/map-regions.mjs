@@ -16,3 +16,11 @@ export const MAP_REGIONS = [
   { id: "south-america", name: "South America", blurb: "The 12 countries, plus French Guiana and the Falklands, with a Galápagos inset." },
   { id: "oceania", name: "Oceania", blurb: "Australia, New Zealand and the Pacific islands, drawn across the 180° line." },
 ];
+
+// Maps that are not a region but a theme: a world map shaded by a statistic. They have a card on the hub, a thumbnail, a preview image
+// and a sitemap entry like the regional maps, but are not part of the country pages' "See X on the ... map" links (every country is on them).
+// Written by their own scripts (scripts/build-density-map.mjs); `kind` is the preview card's subtitle.
+export const THEMATIC_MAPS = [
+  { id: "population-density", name: "Population density", blurb: "A world map shaded by how crowded each country is, in people per km².", kind: "World map" },
+];
+export const ALL_MAPS = [...MAP_REGIONS, ...THEMATIC_MAPS];

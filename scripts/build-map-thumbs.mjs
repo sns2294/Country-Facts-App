@@ -14,7 +14,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { MAP_REGIONS } from "./map-regions.mjs";
+import { ALL_MAPS } from "./map-regions.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIR = "maps/thumbs";
@@ -28,7 +28,7 @@ const manifestFile = path.join(ROOT, DIR, "manifest.json");
 const manifest = fs.existsSync(manifestFile) ? JSON.parse(fs.readFileSync(manifestFile, "utf8")) : {};
 const css = fs.readFileSync(path.join(ROOT, "maps/maps.css"), "utf8");
 const todo = [];
-for (const { id } of MAP_REGIONS) {
+for (const { id } of ALL_MAPS) {
   const page = fs.readFileSync(path.join(ROOT, "maps", id, "index.html"), "utf8");
   const svg = page.match(/<svg class="map-svg"[\s\S]*?<\/svg>\s*<\/button>/)?.[0].replace(/\s*<\/button>$/, "");
   if (!svg) throw new Error(`No map found in maps/${id}/index.html`);
@@ -78,6 +78,6 @@ window.addEventListener("load", () => { const out = document.getElementById("out
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
-const current = new Set(MAP_REGIONS.flatMap(({ id }) => ["light", "dark"].map((t) => `${DIR}/${id}-${t}.webp`)));
+const current = new Set(ALL_MAPS.flatMap(({ id }) => ["light", "dark"].map((t) => `${DIR}/${id}-${t}.webp`)));
 fs.writeFileSync(manifestFile, JSON.stringify(Object.fromEntries(Object.entries(manifest).filter(([f]) => current.has(f)).sort(([a], [b]) => a.localeCompare(b))), null, 2) + "\n");
 console.log(`Drew ${todo.length} thumbnail(s) in ${DIR}/.`);

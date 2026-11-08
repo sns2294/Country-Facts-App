@@ -15,6 +15,8 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { socialTags } from "./social-tags.mjs";
+import { clipHalf, key, stitch } from "./geo-util.mjs";
+import { THEME_SNIPPET, TOGGLE_SNIPPET, VIEWER_SNIPPET, FAVICON } from "./map-page.mjs";
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -25,7 +27,6 @@ const T = require(path.join(ROOT, "country-text.js"));
 const SITE_CONFIG = JSON.parse(read("site.config.json"));
 const INDEXABLE = SITE_CONFIG.indexable === true;
 const BASE_URL = SITE_CONFIG.baseUrl.replace(/\/+$/, "");
-const DARK_MODE_KEY = "countryFacts.darkMode".replace("countryFacts.", "countryFactsApp.");
 
 const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const num = (n) => (Math.round(n * 10) / 10).toString();
@@ -547,19 +548,6 @@ Object.assign(capitals, R.extraPoints || {});
 const topology = JSON.parse(read("data/countries-10m.json"));
 const rawByOwner = new Map(); // alpha3 -> [polygons], polygon = [ring, ring...]
 const geomsByOwner = new Map();
-const clipHalf = (ring, axis, value, keepGreater) => { // Sutherland-Hodgman against one meridian or parallel, in degrees
-  const inside = (p) => (keepGreater ? p[axis] >= value : p[axis] <= value);
-  const out = [];
-  for (let i = 0; i < ring.length; i++) {
-    const a = ring[i], b = ring[(i + 1) % ring.length];
-    if (inside(a)) out.push(a);
-    if (inside(a) !== inside(b)) {
-      const t = (value - a[axis]) / (b[axis] - a[axis]);
-      out.push(axis === 0 ? [value, a[1] + t * (b[1] - a[1])] : [a[0] + t * (b[0] - a[0]), value]);
-    }
-  }
-  return out;
-};
 for (const g of topology.objects.countries.geometries) {
   const owners = R.nameOwner ? { ...NAME_OWNER, ...R.nameOwner } : NAME_OWNER; // R.nameOwner: shapes this region draws as part of a country
   let a3 = g.id ? numericToA3.get(String(g.id).padStart(3, "0")) : owners[g.properties.name];
@@ -584,38 +572,6 @@ for (const [a3, geoms] of geomsByOwner) {
 const MOVES = [
   { from: "MAR", to: "ESH", region: [[1, 27 + 40 / 60, false]], what: "Western Sahara" },
 ];
-const key = (c) => `${c[0]},${c[1]}`;
-// Join two open rings that share one contiguous run of identical vertices (the arcs their countries share) into one
-// outline, so no seam shows. Returns null if they do not share exactly one run.
-const stitch = (a, b) => {
-  const inB = new Set(b.map(key)), inA = new Set(a.map(key));
-  const shared = a.map((c) => inB.has(key(c)));
-  const n = a.length, count = shared.filter(Boolean).length;
-  if (!count || count === n) return null;
-  let start = -1; // first shared vertex after a non-shared one
-  for (let i = 0; i < n; i++) if (shared[i] && !shared[(i + n - 1) % n]) { if (start >= 0) return null; start = i; }
-  if (start < 0) return null;
-  const run = []; // a's shared run, in a's order
-  for (let k = 0; k < count; k++) { if (!shared[(start + k) % n]) return null; run.push(a[(start + k) % n]); }
-  const s0 = key(run[0]), s1 = key(run.at(-1));
-  const aRest = []; // from just after the run, round to just before it
-  for (let k = count; k < n; k++) aRest.push(a[(start + k) % n]);
-  const m = b.length, bi = (id) => b.findIndex((c) => key(c) === id);
-  const i1 = bi(s1), i0 = bi(s0);
-  for (const dir of [1, -1]) { // b's outer part, from the run's far end round to its near end
-    const path = [];
-    let i = i1, ok = true;
-    for (let guard = 0; guard < m; guard++) {
-      i = (i + dir + m) % m;
-      if (i === i0) break;
-      if (inA.has(key(b[i]))) { ok = false; break; }
-      path.push(b[i]);
-      if (guard === m - 1) ok = false;
-    }
-    if (ok && path.length) return [run.at(-1), ...aRest, run[0], ...path.reverse()]; // the shared run becomes interior
-  }
-  return null;
-};
 for (const mv of MOVES.filter((m) => R.members.includes(m.to))) {
   const rest = [], moved = [];
   for (const poly of rawByOwner.get(mv.from)) {
@@ -1734,49 +1690,6 @@ const svg = `<svg class="map-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" ar
 
 // ---------- page ----------
 
-const THEME_SNIPPET = `try{var s=localStorage.getItem(${JSON.stringify(DARK_MODE_KEY)});var d=s===null?matchMedia("(prefers-color-scheme: dark)").matches:s==="true";document.documentElement.classList.toggle("dark",d)}catch(e){}`;
-const TOGGLE_SNIPPET = `(function(){var b=document.getElementById("dark-mode-toggle"),i=document.getElementById("dark-mode-icon"),r=document.documentElement;function sync(){var d=r.classList.contains("dark");b.setAttribute("aria-pressed",String(d));i.textContent=d?"\\u2600\\uFE0F":"\\uD83C\\uDF19"}sync();b.addEventListener("click",function(){var d=!r.classList.contains("dark");r.classList.toggle("dark",d);try{localStorage.setItem(${JSON.stringify(DARK_MODE_KEY)},String(d))}catch(e){}sync()})})();`;
-
-// Phone viewer: a tap on the map opens it full screen; one finger drags, two fingers pinch, the buttons zoom.
-const VIEWER_SNIPPET = `(function(){
-var open=document.getElementById("map-open"),viewer=document.getElementById("map-viewer"),stage=document.getElementById("map-stage");
-if(!open||!viewer||!stage)return;
-var narrow=window.matchMedia("(max-width: 700px)"),svg=null,s=1,tx=0,ty=0,base=1,w0=0,h0=0,MAX=10,minS=1,pts={},last=null,pushed=false,pinch=null;
-function size(){var r=stage.getBoundingClientRect();return[r.width,r.height]}
-function clamp(){var sz=size(),W=w0*s,H=h0*s;
- tx=W<=sz[0]?(sz[0]-W)/2:Math.min(0,Math.max(sz[0]-W,tx));ty=H<=sz[1]?(sz[1]-H)/2:Math.min(0,Math.max(sz[1]-H,ty))}
-function apply(){clamp();svg.style.transform="translate("+tx+"px,"+ty+"px) scale("+s+")"}
-function zoomAt(f,cx,cy){var n=Math.min(MAX,Math.max(minS,s*f));f=n/s;tx=cx-(cx-tx)*f;ty=cy-(cy-ty)*f;s=n;apply()}
-function fit(){var sz=size(),ratio=svg.viewBox.baseVal.height/svg.viewBox.baseVal.width;w0=sz[0];h0=w0*ratio;
- svg.style.width=w0+"px";svg.style.height=h0+"px";
- if(narrow.matches){minS=1;s=Math.min(3,Math.max(1,sz[1]/h0))}else{minS=Math.min(1,sz[1]/h0);s=minS}tx=(sz[0]-w0*s)/2;ty=(sz[1]-h0*s)/2;apply()}
-function show(){svg=open.querySelector("svg").cloneNode(true);svg.removeAttribute("class");svg.setAttribute("class","map-svg map-svg-big");
- svg.style.minWidth="0";stage.innerHTML="";stage.appendChild(svg);viewer.hidden=false;document.documentElement.classList.add("map-viewer-open");
- fit();document.getElementById("map-close").focus();try{history.pushState({mapViewer:1},"");pushed=true}catch(e){}}
-function hide(fromPop){if(viewer.hidden)return;viewer.hidden=true;document.documentElement.classList.remove("map-viewer-open");stage.innerHTML="";svg=null;
- if(pushed&&!fromPop){pushed=false;try{history.back()}catch(e){}}pushed=false;open.focus()}
-open.addEventListener("click",show);
-window.addEventListener("popstate",function(){if(!viewer.hidden)hide(true)});
-document.addEventListener("keydown",function(e){if(!viewer.hidden&&e.key==="Escape")hide()});
-document.getElementById("map-close").addEventListener("click",function(){hide()});
-function center(){var sz=size();return[sz[0]/2,sz[1]/2]}
-document.getElementById("map-zoom-in").addEventListener("click",function(){var c=center();zoomAt(1.6,c[0],c[1])});
-document.getElementById("map-zoom-out").addEventListener("click",function(){var c=center();zoomAt(1/1.6,c[0],c[1])});
-document.getElementById("map-zoom-reset").addEventListener("click",function(){fit()});
-window.addEventListener("resize",function(){if(!viewer.hidden)fit()});
-function rel(e){var r=stage.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]}
-stage.addEventListener("pointerdown",function(e){stage.setPointerCapture(e.pointerId);pts[e.pointerId]=rel(e);last=null;pinch=null});
-stage.addEventListener("pointermove",function(e){if(!pts[e.pointerId])return;var p=rel(e),prev=pts[e.pointerId];pts[e.pointerId]=p;var ids=Object.keys(pts);
- if(ids.length===1){tx+=p[0]-prev[0];ty+=p[1]-prev[1];apply()}
- else if(ids.length===2){var a=pts[ids[0]],b=pts[ids[1]],d=Math.hypot(a[0]-b[0],a[1]-b[1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
-  if(pinch){tx+=m[0]-pinch.m[0];ty+=m[1]-pinch.m[1];zoomAt(d/pinch.d,m[0],m[1])}pinch={d:d,m:m}}});
-function up(e){delete pts[e.pointerId];pinch=null}
-stage.addEventListener("pointerup",up);stage.addEventListener("pointercancel",up);
-stage.addEventListener("wheel",function(e){e.preventDefault();var p=rel(e);zoomAt(Math.exp(-e.deltaY*0.0015),p[0],p[1])},{passive:false});
-stage.addEventListener("dblclick",function(e){var p=rel(e);zoomAt(s>=MAX/2?minS/s:2,p[0],p[1])});
-})();`;
-
-const FAVICON = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>`;
 
 const page = `<!doctype html>
 <html lang="en">

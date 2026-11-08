@@ -45,7 +45,7 @@ const PARENT = { ALA: "FIN", FRO: "DNK", GIB: "ESP", GGY: "GBR", JEY: "GBR", IMN
 // Following the site's rules (shape-rules.js): a piece of a UN member state that a breakaway or occupier holds
 // is drawn as part of that state (Crimea, Northern Cyprus, Somaliland); Kosovo and Western Sahara have their own cards.
 const NAME_OWNER = { Crimea: "UKR", "N. Cyprus": "CYP", "Cyprus U.N. Buffer Zone": "CYP", Akrotiri: "CYP", Dhekelia: "CYP", Kosovo: "UNK", Somaliland: "SOM", "Golan Heights": "SYR", Baikonur: "KAZ", "Siachen Glacier": "XSI", "Réunion": "REU", Mayotte: "MYT" };
-const DISPLAY = { UNK: "Kosovo", VAT: "Vatican City", MKD: "North Macedonia", CZE: "Czechia", BIH: "Bosnia and Herzegovina", GBR: "United Kingdom", COD: "DR Congo", COG: "Republic of the Congo", CIV: "Ivory Coast", STP: "São Tomé and Príncipe", CPV: "Cape Verde", SWZ: "Eswatini", GAZ: "Gaza Strip", XKU: "Southern Kurils (disputed)", XSN: "Senkaku/Diaoyu Is. (disputed)", XDK: "Dokdo/Takeshima (disputed)", XPA: "Paracel Is. (disputed)", XSP: "Spratly Is. (disputed)", XSC: "Scarborough Shoal (disputed)", XNV: "Navassa Island (disputed)", XIA: "Isla Aves (disputed)", XMH: "Matthew and Hunter Is. (disputed)", XSE: "Serranilla Bank (disputed)", XBN: "Bajo Nuevo Bank (disputed)" }; // X-codes: marks that are not countries (cannot clash with an alpha-3)
+const DISPLAY = { UNK: "Kosovo", VAT: "Vatican City", MKD: "North Macedonia", BIH: "Bosnia and Herzegovina", GBR: "United Kingdom", COD: "DR Congo", COG: "Republic of the Congo", CIV: "Ivory Coast", STP: "São Tomé and Príncipe", CPV: "Cape Verde", SWZ: "Eswatini", GAZ: "Gaza Strip", XKU: "Southern Kurils (disputed)", XSN: "Senkaku/Diaoyu Is. (disputed)", XDK: "Dokdo/Takeshima (disputed)", XPA: "Paracel Is. (disputed)", XSP: "Spratly Is. (disputed)", XSC: "Scarborough Shoal (disputed)", XNV: "Navassa Island (disputed)", XIA: "Isla Aves (disputed)", XMH: "Matthew and Hunter Is. (disputed)", XSE: "Serranilla Bank (disputed)", XBN: "Bajo Nuevo Bank (disputed)" }; // X-codes: marks that are not countries (cannot clash with an alpha-3)
 const nameOf = (a3) => R.names?.[a3] || DISPLAY[a3] || T.getBorderDisplayName(a3Info.get(a3).name); // R.names: this region's own label text
 const CONTEXT_LABEL_MAX = 15;
 
@@ -75,6 +75,8 @@ const REGIONS = {
     extraColoured: ["GRL"], share: { GRL: "DNK", FRO: "DNK" },
     // Territories are labeled "Name (Parent)", as on the other maps. The Faroe Islands are drawn in Denmark's color (they are part of its shape, too
     // small to label in place), so they get a dot in that color and a pointer label. Svalbard lies beyond the top edge of this frame.
+    // Jan Mayen is Norwegian but sits in an unnumbered shape with Svalbard (beyond the top edge, apart from Bear Island, which is not given to Norway): drawn in Norway's color, no label.
+    pieces: [{ name: "Svalbard and Jan Mayen", box: [-10, -7, 70.5, 71.5], to: "NOR", what: "Jan Mayen" }],
     names: { GRL: "Greenland (Kingdom of Denmark)", FRO: "Faroe Islands (Denmark)" },
     extraPoints: { FRO: { name: "Faroe Islands (Denmark)", lat: 62.01, lon: -6.77, gap: 10 } },
     dots: ["FRO"], dotOnly: ["FRO"],
@@ -636,6 +638,18 @@ for (const mv of MOVES.filter((m) => R.members.includes(m.to))) {
   }
   console.log(`${mv.what}: ${moved.length} piece(s) of ${mv.from} moved to ${mv.to}; ${leftovers.length} not stitched`);
   rawByOwner.set(mv.to, [...target.map((e) => [[...e.ring, e.ring[0]], ...e.holes]), ...leftovers]);
+}
+// R.pieces: pieces of a shape the data does not assign to any country, given to one here (Jan Mayen, inside Natural Earth's unnumbered
+// "Svalbard and Jan Mayen" shape, to Norway). A polygon of the named shape whose bounding-box centre lies in `box` [west, east, south, north] moves to `to`.
+for (const pc of R.pieces || []) {
+  const g = topology.objects.countries.geometries.find((x) => x.properties.name === pc.name);
+  const geo = topojson.feature(topology, g).geometry, [x0, x1, y0, y1] = pc.box;
+  const moved = (geo.type === "Polygon" ? [geo.coordinates] : geo.coordinates).filter((poly) => {
+    const xs = poly[0].map((q) => q[0]), ys = poly[0].map((q) => q[1]), cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    return cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1;
+  });
+  rawByOwner.set(pc.to, [...rawByOwner.get(pc.to), ...moved]);
+  console.log(`${moved.length} piece(s) of ${pc.name} given to ${pc.to} (${pc.what})`);
 }
 // R.carve: pieces of a country's shape that this region does not give to it (Matthew Island, which France and Vanuatu both claim).
 // A polygon whose bounding-box centre lies in `box` [west, east, south, north] is dropped.

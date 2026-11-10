@@ -64,6 +64,15 @@ export const MERIDIAN_CUTS = [
   { parentNumeric: "376", parent: "IL", name: "Golan Heights", lon: 35.64 },
 ];
 
+// Western Sahara. Natural Earth's "Morocco" outline also encloses the Moroccan-administered part of Western Sahara, and its
+// separate "W. Sahara" shape is only the strip east of the berm, so Morocco's shape covered most of Western Sahara. The
+// recognized boundary is the 27°40'N parallel (the Tarfaya border): everything of the parent south of `lat` is cut off and
+// joined to the shape `into`, so Western Sahara is one territory of its own (the same boundary scripts/build-maps.mjs uses).
+// The cut passes through the existing vertex of the outline nearest `lat` (within 0.05°), so no sliver is left.
+export const PARALLEL_CUTS = [
+  { parentNumeric: "504", parent: "MA", intoNumeric: "732", into: "EH", name: "Western Sahara", lat: 27 + 40 / 60 },
+];
+
 // The note shown on a territory's fact card, the country it belongs to (alpha3),
 // a noun phrase for its overview sentence and the possessive used where its
 // figures are folded into the parent's ("Included in France's figures").
@@ -174,6 +183,89 @@ function cutTopologyByMeridian(topology, cut) {
   return true;
 }
 
+
+// Cuts everything of a polygon's outline south of a parallel and merges it into another shape, without breaking the topology.
+// Same idea as cutTopologyByMeridian: arcs that cross the line are split at it (every geometry using an arc is updated), one
+// new arc runs along the cut, and the cut-off piece is joined to the `into` shape by dropping the arc the two share.
+function cutTopologyByParallel(topology, cut) {
+  const geometries = topology.objects.countries.geometries;
+  const parent = geometries.find((g) => g.id === cut.parentNumeric);
+  const into = geometries.find((g) => g.id === cut.intoNumeric);
+  if (!parent || !into) throw new Error(`Shapes ${cut.parentNumeric} / ${cut.intoNumeric} for ${cut.name} not found`);
+  if (parent.type !== "Polygon" || parent.arcs.length !== 1) throw new Error(`${parent.properties.name} is not a single-ring polygon`);
+  if (into.type !== "Polygon" || into.arcs.length !== 1) throw new Error(`${into.properties.name} is not a single-ring polygon`);
+  const [sy] = [topology.transform.scale[1]];
+  const ty = topology.transform.translate[1];
+  const decode = (k) => { let x = 0, y = 0; return topology.arcs[k].map(([dx, dy]) => [(x += dx), (y += dy)]); };
+  const encode = (pts) => pts.map(([x, y], i) => (i ? [x - pts[i - 1][0], y - pts[i - 1][1]] : [x, y]));
+  // the grid row of the outline's own junction (an arc's end point) nearest the cut latitude, not a coastline vertex
+  const target = (cut.lat - ty) / sy;
+  let CUT = null;
+  for (const e of parent.arcs[0]) for (const [, y] of (([f, ...r]) => [f, r.at(-1) ?? f])(decode(e < 0 ? ~e : e))) if (Math.abs(y - target) * sy <= 0.05 && (CUT === null || Math.abs(y - target) < Math.abs(CUT - target))) CUT = y;
+  if (CUT === null) throw new Error(`${cut.name}: no vertex of ${parent.properties.name}'s outline near ${cut.lat}°N`);
+  if (!parent.arcs[0].some((e) => decode(e < 0 ? ~e : e).some(([, y]) => y < CUT))) return false; // already cut
+  const eachGeometry = (fn) => {
+    const walk = (g) => { if (g.type === "GeometryCollection") g.geometries.forEach(walk); else fn(g); };
+    Object.values(topology.objects).forEach(walk);
+  };
+  const replaceArcs = (nested, k, extra) => nested.flatMap((e) => {
+    if (Array.isArray(e)) return [replaceArcs(e, k, extra)];
+    if (e === k) return [k, extra];
+    if (e === ~k) return [~extra, ~k];
+    return [e];
+  });
+  // 1) split every arc of the ring that crosses the line, at the crossing
+  for (let guard = 0; guard < 50; guard++) {
+    let split = null;
+    for (const e of parent.arcs[0]) {
+      const k = e < 0 ? ~e : e, pts = decode(k);
+      for (let j = 0; j + 1 < pts.length && !split; j++) {
+        if (pts[j][1] < CUT !== pts[j + 1][1] < CUT && pts[j][1] !== CUT && pts[j + 1][1] !== CUT) {
+          const t = (CUT - pts[j][1]) / (pts[j + 1][1] - pts[j][1]);
+          split = { k, j, pts, X: [Math.round(pts[j][0] + t * (pts[j + 1][0] - pts[j][0])), CUT] };
+        }
+      }
+      if (split) break;
+    }
+    if (!split) break;
+    const { k, j, pts, X } = split, extra = topology.arcs.length;
+    topology.arcs[k] = encode([...pts.slice(0, j + 1), X]);
+    topology.arcs.push(encode([X, ...pts.slice(j + 1)]));
+    eachGeometry((g) => { if (g.arcs) g.arcs = replaceArcs(g.arcs, k, extra); });
+  }
+  // 2) which pieces of the ring are south of the line
+  const ring = parent.arcs[0];
+  const orient = (e) => (e < 0 ? decode(~e).reverse() : decode(e));
+  const south = ring.map((e) => {
+    const off = orient(e).filter(([, y]) => y !== CUT);
+    return off.length > 0 && off.every(([, y]) => y < CUT);
+  });
+  const n = ring.length;
+  const starts = south.map((v, i) => v && !south[(i + n - 1) % n]);
+  if (starts.filter(Boolean).length !== 1 || south.every(Boolean) || !south.some(Boolean)) throw new Error(`${cut.name}: the cut does not split ${parent.properties.name}'s outline in two`);
+  const a = starts.indexOf(true);
+  let b = a;
+  while (south[(b + 1) % n]) b = (b + 1) % n;
+  const inside = [], outside = [];
+  for (let i = a; ; i = (i + 1) % n) { inside.push(ring[i]); if (i === b) break; }
+  for (let i = (b + 1) % n; i !== a; i = (i + 1) % n) outside.push(ring[i]);
+  const pStart = orient(inside[0])[0], pEnd = orient(inside.at(-1)).at(-1);
+  // 3) the new arc along the cut: from where the south piece ends back to where it starts
+  const c = topology.arcs.length;
+  topology.arcs.push(encode([pEnd, pStart]));
+  parent.arcs = [[...outside, ~c]];
+  // 4) join the south piece to `into`: the two rings share an arc, run in opposite directions; drop it from both
+  const piece = [...inside, c];
+  const target2 = into.arcs[0];
+  const shared = target2.find((e) => piece.includes(~e));
+  if (shared === undefined) throw new Error(`${cut.name}: the cut-off piece shares no border with ${into.properties.name}`);
+  const rotate = (arr, i) => [...arr.slice(i + 1), ...arr.slice(0, i + 1)]; // ends with arr[i]
+  const mine = rotate(target2, target2.indexOf(shared)).slice(0, -1);
+  const theirs = rotate(piece, piece.indexOf(~shared)).slice(0, -1);
+  into.arcs = [[...mine, ...theirs]];
+  return true;
+}
+
 // Mutates the topology; returns the names of the shapes it added.
 export function splitTopology(topology) {
   const geometries = topology.objects.countries.geometries;
@@ -202,6 +294,7 @@ export function splitTopology(topology) {
     added.push(t.name);
   }
   for (const cut of MERIDIAN_CUTS) if (cutTopologyByMeridian(topology, cut)) added.push(cut.name);
+  for (const cut of PARALLEL_CUTS) if (cutTopologyByParallel(topology, cut)) added.push(cut.name);
   return added;
 }
 
@@ -266,6 +359,63 @@ export function splitSvg(svg) {
     const territory = `<path class="country no-code" data-name="${cut.name}" data-cx="${gcx}" data-cy="${gcy}" d="${d(eastRing)}"/>`;
     svg = svg.replace(re, `<path id="${cut.parent}" class="${m[1]}" data-name="${m[2]}" data-cx="${m[3]}" data-cy="${m[4]}" d="${d(westRing)}"/>\n${territory}`);
     added.push({ name: cut.name, small: false, cx: gcx, cy: gcy });
+  }
+  for (const cut of PARALLEL_CUTS) {
+    // Morocco's ring is cut along the parallel; the part south of it is spliced into Western Sahara's ring. The two rings
+    // already share the berm's vertices, so the cut-off piece and the old shape meet along them and that run drops out.
+    const pathRe = (id) => new RegExp(`<path id="${id}" class="([^"]*)" data-name="([^"]*)" data-cx="([^"]*)" data-cy="([^"]*)" d="([^"]*)"/>`);
+    const mp = svg.match(pathRe(cut.parent)), ip = svg.match(pathRe(cut.into));
+    if (!mp || !ip) throw new Error(`No map paths ${cut.parent} / ${cut.into} found for ${cut.name}`);
+    const parse = (d) => {
+      const rings = d.match(/M[^M]*/g).map((r) => r.match(/-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?/g));
+      if (rings.length !== 1) throw new Error(`${cut.name}: a map path has more than one ring`);
+      return rings[0];
+    };
+    const ring = parse(mp[5]), target = parse(ip[5]);
+    const num = (pt) => pt.split(",").map(Number);
+    const inTarget = new Set(target);
+    // the cut runs through the shared vertex nearest the parallel (y = -latitude)
+    const yCut = ring.filter((pt) => inTarget.has(pt)).map((pt) => num(pt)[1]).reduce((best, y) => (Math.abs(y + cut.lat) < Math.abs(best + cut.lat) ? y : best), Infinity);
+    if (!(Math.abs(yCut + cut.lat) <= 0.05)) throw new Error(`${cut.name}: no shared vertex near ${cut.lat}°N`);
+    if (!ring.some((pt) => num(pt)[1] > yCut + 1e-9)) continue; // already cut
+    const clip = (pts, keepSouth) => { // y = -latitude, so south is larger y
+      const inside = (p) => (keepSouth ? p[1] >= yCut : p[1] <= yCut);
+      const out = [];
+      for (let i = 0; i < pts.length; i++) {
+        const p = num(pts[i]), q = num(pts[(i + 1) % pts.length]);
+        if (inside(p)) out.push(pts[i]);
+        if (inside(p) !== inside(q)) out.push(`${round2(p[0] + ((yCut - p[1]) * (q[0] - p[0])) / (q[1] - p[1]))},${yCut}`);
+      }
+      return out;
+    };
+    const north = clip(ring, false), southRing = clip(ring, true);
+    const inSouth = new Set(southRing);
+    const isShared = (pt) => inSouth.has(pt);
+    // the single run of vertices the old shape and the cut-off piece have in common (in the old shape's order)
+    const n = target.length;
+    const flags = target.map(isShared);
+    const starts = flags.map((f, i) => f && !flags[(i + n - 1) % n]);
+    if (starts.filter(Boolean).length !== 1) throw new Error(`${cut.name}: the shapes do not meet along one run of vertices`);
+    const a = starts.indexOf(true);
+    let b = a;
+    while (flags[(b + 1) % n]) b = (b + 1) % n;
+    const own = []; // from the run's end, round the old shape's own vertices, to the run's start (both inclusive)
+    for (let i = b; ; i = (i + 1) % n) { own.push(target[i]); if (i === a) break; }
+    const m = southRing.length;
+    const k = southRing.indexOf(target[a]);
+    const piece = []; // the cut-off piece's own vertices, after the run's start vertex
+    for (let i = (k + 1) % m; !inTarget.has(southRing[i]); i = (i + 1) % m) piece.push(southRing[i]);
+    const merged = [...own, ...piece];
+    const d = (pts) => "M" + pts.join("L") + "Z";
+    const centre = (pts) => {
+      const xs = pts.map((q) => num(q)[0]), ys = pts.map((q) => num(q)[1]);
+      return [round2((Math.min(...xs) + Math.max(...xs)) / 2), round2((Math.min(...ys) + Math.max(...ys)) / 2)];
+    };
+    const [mx, my] = centre(north), [ix, iy] = centre(merged);
+    svg = svg
+      .replace(mp[0], `<path id="${cut.parent}" class="${mp[1]}" data-name="${mp[2]}" data-cx="${mx}" data-cy="${my}" d="${d(north)}"/>`)
+      .replace(ip[0], `<path id="${cut.into}" class="${ip[1]}" data-name="${ip[2]}" data-cx="${ix}" data-cy="${iy}" d="${d(merged)}"/>`);
+    added.push({ name: cut.name, small: false, cx: ix, cy: iy });
   }
   return { svg, added };
 }

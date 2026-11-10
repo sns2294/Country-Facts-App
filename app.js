@@ -3201,7 +3201,12 @@
   }
 
   function initDarkMode() {
-    const stored = localStorage.getItem(DARK_MODE_KEY);
+    let stored = null;
+    try {
+      stored = localStorage.getItem(DARK_MODE_KEY);
+    } catch (err) {
+      // Storage blocked (private window, in-app browser): follow the system theme.
+    }
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const isDark = stored === null ? prefersDark : stored === "true";
     applyDarkMode(isDark);
@@ -3210,7 +3215,11 @@
   darkModeToggle.addEventListener("click", () => {
     const isDark = !document.documentElement.classList.contains("dark");
     applyDarkMode(isDark);
-    localStorage.setItem(DARK_MODE_KEY, String(isDark));
+    try {
+      localStorage.setItem(DARK_MODE_KEY, String(isDark));
+    } catch (err) {
+      // Storage blocked: the choice just won't be remembered.
+    }
   });
 
   // Links from the static country pages (country/<name>/): ?country=jp opens

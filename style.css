@@ -304,7 +304,7 @@ main {
 .map-container {
   position: relative;
   width: 100%;
-  aspect-ratio: 360 / 174;
+  aspect-ratio: 362 / 175;
   background: var(--map-ocean);
   border: 1px solid var(--border);
   border-radius: 0.75rem;
@@ -526,8 +526,8 @@ main {
 }
 
 #map-container {
-  /* keep the map's 360:174 shape, shrinking its width when height is short */
-  width: min(100%, calc(var(--panel-max-height) * 360 / 174));
+  /* keep the map's 362:175 shape, shrinking its width when height is short */
+  width: min(100%, calc(var(--panel-max-height) * 362 / 175));
   margin: 0 auto;
 }
 

@@ -1,7 +1,7 @@
 (() => {
   // Content hash of the data and map files, stamped by scripts/stamp-version.mjs.
   // Added to their URLs so a changed file is never served from an old cache.
-  const DATA_VERSION = "eced47d4";
+  const DATA_VERSION = "03b10017";
   const versioned = (url) => `${url}?v=${DATA_VERSION}`;
   const COUNTRIES_URL = versioned("data/countries.json");
   const META_URL = versioned("data/meta.json");
@@ -72,7 +72,9 @@
   const quizBonusFeedback = document.getElementById("quiz-bonus-feedback");
   const quizGeoNextBtn = document.getElementById("quiz-geo-next-btn");
 
-  const NATIVE_VIEW_BOX = { x: -180, y: -84, w: 360, h: 174 };
+  // The map is -180..180 degrees, plus 2 on the right for the part of Fiji that lies
+  // east of the 180th meridian, which is drawn there beside the rest of it.
+  const NATIVE_VIEW_BOX = { x: -180, y: -84, w: 362, h: 175 };
   const MIN_VIEW_WIDTH = 1.5; // degrees across at full zoom: San Marino (0.1°) is then 23px wide on a phone
   const MAX_VIEW_WIDTH = NATIVE_VIEW_BOX.w;
   const MIN_HIT_TARGET_PX = 9;

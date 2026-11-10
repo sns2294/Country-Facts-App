@@ -497,6 +497,22 @@ main {
   text-align: center;
 }
 
+/* The instruction line: touch wording on touch screens, pointer wording elsewhere
+   (the same test the population density map uses). */
+.map-hint .hint-tap {
+  display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .map-hint .hint-tap {
+    display: inline;
+  }
+
+  .map-hint .hint-click {
+    display: none;
+  }
+}
+
 .globe-section {
   width: 100%;
 }

@@ -1,7 +1,7 @@
 (() => {
   // Content hash of the data and map files, stamped by scripts/stamp-version.mjs.
   // Added to their URLs so a changed file is never served from an old cache.
-  const DATA_VERSION = "081c43ae";
+  const DATA_VERSION = "eced47d4";
   const versioned = (url) => `${url}?v=${DATA_VERSION}`;
   const COUNTRIES_URL = versioned("data/countries.json");
   const META_URL = versioned("data/meta.json");
@@ -73,7 +73,7 @@
   const quizGeoNextBtn = document.getElementById("quiz-geo-next-btn");
 
   const NATIVE_VIEW_BOX = { x: -180, y: -84, w: 360, h: 174 };
-  const MIN_VIEW_WIDTH = 4;
+  const MIN_VIEW_WIDTH = 1.5; // degrees across at full zoom: San Marino (0.1°) is then 23px wide on a phone
   const MAX_VIEW_WIDTH = NATIVE_VIEW_BOX.w;
   const MIN_HIT_TARGET_PX = 9;
   // The selected country gets a pulsing ring (like the globe's) while it spans
@@ -82,26 +82,22 @@
   const SELECT_RING_RADIUS_PX = 22; // the ring's widest point, from the country's centre
   const SELECT_RING_CONTROLS_PX = 64; // keep the ring this far from the right edge, clear of the zoom buttons
   const MAX_HIT_RADIUS_DEG = 1.0;
-  // A country whose shape is under TINY_SHAPE_PX on screen (Vatican City is a
-  // single point) draws nothing worth aiming at, so it gets a small visible dot
-  // and is picked by proximity: the nearest tiny country within
-  // TINY_PICK_RADIUS_PX wins. At world view that radius is capped in degrees too
-  // (TINY_PICK_MAX_DEG), or one dot would swallow the countries around it.
-  const TINY_SHAPE_PX = 5;
-  const TINY_SHAPE_MAX_DEG = 1.5; // however small the screen, a bigger country keeps its own shape
-  const TINY_DOT_RADIUS_PX = 3.5;
-  const TINY_PICK_RADIUS_PX = 9;
-  const TINY_PICK_MAX_DEG = 3;
-  // Tiny ocean countries and territories (data-island in world-map.svg) are drawn
-  // as nothing but their real shapes, at true size at every zoom, so at world
-  // view they can be specks. Each gets an invisible pick area instead: taps and
-  // clicks within PICK_RADIUS_PX (44px across) of it select it while its shape is
-  // under PICK_MAX_SHAPE_PX on screen; past that the shape itself is big enough
-  // to aim at. When the tap lands on another country's land, the island only
-  // wins within ISLAND_PICK_OVER_LAND_PX, so a coast stays tappable (Malta
-  // beside Sicily, say).
+  // Small countries and territories are drawn as their real shapes only, at true
+  // size at every zoom: no marker. Their enlarged hit circles are switched off
+  // too (they would swallow taps meant for Italy, Switzerland, South Africa...),
+  // and instead they are picked by proximity (see updateTinyTargets):
+  //  - Ocean islands (data-island in world-map.svg) at any zoom, while their
+  //    shape is under PICK_MAX_SHAPE_PX (70px) on screen.
+  //  - Small land countries (under LAND_SMALL_MAX_DEG, like San Marino or
+  //    Luxembourg) only once zoomed in to LAND_PICK_MIN_PX_PER_DEG, where the
+  //    larger neighbour no longer needs the taps near them.
+  // The pick area is PICK_RADIUS_PX around the country (44px across). When a tap
+  // lands on another country's land, an island only wins within
+  // ISLAND_PICK_OVER_LAND_PX, so a coast stays tappable (Malta beside Sicily).
   const PICK_RADIUS_PX = 22;
   const PICK_MAX_SHAPE_PX = 70;
+  const LAND_SMALL_MAX_DEG = 2.5;
+  const LAND_PICK_MIN_PX_PER_DEG = 40;
   const ISLAND_PICK_OVER_LAND_PX = 3;
   // Scroll/trackpad zoom feel (flat map only). Each wheel event zooms by
   // exp(delta * WHEEL_ZOOM_SENSITIVITY), so the zoom follows how far you
@@ -820,50 +816,37 @@
       return shapeSizeDeg.get(circle) ?? Infinity;
     }
 
-    // Finds the countries too small to see at this zoom: land ones are shown as a
-    // dot (sized in pixels, shrunk where dots crowd), ocean islands are not drawn
-    // at all (their real shapes show) but are picked by proximity. Records where
-    // to pick each one.
+    // Works out which small countries are picked by proximity at this zoom
+    // (see PICK_RADIUS_PX) and records where they are.
     function updateTinyTargets() {
       const ctm = svg.getScreenCTM();
       if (!ctm || !ctm.a) return;
-      const tiny = [];
-      const islands = [];
+      const targets = [];
       svg.querySelectorAll("circle.hit-target").forEach((circle) => {
         const sizeDeg = circleShapeDeg(circle);
-        const target = {
+        const isIsland = circle.dataset.island === "1";
+        // (A shape wrapping the map, like Fiji's, counts as a point.)
+        const shapePx = (Number.isFinite(sizeDeg) ? sizeDeg : 0) * ctm.a;
+        let picked = shapePx < PICK_MAX_SHAPE_PX;
+        let pickOnly = picked; // the circle takes no events of its own
+        if (!isIsland) {
+          pickOnly = sizeDeg < LAND_SMALL_MAX_DEG;
+          picked = pickOnly && picked && ctm.a >= LAND_PICK_MIN_PX_PER_DEG;
+        }
+        circle.classList.toggle("pick-only", pickOnly);
+        if (!picked) return;
+        targets.push({
           circle,
+          island: isIsland,
           code: circle.dataset.code,
           name: circle.dataset.name,
           x: ctm.a * Number(circle.getAttribute("cx")) + ctm.e,
           y: ctm.d * Number(circle.getAttribute("cy")) + ctm.f,
-        };
-        if (circle.dataset.island === "1") {
-          circle.classList.remove("tiny");
-          // (A shape wrapping the map, like Fiji's, counts as a point.)
-          const picked = (Number.isFinite(sizeDeg) ? sizeDeg : 0) * ctm.a < PICK_MAX_SHAPE_PX;
-          circle.classList.toggle("pick-only", picked);
-          if (picked) islands.push({ ...target, island: true, pickPx: PICK_RADIUS_PX });
-          return;
-        }
-        const isTiny = sizeDeg < TINY_SHAPE_MAX_DEG && sizeDeg * ctm.a < TINY_SHAPE_PX;
-        circle.classList.toggle("tiny", isTiny);
-        if (isTiny) tiny.push(target);
-      });
-      tiny.forEach((t) => {
-        let nearest = Infinity;
-        tiny.forEach((o) => {
-          if (o !== t) nearest = Math.min(nearest, Math.hypot(o.x - t.x, o.y - t.y));
+          pickPx: PICK_RADIUS_PX,
         });
-        // The dot never outgrows the pick radius, which is what the dot promises.
-        const capPx = TINY_PICK_MAX_DEG * ctm.a;
-        const dotPx = Math.max(1.5, Math.min(TINY_DOT_RADIUS_PX, nearest * 0.45, capPx - 1));
-        t.circle.setAttribute("r", dotPx / ctm.a);
-        t.pickPx = Math.max(dotPx + 1, Math.min(TINY_PICK_RADIUS_PX, capPx));
       });
-      tiny.push(...islands);
-      tinyTargets = tiny;
-      if (activeTiny) setActiveTiny(tiny.find((t) => t.circle === activeTiny.circle) || null);
+      tinyTargets = targets;
+      if (activeTiny) setActiveTiny(targets.find((t) => t.circle === activeTiny.circle) || null);
     }
 
     function nearestTiny(clientX, clientY, evt) {

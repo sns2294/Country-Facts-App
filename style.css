@@ -361,19 +361,9 @@ main {
   cursor: pointer;
 }
 
-/* A country too small to see gets a dot; the pointer picks it by proximity
-   (see updateTinyTargets), so the circle itself takes no events. */
-.map-container circle.hit-target.tiny {
-  fill: var(--map-fill);
-  stroke: var(--map-stroke);
-  stroke-width: 1.25;
-  vector-effect: non-scaling-stroke;
-  pointer-events: none;
-}
-
-/* An ocean island is drawn as its real shape only; while it is too small to
-   aim at, the pointer picks it by proximity (see updateTinyTargets) and its
-   circle stays invisible and takes no events. */
+/* Small countries are drawn as their real shapes only. Their circles are
+   invisible and take no events: the pointer picks them by proximity (see
+   updateTinyTargets), so they never swallow taps meant for a larger neighbour. */
 .map-container circle.hit-target.pick-only {
   opacity: 0;
   pointer-events: none;
@@ -455,6 +445,44 @@ main {
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 6px var(--shadow);
+}
+
+/* Phone width: the three buttons become one compact strip in the bottom-right
+   corner. Each is 44px wide, and an invisible pad above and below brings it to
+   a 44px-tall tap target too. */
+@media (max-width: 700px) {
+  .map-controls {
+    top: auto;
+    bottom: 0.5rem;
+    right: 0.5rem;
+    flex-direction: row;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    background: var(--surface);
+    box-shadow: 0 2px 6px var(--shadow);
+  }
+
+  .map-controls button {
+    position: relative;
+    width: 44px;
+    height: 28px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    font-size: 0.95rem;
+  }
+
+  .map-controls button + button {
+    border-left: 1px solid var(--border);
+  }
+
+  .map-controls button::after {
+    content: "";
+    position: absolute;
+    inset: -8px 0;
+  }
 }
 
 .map-controls button:hover {

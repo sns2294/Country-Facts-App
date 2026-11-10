@@ -101,6 +101,11 @@
   const LAND_SMALL_MAX_DEG = 2.5;
   const LAND_PICK_MIN_PX_PER_DEG = 40;
   const ISLAND_PICK_OVER_LAND_PX = 3;
+  // A country whose own shape is under this many px across (Qatar, Israel and
+  // Lebanon at world view) has no room to give away: over its land an island only
+  // wins when the tap is on the island's own shape.
+  const TINY_LAND_PX = 8;
+  const ISLAND_PICK_ON_TINY_LAND_PX = 0.5;
   // Scroll/trackpad zoom feel (flat map only). Each wheel event zooms by
   // exp(delta * WHEEL_ZOOM_SENSITIVITY), so the zoom follows how far you
   // scroll rather than how many events fire. Raise it for faster zoom, lower
@@ -694,8 +699,19 @@
     // Phones emulate mouse events after a touch; those must not count as hover.
     let lastTouchAt = -Infinity;
     const recentTouch = () => performance.now() - lastTouchAt < 1000;
+    // Where the finger last touched (the click that follows a tap is nudged by the
+    // browser toward the nearest clickable shape, so its coordinates can't be trusted).
+    let lastTouchPoint = null;
     ["touchstart", "touchend"].forEach((type) =>
-      container.addEventListener(type, () => (lastTouchAt = performance.now()), { capture: true, passive: true })
+      container.addEventListener(
+        type,
+        (evt) => {
+          lastTouchAt = performance.now();
+          const t = evt.changedTouches?.[0];
+          if (t) lastTouchPoint = { x: t.clientX, y: t.clientY };
+        },
+        { capture: true, passive: true }
+      )
     );
     let svg = null;
     let currentViewBox = { ...NATIVE_VIEW_BOX };
@@ -705,6 +721,8 @@
     let tinyTargets = []; // the dots currently picked by proximity, in screen px
     let activeTiny = null;
     const shapeSizeDeg = new Map(); // hit circle -> its country's shape size, degrees
+    const shapeDegByName = new Map(); // country name -> the same, filled with it
+    const shapeVertices = new Map(); // island circle -> its drawn shape's corners (map units)
 
     function showTooltip(name) {
       if (!tooltipEl || !name) return;
@@ -812,7 +830,9 @@
         svg.querySelectorAll("circle.hit-target").forEach((c) => {
           const path = pathsByName.get(c.dataset.name);
           const box = path && path.getBBox();
-          shapeSizeDeg.set(c, !box ? 0 : box.width > 180 ? Infinity : Math.max(box.width, box.height));
+          const deg = !box ? 0 : box.width > 180 ? Infinity : Math.max(box.width, box.height);
+          shapeSizeDeg.set(c, deg);
+          shapeDegByName.set(c.dataset.name, deg);
         });
       }
       return shapeSizeDeg.get(circle) ?? Infinity;
@@ -851,21 +871,45 @@
       if (activeTiny) setActiveTiny(targets.find((t) => t.circle === activeTiny.circle) || null);
     }
 
-    function nearestTiny(clientX, clientY, evt) {
+    const LAND_SELECTOR = "path.country:not(.no-code), circle.hit-target";
+
+    // How far (screen px) a point is from an island's drawn shape, taken from the
+    // shape's corners (the centre dot would call a spread-out chain like the
+    // Bahamas near the coast of Cuba). An island with no shape of its own uses its centre.
+    function distanceToShape(t, ctm, clientX, clientY) {
+      let verts = shapeVertices.get(t.circle);
+      if (!verts) {
+        const path = svg.querySelector(`path.country[id="${t.code}"]`);
+        const own = path && path.dataset.name === t.name ? parsePathRings(path.getAttribute("d")).flat() : [];
+        verts = own.length ? own : [[Number(t.circle.getAttribute("cx")), Number(t.circle.getAttribute("cy"))]];
+        shapeVertices.set(t.circle, verts);
+      }
+      let best = Infinity;
+      for (const [x, y] of verts) best = Math.min(best, Math.hypot(ctm.a * x + ctm.e - clientX, ctm.d * y + ctm.f - clientY));
+      return best;
+    }
+
+    function nearestTiny(clientX, clientY, underEl) {
       // The country under the pointer: its shape, or the enlarged invisible circle
       // drawn over it (both carry the country's name).
-      const landName = evt?.target.closest?.("path.country:not(.no-code), circle.hit-target")?.dataset.name;
+      const landName = underEl?.closest?.(LAND_SELECTOR)?.dataset.name;
       let best = null;
       let bestDist = Infinity;
       // Positions are re-read here, not kept from when the dots were laid out:
       // the page can scroll or shift under the map after that.
       const ctm = svg.getScreenCTM();
       if (!ctm) return null;
+      const landTiny = Boolean(landName) && (shapeDegByName.get(landName) ?? Infinity) * ctm.a < TINY_LAND_PX;
       tinyTargets.forEach((t) => {
         t.x = ctm.a * Number(t.circle.getAttribute("cx")) + ctm.e;
         t.y = ctm.d * Number(t.circle.getAttribute("cy")) + ctm.f;
-        const dist = Math.hypot(t.x - clientX, t.y - clientY);
-        const reach = t.island && landName && landName !== t.name ? ISLAND_PICK_OVER_LAND_PX : t.pickPx;
+        let dist = Math.hypot(t.x - clientX, t.y - clientY);
+        let reach = t.pickPx;
+        if (t.island && landName && landName !== t.name) {
+          // Over another country's land the island has to be near by its own shape.
+          dist = distanceToShape(t, ctm, clientX, clientY);
+          reach = landTiny ? ISLAND_PICK_ON_TINY_LAND_PX : ISLAND_PICK_OVER_LAND_PX;
+        }
         if (dist <= reach && dist < bestDist) {
           best = t;
           bestDist = dist;
@@ -908,7 +952,7 @@
     function attachTinyTargetHandlers() {
       container.addEventListener("mousemove", (evt) => {
         if (recentTouch() || container.classList.contains("dragging")) return;
-        setActiveTiny(nearestTiny(evt.clientX, evt.clientY, evt), evt);
+        setActiveTiny(nearestTiny(evt.clientX, evt.clientY, evt.target), evt);
       });
       container.addEventListener("mouseleave", () => {
         setActiveTiny(null);
@@ -919,11 +963,33 @@
         "click",
         (evt) => {
           if (suppressNextClick || evt.defaultPrevented || evt.target.closest(".map-controls, button")) return;
-          const target = nearestTiny(evt.clientX, evt.clientY, evt);
-          if (!target) return;
-          evt.stopPropagation();
-          evt.preventDefault();
-          onCountryClick(target.code);
+          // A tap is judged where the finger really was, and by what is really under it.
+          const touch = recentTouch() && lastTouchPoint;
+          const x = touch ? lastTouchPoint.x : evt.clientX;
+          const y = touch ? lastTouchPoint.y : evt.clientY;
+          const under = touch ? document.elementFromPoint(x, y) : evt.target;
+          const target = nearestTiny(x, y, under);
+          if (target) {
+            evt.stopPropagation();
+            evt.preventDefault();
+            onCountryClick(target.code);
+            return;
+          }
+          // The browser moves a tap toward the nearest clickable shape; if the finger
+          // was on one country's land and the click landed on another's, the land
+          // under the finger wins.
+          if (touch) {
+            const codeOf = (el) => {
+              const hit = el?.closest?.(LAND_SELECTOR);
+              return hit && (hit.id || hit.dataset.code);
+            };
+            const real = codeOf(under);
+            if (real && real !== codeOf(evt.target)) {
+              evt.stopPropagation();
+              evt.preventDefault();
+              onCountryClick(real);
+            }
+          }
         },
         true
       );

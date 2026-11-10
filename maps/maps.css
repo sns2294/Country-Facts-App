@@ -112,9 +112,14 @@ html.map-viewer-open, html.map-viewer-open body { overflow: hidden; overscroll-b
 .maps-page { --d0: #ffed75; --d1: #ffd08d; --d2: #ffa674; --d3: #fe7262; --d4: #f7066f; --d5: #ba007b; --d6: #77117e; --d7: #2f1761; --nodata: #adadad; --mk-ring: #ffffff; --legend-bg: rgba(255, 255, 255, 0.95); --legend-line: rgba(30, 50, 70, 0.28); }
 :root.dark .maps-page { --d0: #fff7d0; --d1: #fed397; --d2: #feab7b; --d3: #fe7c6c; --d4: #ff3c7d; --d5: #de028e; --d6: #a80c93; --d7: #46297e; --nodata: #404040; --mk-ring: #ffffff; --legend-bg: rgba(11, 18, 25, 0.95); --legend-line: rgba(255, 255, 255, 0.28); }
 .map-svg .d0 { fill: var(--d0); } .map-svg .d1 { fill: var(--d1); } .map-svg .d2 { fill: var(--d2); } .map-svg .d3 { fill: var(--d3); } .map-svg .d4 { fill: var(--d4); } .map-svg .d5 { fill: var(--d5); } .map-svg .d6 { fill: var(--d6); } .map-svg .d7 { fill: var(--d7); } .map-svg .dnd { fill: var(--nodata); }
-/* the ring keeps its width on screen (1.5px) whatever the map's size or zoom, so the small circles stay outlined on a phone and in the full-screen viewer */
-.map-svg .mk { stroke: var(--mk-ring); stroke-width: 1.5px; vector-effect: non-scaling-stroke; paint-order: stroke; }
-.map-svg .mk-leader { stroke: var(--leader); stroke-width: 0.7; }
+/* Borders are 1 map unit on the page; the viewer sets --sw from the zoom so they stay under a pixel wide at any zoom (it goes to 450px per map unit).
+   Places under a few pixels across have no border, so their color shows. */
+.map-svg .c, .map-svg .lake, .map-svg .disp { stroke-width: var(--sw, 1); }
+.map-svg .c.t { stroke: none; }
+/* The ring around the place just picked: two rings (dark inside, light outside) so it shows on any color; the viewer sets their widths from the zoom. */
+.map-svg .focus-ring { fill: none; pointer-events: none; }
+.map-svg .focus-ring.in { stroke: #1d1f24; }
+.map-svg .focus-ring.out { stroke: #ffffff; stroke-opacity: 0.9; }
 .map-svg .lbl.dens { font-weight: 700; letter-spacing: 0.01em; stroke-width: 2.2px; }
 .map-svg .lbl.k0 { fill: #1d1f24; stroke: rgba(255, 255, 255, 0.5); }
 .map-svg .lbl.k1 { fill: #1d1f24; stroke: rgba(255, 255, 255, 0.5); }
@@ -146,4 +151,23 @@ html.map-viewer-open, html.map-viewer-open body { overflow: hidden; overscroll-b
   .maps-page .map-hint .hint-click { display: none; }
 }
 .maps-page .map-viewer-help.is-reading { color: var(--text); font-weight: 600; }
+/* "Most crowded places": the ten densest, under the map. One column on a phone, two from 640px. */
+.maps-page .crowded { margin: 1rem 0 0; padding: 0.85rem 0.9rem 0.95rem; border: 1px solid rgba(128, 128, 128, 0.3); border-radius: 12px; background: var(--bg); }
+.maps-page .crowded h2 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.maps-page .crowded-sub { margin: 0.2rem 0 0.65rem; color: var(--text-muted); font-size: 0.85rem; line-height: 1.4; }
+.maps-page .crowded-sub .hint-tap { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .maps-page .crowded-sub .hint-tap { display: inline; }
+  .maps-page .crowded-sub .hint-click { display: none; }
+}
+.maps-page .crowded-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 0.25rem 0.6rem; }
+@media (min-width: 640px) { .maps-page .crowded-list { grid-template-columns: 1fr 1fr; grid-auto-flow: row; } }
+.maps-page .crowded-row { display: flex; align-items: baseline; gap: 0.45rem; width: 100%; min-height: 2.2rem; padding: 0.3rem 0.65rem; border: 1px solid rgba(128, 128, 128, 0.3); border-radius: 0.6rem; background: var(--surface); color: var(--text); font: inherit; font-size: 0.9rem; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.maps-page .crowded-row:hover { border-color: var(--accent); }
+.maps-page .crowded-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.maps-page .crowded-row .rk { flex: none; width: 1.3rem; color: var(--text-muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.maps-page .crowded-row .nm { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.maps-page .crowded-row .dot { color: var(--text-muted); }
+.maps-page .crowded-row .val { color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.maps-page .crowded-row .val b { color: var(--text); font-weight: 600; }
 /* density:end */

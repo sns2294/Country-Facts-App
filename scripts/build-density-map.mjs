@@ -11,7 +11,9 @@
 // The color scale is 8 bins (not linear: density runs from under 1 to over 18,000), a multi-hue ramp from pale yellow to deep purple
 // with a separate gray for "no data". The palettes below were checked against the real ocean colors and under deuteranopia and protanopia
 // simulation; they are written into maps/maps.css (between the "density" markers), which the hub thumbnails and preview cards also use.
-// Small countries and territories (too small to see at this scale) get a circle colored by density. The map pages are drawn by
+// Every country and territory is drawn at its true size, however small (Monaco is a speck at world view and grows as the viewer zooms in,
+// to 450 screen px per map unit). Small places also get an invisible tap area (picked by distance in the page's script, with the same rules
+// as the flat map in app.js), and a "Most crowded places" box under the map zooms the viewer to the ten densest. The map pages are drawn by
 // scripts/build-maps.mjs for the regional maps; this one shares its page pieces (scripts/map-page.mjs) and geometry helpers (scripts/geo-util.mjs).
 
 import fs from "node:fs";
@@ -20,7 +22,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { socialTags } from "./social-tags.mjs";
 import { clipHalf, stitch } from "./geo-util.mjs";
-import { THEME_SNIPPET, TOGGLE_SNIPPET, VIEWER_SNIPPET, FAVICON } from "./map-page.mjs";
+import { THEME_SNIPPET, TOGGLE_SNIPPET, viewerSnippet, FAVICON } from "./map-page.mjs";
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -59,9 +61,14 @@ function densityCss() {
 .maps-page { ${vars("light", "--mk-ring: #ffffff; --legend-bg: rgba(255, 255, 255, 0.95); --legend-line: rgba(30, 50, 70, 0.28);")} }
 :root.dark .maps-page { ${vars("dark", "--mk-ring: #ffffff; --legend-bg: rgba(11, 18, 25, 0.95); --legend-line: rgba(255, 255, 255, 0.28);")} }
 ${BINS.map((_, i) => `.map-svg .d${i} { fill: var(--d${i}); }`).join(" ")} .map-svg .dnd { fill: var(--nodata); }
-/* the ring keeps its width on screen (1.5px) whatever the map's size or zoom, so the small circles stay outlined on a phone and in the full-screen viewer */
-.map-svg .mk { stroke: var(--mk-ring); stroke-width: 1.5px; vector-effect: non-scaling-stroke; paint-order: stroke; }
-.map-svg .mk-leader { stroke: var(--leader); stroke-width: 0.7; }
+/* Borders are 1 map unit on the page; the viewer sets --sw from the zoom so they stay under a pixel wide at any zoom (it goes to 450px per map unit).
+   Places under a few pixels across have no border, so their color shows. */
+.map-svg .c, .map-svg .lake, .map-svg .disp { stroke-width: var(--sw, 1); }
+.map-svg .c.t { stroke: none; }
+/* The ring around the place just picked: two rings (dark inside, light outside) so it shows on any color; the viewer sets their widths from the zoom. */
+.map-svg .focus-ring { fill: none; pointer-events: none; }
+.map-svg .focus-ring.in { stroke: #1d1f24; }
+.map-svg .focus-ring.out { stroke: #ffffff; stroke-opacity: 0.9; }
 .map-svg .lbl.dens { font-weight: 700; letter-spacing: 0.01em; stroke-width: 2.2px; }
 ${lbl("light").join("\n")}
 :root.dark ${lbl("dark").map((l) => l.replace(".map-svg", ".maps-page .map-svg")).join("\n:root.dark ")}
@@ -77,6 +84,25 @@ ${lbl("light").join("\n")}
   .maps-page .map-hint .hint-click { display: none; }
 }
 .maps-page .map-viewer-help.is-reading { color: var(--text); font-weight: 600; }
+/* "Most crowded places": the ten densest, under the map. One column on a phone, two from 640px. */
+.maps-page .crowded { margin: 1rem 0 0; padding: 0.85rem 0.9rem 0.95rem; border: 1px solid rgba(128, 128, 128, 0.3); border-radius: 12px; background: var(--bg); }
+.maps-page .crowded h2 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.maps-page .crowded-sub { margin: 0.2rem 0 0.65rem; color: var(--text-muted); font-size: 0.85rem; line-height: 1.4; }
+.maps-page .crowded-sub .hint-tap { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .maps-page .crowded-sub .hint-tap { display: inline; }
+  .maps-page .crowded-sub .hint-click { display: none; }
+}
+.maps-page .crowded-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 0.25rem 0.6rem; }
+@media (min-width: 640px) { .maps-page .crowded-list { grid-template-columns: 1fr 1fr; grid-auto-flow: row; } }
+.maps-page .crowded-row { display: flex; align-items: baseline; gap: 0.45rem; width: 100%; min-height: 2.2rem; padding: 0.3rem 0.65rem; border: 1px solid rgba(128, 128, 128, 0.3); border-radius: 0.6rem; background: var(--surface); color: var(--text); font: inherit; font-size: 0.9rem; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.maps-page .crowded-row:hover { border-color: var(--accent); }
+.maps-page .crowded-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.maps-page .crowded-row .rk { flex: none; width: 1.3rem; color: var(--text-muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.maps-page .crowded-row .nm { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.maps-page .crowded-row .dot { color: var(--text-muted); }
+.maps-page .crowded-row .val { color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.maps-page .crowded-row .val b { color: var(--text); font-weight: 600; }
 /* density:end */`;
 }
 { // keep maps/maps.css in step with the palette above
@@ -147,6 +173,15 @@ for (const [a3, geoms] of geomsByOwner) {
   console.log(`Western Sahara: ${moved.length} piece(s) of Morocco moved; ${leftovers.length} not stitched`);
 }
 
+// Vatican City's polygon in Natural Earth is a 4-point line with no area. It is drawn as a disc of its real area (0.44 km², radius 374 m)
+// around its real position (41.9029°N, 12.4534°E), so it is a true-size place like the others.
+{
+  const lat0 = 41.9029, lon0 = 12.4534, r = 0.374 / 111.2, ring = [];
+  for (let i = 0; i < 16; i++) { const a = (i / 16) * 2 * Math.PI; ring.push([lon0 + (r * Math.cos(a)) / Math.cos(lat0 * Math.PI / 180), lat0 + r * Math.sin(a)]); }
+  ring.push(ring[0]);
+  raw.set("VAT", [[ring]]);
+}
+
 // ---------- projection: Equal Earth (equal-area, so the sizes of the shaded areas are honest) ----------
 
 const WIDTH = 1400;
@@ -160,9 +195,19 @@ const XMAX = equalEarth(180, 0)[0], YMAX = equalEarth(0, 90)[1];
 const SCALE = WIDTH / (2 * XMAX), HEIGHT = Math.round(2 * YMAX * SCALE);
 const project = (lon, lat) => { const [x, y] = equalEarth(lon, lat); return [WIDTH / 2 + x * SCALE, HEIGHT / 2 - y * SCALE]; };
 
+// Borders between countries are drawn separately for each country, and thinning each one's points differently leaves slivers of sea between
+// neighbors. Near the places in the "Most crowded places" box (which the viewer zooms in on) every point is kept, so shared borders match exactly.
+const NEAR_R = 8;
+const NEAR = Object.entries(density.values).sort((a, b) => b[1].density - a[1].density).slice(0, 12).flatMap(([a3]) => (raw.get(a3) || []).map((poly) => {
+  const xs = poly[0].map((q) => q[0]), ys = poly[0].map((q) => q[1]);
+  return project((Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2);
+}));
+const isNear = (p) => NEAR.some((c) => Math.hypot(p[0] - c[0], p[1] - c[1]) < NEAR_R);
+
 const signedArea = (r) => r.reduce((s, p, i) => { const q = r[(i + 1) % r.length]; return s + (p[0] * q[1] - q[0] * p[1]); }, 0) / 2;
 const MIN_RING = 0.25; // square SVG units; smaller islands are specks (tiny countries get a circle instead)
-function projectRing(ring) {
+// `fine` (small places) keeps every point and every ring, however small: Monaco is a few hundredths of a map unit across.
+function projectRing(ring, fine = false) {
   let r = ring.slice(0, ring[0][0] === ring.at(-1)[0] && ring[0][1] === ring.at(-1)[1] ? -1 : undefined);
   const dense = [];
   for (let i = 0; i < r.length; i++) { // straight lines in longitude and latitude bend on this map: add points along the long ones
@@ -170,8 +215,10 @@ function projectRing(ring) {
     for (let k = 0; k < n; k++) dense.push([a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n]);
   }
   const pts = dense.map(([lo, la]) => project(lo, la)), out = [];
-  for (const p of pts) if (!out.length || Math.hypot(p[0] - out.at(-1)[0], p[1] - out.at(-1)[1]) >= 0.35) out.push(p); // drop points closer than a third of a pixel
-  return out.length >= 3 && Math.abs(signedArea(out)) >= MIN_RING ? out : null;
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const step = fine && Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) < 3 ? 0 : 0.35; // a small place's specks keep every point
+  for (const p of pts) if (!out.length || Math.hypot(p[0] - out.at(-1)[0], p[1] - out.at(-1)[1]) >= step || isNear(p)) out.push(p); // drop points closer than a third of a pixel
+  return out.length >= 3 && Math.abs(signedArea(out)) >= (fine ? 1e-7 : MIN_RING) ? out : null;
 }
 // A few Natural Earth rings (Chukotka, Fiji) cross the 180° meridian as one ring, with a jump from one side of the map to the other.
 // Unwrap the longitudes and cut such a ring at ±180 into one piece per side. (A ring that goes round the pole, Antarctica, is left alone.)
@@ -195,13 +242,20 @@ function splitAtDateline(ring) {
   }
   return pieces;
 }
-const projectPolys = (polys) => polys.flatMap((poly) => splitAtDateline(poly[0]).flatMap((piece, k) => {
-  const outer = projectRing(piece);
+const projectPolys = (polys, fine = false) => polys.flatMap((poly) => splitAtDateline(poly[0]).flatMap((piece, k) => {
+  const outer = projectRing(piece, fine);
   if (!outer) return [];
-  return [{ rings: [outer, ...(k === 0 ? poly.slice(1).map(projectRing).filter(Boolean) : [])] }];
+  return [{ rings: [outer, ...(k === 0 ? poly.slice(1).map((r) => projectRing(r, fine)).filter(Boolean) : [])] }];
 }));
 const areaOf = (polys) => polys.reduce((s, p) => s + Math.abs(signedArea(p.rings[0])), 0);
-const pathOf = (polys) => polys.map((p) => p.rings.map((r) => "M" + r.map(([x, y]) => `${f1(x)} ${f1(y)}`).join("L") + "Z").join("")).join("");
+const f3 = (n) => (Math.round(n * 1000) / 1000).toString();
+const f2 = (n) => (Math.round(n * 100) / 100).toString();
+// `fine` (small places): a ring under 1 map unit across gets 3 decimals, under 10 gets 2, so a speck keeps its shape without the big islands growing the page.
+const pathOf = (polys, fine = false) => polys.map((p) => p.rings.map((r) => {
+  let f = f1;
+  if (fine) { const xs = r.map((q) => q[0]), ys = r.map((q) => q[1]), size = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)); f = size < 1 ? f3 : size < 10 ? f2 : f1; }
+  return "M" + r.map(([x, y]) => `${f(x)} ${f(y)}`).join("L") + "Z";
+}).join("")).join("");
 
 const shapes = new Map();
 for (const [a3, polys] of raw) { const sp = projectPolys(polys); if (sp.length) shapes.set(a3, sp); }
@@ -222,27 +276,42 @@ const tipOf = (a3) => {
   return `${nameOf(a3)}: ${fmtDensity(v.density)} people per km²${v.source === "national" ? ` (national statistics, ${v.year})` : ""}`;
 };
 
-// ---------- small countries and territories: a circle colored by density ----------
+// ---------- small countries and territories: drawn at true size, picked by distance ----------
 
-const MARK_R = 3.5, MARK_BELOW = 30; // a place whose shape covers fewer than this many square units gets a circle
-const markers = [];
-for (const [a3, v] of Object.entries(density.values)) {
-  const polys = raw.get(a3);
-  if (!polys) continue;
-  if (shapes.has(a3) && areaOf(shapes.get(a3)) >= MARK_BELOW) continue;
-  const big = polys.reduce((m, p) => (Math.abs(signedArea(p[0])) > Math.abs(signedArea(m[0])) ? p : m), polys[0])[0];
-  const xs = big.map((q) => q[0]), ys = big.map((q) => q[1]);
-  const [x, y] = project((Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2);
-  markers.push({ a3, x, y, ax: x, ay: y });
+// A place whose shapes cover under this many square units in all (Cyprus is 15, Monaco 0.003) is redrawn with every point and ring kept,
+// gets no border, and is picked by the page's script from an invisible area around it instead of by hitting its few pixels.
+const SMALL_PLACE = 40;
+const smallPlaces = new Set();
+for (const [a3, polys] of raw) {
+  if (a3 === "ATA") continue;
+  if (shapes.has(a3) && areaOf(shapes.get(a3)) >= SMALL_PLACE) continue;
+  const fine = projectPolys(polys, true);
+  if (fine.length) { shapes.set(a3, fine); smallPlaces.add(a3); }
 }
-for (let it = 0; it < 200; it++) { // push overlapping circles apart (a small leader line then joins each to its true place)
-  let moved = false;
-  for (let i = 0; i < markers.length; i++) for (let j = i + 1; j < markers.length; j++) {
-    const a = markers[i], b = markers[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01, min = MARK_R * 2 + 1.6;
-    if (d < min) { const k = (min - d) / 2 / d; a.x -= dx * k; a.y -= dy * k; b.x += dx * k; b.y += dy * k; moved = true; }
+const boxOf = (polys) => { // [x0, y0, x1, y1] of a set of shapes
+  const pts = polys.flatMap((p) => p.rings[0]);
+  const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+};
+const focusOf = (a3) => { // [centre x, centre y, size, readout text, 1 if a small place]; a place split by the dateline (Kiribati, Fiji) is judged by its largest piece
+  let polys = shapes.get(a3), box = boxOf(polys);
+  if (Math.max(box[2] - box[0], box[3] - box[1]) > 100) { polys = [polys.reduce((m, p) => (Math.abs(signedArea(p.rings[0])) > Math.abs(signedArea(m.rings[0])) ? p : m), polys[0])]; box = boxOf(polys); }
+  return [+f3((box[0] + box[2]) / 2), +f3((box[1] + box[3]) / 2), +f3(Math.max(box[2] - box[0], box[3] - box[1])), tipOf(a3), smallPlaces.has(a3) ? 1 : 0];
+};
+const decimate = (ring, max = 24) => { const step = Math.ceil(ring.length / max); return ring.filter((_, i) => i % step === 0); }; // corners are enough to measure a distance to
+const pickAreas = []; // [code, size of this shape (map units), corners x,y,x,y...]
+const focus = {};
+for (const a3 of smallPlaces) {
+  focus[a3] = focusOf(a3);
+  for (const p of shapes.get(a3)) {
+    const [x0, y0, x1, y1] = boxOf([p]);
+    const size = Math.max(x1 - x0, y1 - y0), corners = size < 0.06 ? [[x0, y0], [x1, y0], [x1, y1], [x0, y1]] : decimate(p.rings[0]); // a speck is measured by its bounding box
+    pickAreas.push([a3, +f3(size), corners.flatMap(([x, y]) => [+f3(x), +f3(y)])]);
   }
-  if (!moved) break;
 }
+// The ten densest places (the "Most crowded places" box).
+const crowded = Object.entries(density.values).filter(([a3]) => shapes.has(a3)).sort((a, b) => b[1].density - a[1].density).slice(0, 10).map(([a3]) => a3);
+for (const a3 of crowded) if (!focus[a3]) focus[a3] = focusOf(a3);
 
 // ---------- country names ----------
 
@@ -256,7 +325,6 @@ const LEG = { x: WIDTH - 18 - 150, w: 150, rowH: 17, pad: 10, bottom: 12 }; // t
 const legendRows = [...BINS.map((b, i) => ({ cls: `d${i}`, text: b.label })), { cls: "dnd", text: "No data" }];
 const legH = 30 + legendRows.length * LEG.rowH + LEG.pad - 4, legY = HEIGHT - LEG.bottom - legH;
 taken.push([LEG.x - 4, legY - 4, LEG.x + LEG.w + 4, legY + legH + 4]);
-for (const m of markers) taken.push([m.x - 6, m.y - 6, m.x + 6, m.y + 6]);
 for (const [a3, polys] of [...shapes].sort((a, b) => areaOf(b[1]) - areaOf(a[1]))) {
   if (a3 === "ATA" || areaOf(polys) < 150) continue;
   const poly = polys.reduce((m, p) => (Math.abs(signedArea(p.rings[0])) > Math.abs(signedArea(m.rings[0])) ? p : m), polys[0]);
@@ -289,8 +357,9 @@ for (const [a3, polys] of [...shapes].sort((a, b) => areaOf(b[1]) - areaOf(a[1])
 
 // ---------- markup ----------
 
-const land = [...shapes].sort((a, b) => nameOf(a[0]).localeCompare(nameOf(b[0])))
-  .map(([a3, polys]) => `<path class="c ${colorClass(a3)}" data-code="${a3}" fill-rule="evenodd" d="${pathOf(polys)}"><title>${esc(tipOf(a3))}</title></path>`).join("\n      ");
+// Small places are drawn last, so a big neighbor's border never covers them. Under 4 square units (2 px across) a place has no border.
+const land = [...shapes].sort((a, b) => (smallPlaces.has(a[0]) - smallPlaces.has(b[0])) || nameOf(a[0]).localeCompare(nameOf(b[0])))
+  .map(([a3, polys]) => `<path class="c ${colorClass(a3)}${smallPlaces.has(a3) && areaOf(polys) < 4 ? " t" : ""}" data-code="${a3}" fill-rule="evenodd" d="${pathOf(polys, smallPlaces.has(a3))}"><title>${esc(tipOf(a3))}</title></path>`).join("\n      ");
 const lakeMarkup = `<g class="lakes">${lakes.map((l) => `<path class="lake" d="${pathOf(l.polys)}" />`).join("")}</g>`;
 const disputedMarkup = `<g class="disputed">
         <path class="disp" d="${pathOf(disputedPolys)}"><title>Disputed area (Kashmir and the Southern Kuril Islands): not given to any country</title></path>
@@ -301,10 +370,6 @@ const labelMarkup = labels.map((l) => {
   const lh = l.size * 1.1, y0 = l.y - (lh * (l.lines.length - 1)) / 2;
   return `<text class="${cls}" font-size="${f1(l.size)}">${l.lines.map((t, i) => `<tspan x="${f1(l.x)}" y="${f1(y0 + i * lh + l.size * 0.35)}">${esc(t)}</tspan>`).join("")}</text>`;
 }).join("\n      ");
-const markerMarkup = markers.map((m) => {
-  const far = Math.hypot(m.x - m.ax, m.y - m.ay) > 2.5;
-  return `${far ? `<line class="mk-leader" x1="${f1(m.ax)}" y1="${f1(m.ay)}" x2="${f1(m.x)}" y2="${f1(m.y)}" />\n      ` : ""}<circle class="mk ${colorClass(m.a3)}" data-code="${m.a3}" cx="${f1(m.x)}" cy="${f1(m.y)}" r="${MARK_R}"><title>${esc(tipOf(m.a3))}</title></circle>`;
-}).join("\n      ");
 // The legend is inside the SVG so the full-screen viewer, the hub thumbnails and the preview cards all show it.
 const legendMarkup = `<g class="legend" transform="translate(${LEG.x} ${legY})">
         <rect class="legend-box" width="${LEG.w}" height="${legH}" rx="7" />
@@ -312,10 +377,9 @@ const legendMarkup = `<g class="legend" transform="translate(${LEG.x} ${legY})">
         ${legendRows.map((r, i) => `<rect class="legend-sw ${r.cls}" x="${LEG.pad}" y="${28 + i * LEG.rowH}" width="22" height="12" rx="2" /><text class="legend-text" x="${LEG.pad + 30}" y="${28 + i * LEG.rowH + 10}">${esc(r.text)}</text>`).join("\n        ")}
       </g>`;
 
-const markerCount = markers.length;
 const svg = `<svg class="map-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-labelledby="map-title map-desc" xmlns="http://www.w3.org/2000/svg">
     <title id="map-title">Population density of the world</title>
-    <desc id="map-desc">A world map shading each country by its population density in people per square kilometer, in eight steps from under 10 to 1,000 or more, with gray for places without data. Small countries and territories are marked with circles. Source: World Bank, 2023 data.</desc>
+    <desc id="map-desc">A world map shading each country by its population density in people per square kilometer, in eight steps from under 10 to 1,000 or more, with gray for places without data. Small countries and territories are drawn at their true size and appear as you zoom in. Source: World Bank, 2023 data.</desc>
     <defs>
       <pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="hatch-line" x1="0" y1="0" x2="0" y2="5" /></pattern>
       <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%"><feDropShadow dx="1.5" dy="3" stdDeviation="3" class="shadow-flood" /></filter>
@@ -331,25 +395,71 @@ const svg = `<svg class="map-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" ar
       <g class="labels">
       ${labelMarkup}
       </g>
-      <g class="markers">
-      ${markerMarkup}
-      </g>
       ${legendMarkup}
     </g>
   </svg>`;
 
 // ---------- page ----------
 
-// In the full-screen viewer a tap (or click) on a country, or on one of the small circles, shows its density in the bar above the map
-// (touch screens have no hover). A drag does not count as a tap.
-const READOUT_SNIPPET = `(function(){var stage=document.getElementById("map-stage"),help=document.querySelector(".map-viewer-help");if(!stage||!help)return;
-var idle=help.textContent,down=null;
+// In the full-screen viewer a tap (or click) on a country shows its density in the bar above the map (touch screens have no hover);
+// a drag does not count as a tap. Small places have no big shape to hit, so they are picked by distance, with the flat map's rules
+// (app.js, nearestTiny): over open sea or an empty lake, the nearest small place within 22px of its shape; over another country's land
+// only one within 1px of its shape (0.5px if that country is itself under 8px across); on a small place's own shape, that place.
+// The "Most crowded places" rows open the viewer, zoom to the place, ring it and show its density.
+// A row zooms in to ROW_ZOOM screen px per map unit (the viewer's own limit is 450): far enough that a small place is a clear shape, not so far that the
+// coarse coast beside it shows. A place under 12px across at that zoom (Monaco, Gibraltar, Vatican City) goes closer, to 12px or the limit.
+const ROW_ZOOM = 50;
+const READOUT_SNIPPET = `(function(){var V=window.mapViewer,stage=document.getElementById("map-stage"),help=document.querySelector(".map-viewer-help");if(!V||!stage||!help)return;
+var D=${JSON.stringify({ pick: pickAreas, focus })},PICK=D.pick,FOCUS=D.focus,REACH=22,OVER_LAND=1,OVER_TINY=0.5,TINY_LAND=8,MAXPX=70,ROWK=${ROW_ZOOM};
+var idle=help.textContent,down=null,current=null,ringIn=null,ringOut=null,hatch=document.getElementById("hatch"),queued=false,forced=false;
+function say(t){if(t){help.textContent=t;help.classList.add("is-reading")}else{help.textContent=idle;help.classList.remove("is-reading")}}
+function seg(px,py,ax,ay,bx,by){var dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy,t=l?Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/l)):0;return Math.hypot(px-ax-t*dx,py-ay-t*dy)}
+function landAt(x,y){var el=document.elementFromPoint(x,y);return el&&el.closest?el.closest("path.c[data-code]"):null}
+function nearest(x,y,land){var svg=V.svg(),m=svg&&svg.getScreenCTM();if(!m||!m.a)return null;
+ var own=land&&land.dataset.code,reach=REACH;
+ if(land){var r=land.getBoundingClientRect();reach=Math.max(r.width,r.height)<TINY_LAND?OVER_TINY:OVER_LAND}
+ var best=null,bd=Infinity;
+ for(var i=0;i<PICK.length;i++){var a=PICK[i],d=Infinity;
+  if(a[1]*m.a>=MAXPX)continue;
+  if(a[0]===own)d=0;else{var v=a[2],n=v.length/2,px=m.a*v[0]+m.e,py=m.d*v[1]+m.f,fx=px,fy=py;
+   for(var j=1;j<=n;j++){var qx=j<n?m.a*v[2*j]+m.e:fx,qy=j<n?m.d*v[2*j+1]+m.f:fy;d=Math.min(d,seg(x,y,px,py,qx,qy));px=qx;py=qy}}
+  if(d<=reach&&d<bd){best=a[0];bd=d}}
+ return best}
+function ring(){if(!ringIn)return;var f=current&&FOCUS[current];
+ if(f){var k=V.px(),span=f[2]*k,wide=f[2]>8,sz=Math.min(stage.clientWidth,stage.clientHeight);
+  if(span<2*sz&&(forced||span<(f[4]?100:32)||(wide&&f[4]))){var r=wide?f[2]/2*1.08:Math.max(22/k,f[2]/2*1.15);
+   ringIn.style.strokeWidth=(2/k)+"px";ringOut.style.strokeWidth=(4.5/k)+"px";
+   [ringIn,ringOut].forEach(function(c){c.setAttribute("cx",f[0]);c.setAttribute("cy",f[1]);c.setAttribute("r",r);c.style.display=""});return}}
+ ringIn.style.display=ringOut.style.display="none"}
+// At high zoom the page-sized extras get in the way: the shadow under the land, the names (they would be hundreds of px tall), and the hatching (which would be a few huge stripes).
+function tune(){var s=V.svg();if(!s)return;var k=V.px(),f=k>1.2?k:1,d=5/f;s.style.setProperty("--sw",String(0.8/k));
+ s.querySelector(".land").style.filter=k>8?"none":"";s.querySelector(".labels").style.display=k>6?"none":"";
+ if(hatch){hatch.setAttribute("width",d);hatch.setAttribute("height",d);var l=hatch.firstElementChild;l.setAttribute("y2",d);l.style.strokeWidth=(1.1/f)+"px"}
+ ring()}
+V.onshow=function(s){current=null;forced=false;var g=s.querySelector(".labels").parentNode;
+ ringOut=document.createElementNS("http://www.w3.org/2000/svg","circle");ringOut.setAttribute("class","focus-ring out");
+ ringIn=ringOut.cloneNode();ringIn.setAttribute("class","focus-ring in");ringIn.style.display=ringOut.style.display="none";g.appendChild(ringOut);g.appendChild(ringIn)};
+V.onchange=tune;
+V.onhide=function(){current=null;ringIn=ringOut=null;say(null);if(hatch){hatch.setAttribute("width",5);hatch.setAttribute("height",5);var l=hatch.firstElementChild;l.setAttribute("y2",5);l.style.strokeWidth=""}};
+function tipOf(land){var t=land&&land.querySelector("title");return t?t.textContent:null}
 stage.addEventListener("pointerdown",function(e){down=[e.clientX,e.clientY]});
 stage.addEventListener("click",function(e){if(down&&Math.hypot(e.clientX-down[0],e.clientY-down[1])>6)return;
-var el=document.elementFromPoint(e.clientX,e.clientY),p=el&&el.closest("[data-code]"),t=p&&p.querySelector("title");
-if(t){help.textContent=t.textContent;help.classList.add("is-reading")}else{help.textContent=idle;help.classList.remove("is-reading")}});
+ var land=landAt(e.clientX,e.clientY),code=nearest(e.clientX,e.clientY,land)||(land&&land.dataset.code);
+ forced=false;current=code;ring();
+ if(code&&FOCUS[code])say(FOCUS[code][3]);else say(tipOf(land))});
+stage.addEventListener("mousemove",function(e){if(e.buttons||queued)return;queued=true;var x=e.clientX,y=e.clientY;
+ requestAnimationFrame(function(){queued=false;var land=landAt(x,y),code=nearest(x,y,land);
+  stage.title=code&&(!land||land.dataset.code!==code)&&FOCUS[code]?FOCUS[code][3]:""})});
+Array.prototype.forEach.call(document.querySelectorAll(".crowded-row"),function(row){row.addEventListener("click",function(){
+ var code=row.getAttribute("data-code"),f=FOCUS[code];if(!f)return;
+ V.open();forced=true;current=code;var sz=Math.min(stage.clientWidth,stage.clientHeight);
+ V.focus(f[0],f[1],f[2]>8?0.85*sz/f[2]:Math.min(0.45*sz/f[2],Math.max(ROWK,12/f[2])));say(f[3]);ring()})});
 })();`;
 
+const crowdedMarkup = crowded.map((a3, i) => {
+  const d = fmtDensity(valueOf(a3).density);
+  return `<li><button type="button" class="crowded-row" data-code="${a3}" aria-label="${esc(nameOf(a3))}: ${d} people per km². Zoom the map to it."><span class="rk">${i + 1}</span><span class="nm">${esc(nameOf(a3))}</span><span class="dot" aria-hidden="true">·</span><span class="val"><b>${d}</b> per km²</span></button></li>`;
+}).join("\n          ");
 const TITLE = "Population Density Map of the World (People per km²) | Country Facts";
 const DESCRIPTION = "A world map of population density: how many people live per square kilometer in every country, from Mongolia to Bangladesh to Monaco. World Bank data, 2023.";
 const CAPTION = "Source: World Bank (EN.POP.DNST), 2023 data. People per km² of land area. Taiwan, Kosovo and Vatican City from national statistics (2023–2024 figures).";
@@ -385,13 +495,20 @@ ${INDEXABLE ? "" : `  <meta name="robots" content="noindex" />\n`}  <meta proper
     <section class="page-card map-card">
       <a class="map-back" href="../">← All maps</a>
       <h1>Population density of the world</h1>
-      <p class="map-lede">How crowded each country is, in people per square kilometer. The steps are uneven on purpose: density runs from under 1 in Greenland to over 18,000 in Monaco, so each step is roughly two to three times the one before.</p>
+      <p class="map-lede">How crowded each country is, in people per square kilometer. The steps are uneven on purpose: density runs from under 1 in Greenland to over 20,000 in Macao, so each step is roughly two to three times the one before.</p>
       <p class="map-hint"><span class="hint-tap">Tap the map to open it full screen, then pinch to zoom and drag to move. Tap a country for its density.</span><span class="hint-click">Click the map to open it full screen, then scroll to zoom and drag to move. Hover a country for its density.</span></p>
       <button type="button" class="map-open" id="map-open" style="--ratio:${(WIDTH / HEIGHT).toFixed(4)}" aria-label="Open the map full size">
   ${svg}
       </button>
+      <aside class="crowded" aria-labelledby="crowded-title">
+        <h2 id="crowded-title">Most crowded places</h2>
+        <p class="crowded-sub">People per km². <span class="hint-tap">Tap</span><span class="hint-click">Click</span> a place to zoom the map to it.</p>
+        <ol class="crowded-list">
+          ${crowdedMarkup}
+        </ol>
+      </aside>
       <p class="map-caption">${esc(CAPTION)}</p>
-      <p class="map-note">Gray means no data, as for Antarctica, Western Sahara and most small territories. Hatching marks areas whose ownership is unsettled (Kashmir, the Southern Kuril Islands). Circles mark small countries and territories that are too small to see at this scale; they are shaded by their density and pushed apart where crowded. Borders: <a href="https://www.naturalearthdata.com" target="_blank" rel="noopener">Natural Earth</a> (public domain), drawn in the Equal Earth projection, which keeps areas true to size.</p>
+      <p class="map-note">Gray means no data, as for Antarctica, Western Sahara and most small territories. Hatching marks areas whose ownership is unsettled (Kashmir, the Southern Kuril Islands). Small countries and territories are drawn at their true size, so places like Monaco and the Maldives are specks at this scale and show as you zoom in; the list above jumps to the most crowded. Borders: <a href="https://www.naturalearthdata.com" target="_blank" rel="noopener">Natural Earth</a> (public domain), drawn in the Equal Earth projection, which keeps areas true to size.</p>
     </section>
   <div class="map-viewer" id="map-viewer" role="dialog" aria-modal="true" aria-label="Population density map, full size" hidden>
     <div class="map-viewer-bar">
@@ -414,7 +531,7 @@ ${INDEXABLE ? "" : `  <meta name="robots" content="noindex" />\n`}  <meta proper
     </p>
     <p class="footer-feedback"><a href="mailto:hello@countryfacts.app">Send feedback</a></p>
   </footer>
-  <script>${VIEWER_SNIPPET}</script>
+  <script>${viewerSnippet({ maxPxPerUnit: 450 })}</script>
   <script>${READOUT_SNIPPET}</script>
   <script>${TOGGLE_SNIPPET}</script>
 </body>
@@ -424,5 +541,5 @@ fs.mkdirSync(path.join(ROOT, "maps", ID), { recursive: true });
 fs.writeFileSync(path.join(ROOT, "maps", ID, "index.html"), page);
 const counts = BINS.map(() => 0); let nd = 0;
 for (const a3 of shapes.keys()) { const v = valueOf(a3); if (v) counts[binOf(v.density)]++; else nd++; }
-console.log(`maps/${ID}/index.html written (${WIDTH}x${HEIGHT}, ${(page.length / 1024).toFixed(0)} KB); ${shapes.size} shapes, ${markerCount} circles, ${labels.length} names, ${lakes.length} lakes`);
+console.log(`maps/${ID}/index.html written (${WIDTH}x${HEIGHT}, ${(page.length / 1024).toFixed(0)} KB); ${shapes.size} shapes, ${labels.length} names, ${lakes.length} lakes`);
 console.log("shapes per bin:", counts.join(" "), "no data:", nd);

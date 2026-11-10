@@ -1,7 +1,7 @@
 (() => {
   // Content hash of the data and map files, stamped by scripts/stamp-version.mjs.
   // Added to their URLs so a changed file is never served from an old cache.
-  const DATA_VERSION = "05a66927";
+  const DATA_VERSION = "081c43ae";
   const versioned = (url) => `${url}?v=${DATA_VERSION}`;
   const COUNTRIES_URL = versioned("data/countries.json");
   const META_URL = versioned("data/meta.json");
@@ -92,6 +92,17 @@
   const TINY_DOT_RADIUS_PX = 3.5;
   const TINY_PICK_RADIUS_PX = 9;
   const TINY_PICK_MAX_DEG = 3;
+  // Tiny ocean countries and territories (data-island in world-map.svg) are drawn
+  // as nothing but their real shapes, at true size at every zoom, so at world
+  // view they can be specks. Each gets an invisible pick area instead: taps and
+  // clicks within PICK_RADIUS_PX (44px across) of it select it while its shape is
+  // under PICK_MAX_SHAPE_PX on screen; past that the shape itself is big enough
+  // to aim at. When the tap lands on another country's land, the island only
+  // wins within ISLAND_PICK_OVER_LAND_PX, so a coast stays tappable (Malta
+  // beside Sicily, say).
+  const PICK_RADIUS_PX = 22;
+  const PICK_MAX_SHAPE_PX = 70;
+  const ISLAND_PICK_OVER_LAND_PX = 3;
   // Scroll/trackpad zoom feel (flat map only). Each wheel event zooms by
   // exp(delta * WHEEL_ZOOM_SENSITIVITY), so the zoom follows how far you
   // scroll rather than how many events fire. Raise it for faster zoom, lower
@@ -809,24 +820,35 @@
       return shapeSizeDeg.get(circle) ?? Infinity;
     }
 
-    // Finds the countries too small to see at this zoom, shows each as a dot
-    // (sized in pixels, shrunk where dots crowd) and records where to pick them.
+    // Finds the countries too small to see at this zoom: land ones are shown as a
+    // dot (sized in pixels, shrunk where dots crowd), ocean islands are not drawn
+    // at all (their real shapes show) but are picked by proximity. Records where
+    // to pick each one.
     function updateTinyTargets() {
       const ctm = svg.getScreenCTM();
       if (!ctm || !ctm.a) return;
       const tiny = [];
+      const islands = [];
       svg.querySelectorAll("circle.hit-target").forEach((circle) => {
         const sizeDeg = circleShapeDeg(circle);
-        const isTiny = sizeDeg < TINY_SHAPE_MAX_DEG && sizeDeg * ctm.a < TINY_SHAPE_PX;
-        circle.classList.toggle("tiny", isTiny);
-        if (!isTiny) return;
-        tiny.push({
+        const target = {
           circle,
           code: circle.dataset.code,
           name: circle.dataset.name,
           x: ctm.a * Number(circle.getAttribute("cx")) + ctm.e,
           y: ctm.d * Number(circle.getAttribute("cy")) + ctm.f,
-        });
+        };
+        if (circle.dataset.island === "1") {
+          circle.classList.remove("tiny");
+          // (A shape wrapping the map, like Fiji's, counts as a point.)
+          const picked = (Number.isFinite(sizeDeg) ? sizeDeg : 0) * ctm.a < PICK_MAX_SHAPE_PX;
+          circle.classList.toggle("pick-only", picked);
+          if (picked) islands.push({ ...target, island: true, pickPx: PICK_RADIUS_PX });
+          return;
+        }
+        const isTiny = sizeDeg < TINY_SHAPE_MAX_DEG && sizeDeg * ctm.a < TINY_SHAPE_PX;
+        circle.classList.toggle("tiny", isTiny);
+        if (isTiny) tiny.push(target);
       });
       tiny.forEach((t) => {
         let nearest = Infinity;
@@ -839,16 +861,27 @@
         t.circle.setAttribute("r", dotPx / ctm.a);
         t.pickPx = Math.max(dotPx + 1, Math.min(TINY_PICK_RADIUS_PX, capPx));
       });
+      tiny.push(...islands);
       tinyTargets = tiny;
       if (activeTiny) setActiveTiny(tiny.find((t) => t.circle === activeTiny.circle) || null);
     }
 
-    function nearestTiny(clientX, clientY) {
+    function nearestTiny(clientX, clientY, evt) {
+      // The country under the pointer: its shape, or the enlarged invisible circle
+      // drawn over it (both carry the country's name).
+      const landName = evt?.target.closest?.("path.country:not(.no-code), circle.hit-target")?.dataset.name;
       let best = null;
       let bestDist = Infinity;
+      // Positions are re-read here, not kept from when the dots were laid out:
+      // the page can scroll or shift under the map after that.
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return null;
       tinyTargets.forEach((t) => {
+        t.x = ctm.a * Number(t.circle.getAttribute("cx")) + ctm.e;
+        t.y = ctm.d * Number(t.circle.getAttribute("cy")) + ctm.f;
         const dist = Math.hypot(t.x - clientX, t.y - clientY);
-        if (dist <= t.pickPx && dist < bestDist) {
+        const reach = t.island && landName && landName !== t.name ? ISLAND_PICK_OVER_LAND_PX : t.pickPx;
+        if (dist <= reach && dist < bestDist) {
           best = t;
           bestDist = dist;
         }
@@ -890,7 +923,7 @@
     function attachTinyTargetHandlers() {
       container.addEventListener("mousemove", (evt) => {
         if (recentTouch() || container.classList.contains("dragging")) return;
-        setActiveTiny(nearestTiny(evt.clientX, evt.clientY), evt);
+        setActiveTiny(nearestTiny(evt.clientX, evt.clientY, evt), evt);
       });
       container.addEventListener("mouseleave", () => {
         setActiveTiny(null);
@@ -901,7 +934,7 @@
         "click",
         (evt) => {
           if (suppressNextClick || evt.defaultPrevented || evt.target.closest(".map-controls, button")) return;
-          const target = nearestTiny(evt.clientX, evt.clientY);
+          const target = nearestTiny(evt.clientX, evt.clientY, evt);
           if (!target) return;
           evt.stopPropagation();
           evt.preventDefault();

@@ -371,6 +371,14 @@ main {
   pointer-events: none;
 }
 
+/* An ocean island is drawn as its real shape only; while it is too small to
+   aim at, the pointer picks it by proximity (see updateTinyTargets) and its
+   circle stays invisible and takes no events. */
+.map-container circle.hit-target.pick-only {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .map-container svg.snapping {
   cursor: pointer;
 }

@@ -1,7 +1,7 @@
 (() => {
   // Content hash of the data and map files, stamped by scripts/stamp-version.mjs.
   // Added to their URLs so a changed file is never served from an old cache.
-  const DATA_VERSION = "7443dec8";
+  const DATA_VERSION = "ebf12ed3";
   const versioned = (url) => `${url}?v=${DATA_VERSION}`;
   const COUNTRIES_URL = versioned("data/countries.json");
   const META_URL = versioned("data/meta.json");

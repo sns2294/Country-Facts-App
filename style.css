@@ -356,6 +356,20 @@ main {
   pointer-events: none;
 }
 
+/* Areas whose ownership is unsettled (Kashmir, the Southern Kurils): hatched, never clickable. The pattern is in world-map.svg. */
+.map-container path.country.disputed {
+  fill: url(#disputed-hatch);
+}
+
+.map-container .hatch-base {
+  fill: var(--map-nodata);
+}
+
+.map-container .hatch-line {
+  stroke: var(--map-stroke);
+  stroke-width: 0.16;
+}
+
 .map-container circle.hit-target {
   fill: transparent;
   cursor: pointer;

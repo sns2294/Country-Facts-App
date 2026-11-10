@@ -566,6 +566,11 @@ export function splitSvg(svg, { disputed = true } = {}) {
     else svg = svg.replace("</g>\n<g id=\"hit-targets\"", `${shape}\n</g>\n<g id="hit-targets"`);
     added.push({ name: cut.name, small: false, cx, cy });
   }
+  // the hatch the neutral shapes are filled with (colors come from the page's CSS variables, so it follows the theme)
+  if (!svg.includes('id="disputed-hatch"')) {
+    svg = svg.replace(/(<svg[^>]*>)\n/, `$1\n<defs><pattern id="disputed-hatch" width="0.9" height="0.9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="0.9" height="0.9" class="hatch-base"/><line x1="0" y1="0" x2="0" y2="0.9" class="hatch-line"/></pattern></defs>\n`);
+    added.push({ name: "hatch", small: false, cx: 0, cy: 0, pattern: true });
+  }
   return { svg, added };
 }
 

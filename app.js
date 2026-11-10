@@ -93,14 +93,15 @@
   //  - Small land countries (under LAND_SMALL_MAX_DEG, like San Marino or
   //    Luxembourg) only once zoomed in to LAND_PICK_MIN_PX_PER_DEG, where the
   //    larger neighbour no longer needs the taps near them.
-  // The pick area is PICK_RADIUS_PX around the country (44px across). When a tap
-  // lands on another country's land, an island only wins within
-  // ISLAND_PICK_OVER_LAND_PX, so a coast stays tappable (Malta beside Sicily).
+  // The pick area is PICK_RADIUS_PX around the country (44px across) over the
+  // ocean. When a tap lands on another country's land, an island only wins if the
+  // tap is essentially on top of its shape (ISLAND_PICK_OVER_LAND_PX), so land
+  // always selects its own country.
   const PICK_RADIUS_PX = 22;
   const PICK_MAX_SHAPE_PX = 70;
   const LAND_SMALL_MAX_DEG = 2.5;
   const LAND_PICK_MIN_PX_PER_DEG = 40;
-  const ISLAND_PICK_OVER_LAND_PX = 3;
+  const ISLAND_PICK_OVER_LAND_PX = 1;
   // A country whose own shape is under this many px across (Qatar, Israel and
   // Lebanon at world view) has no room to give away: over its land an island only
   // wins when the tap is on the island's own shape.

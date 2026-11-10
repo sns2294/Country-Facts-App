@@ -369,6 +369,22 @@ main {
   pointer-events: none;
 }
 
+/* Vatican City's marker, once zoomed in: a small dot in the land colour with the
+   thin border stroke countries have, not a UI marker. Selected and hovered it takes
+   the normal highlight. */
+.map-container circle.hit-target.pick-only.marker-shown {
+  opacity: 1;
+  fill: var(--map-fill);
+  stroke: var(--map-stroke);
+  stroke-width: 0.8;
+  vector-effect: non-scaling-stroke;
+}
+
+.map-container circle.hit-target.pick-only.marker-shown.selected,
+.map-container circle.hit-target.pick-only.marker-shown.active {
+  fill: var(--map-hover);
+}
+
 .map-container svg.snapping {
   cursor: pointer;
 }

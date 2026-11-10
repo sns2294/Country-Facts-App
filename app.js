@@ -1,7 +1,7 @@
 (() => {
   // Content hash of the data and map files, stamped by scripts/stamp-version.mjs.
   // Added to their URLs so a changed file is never served from an old cache.
-  const DATA_VERSION = "03b10017";
+  const DATA_VERSION = "fd8160b2";
   const versioned = (url) => `${url}?v=${DATA_VERSION}`;
   const COUNTRIES_URL = versioned("data/countries.json");
   const META_URL = versioned("data/meta.json");
@@ -102,6 +102,11 @@
   const LAND_SMALL_MAX_DEG = 2.5;
   const LAND_PICK_MIN_PX_PER_DEG = 40;
   const ISLAND_PICK_OVER_LAND_PX = 1;
+  // Vatican City is the one country with no area in any map data here, so it would be
+  // invisible at every zoom. It alone gets a small marker (data-marker in
+  // world-map.svg): a dot drawn like a tiny country, shown once the view is zoomed in
+  // as far as it takes for San Marino's outline to show (LAND_PICK_MIN_PX_PER_DEG).
+  const MARKER_RADIUS_PX = 2.5;
   // A country whose own shape is under this many px across (Qatar, Israel and
   // Lebanon at world view) has no room to give away: over its land an island only
   // wins when the tap is on the island's own shape.
@@ -857,6 +862,11 @@
           picked = pickOnly && picked && ctm.a >= LAND_PICK_MIN_PX_PER_DEG;
         }
         circle.classList.toggle("pick-only", pickOnly);
+        if (circle.dataset.marker === "1") {
+          const shown = ctm.a >= LAND_PICK_MIN_PX_PER_DEG;
+          circle.classList.toggle("marker-shown", shown);
+          if (shown) circle.setAttribute("r", MARKER_RADIUS_PX / ctm.a);
+        }
         if (!picked) return;
         targets.push({
           circle,

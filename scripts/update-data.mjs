@@ -426,6 +426,9 @@ async function main() {
     log("Downloading world-atlas 10m shapes (for the country pages)…");
     const atlas10m = await download(SOURCES.worldAtlas10m, { json: true });
     if (!atlas10m?.objects?.countries) throw new Error("world-atlas 10m file has no countries object");
+    // The regional and density maps draw the disputed areas themselves, so they read the 10m atlas before they are cut out.
+    splitTopology(atlas10m, { disputed: false });
+    fs.writeFileSync(path.join(STAGING_DIR, "countries-10m-uncut.json"), JSON.stringify(atlas10m));
     splitTopology(atlas10m);
     fs.writeFileSync(path.join(STAGING_DIR, "countries-10m.json"), JSON.stringify(atlas10m));
 

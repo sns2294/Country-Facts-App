@@ -6,7 +6,7 @@
 //
 // Inputs:
 //   data/population-density.json   World Bank EN.POP.DNST (2023) plus three values computed from national statistics (scripts/update-density.mjs)
-//   data/countries-10m.json        Natural Earth borders via world-atlas (public domain); data/countries.json for names and codes
+//   data/countries-10m-uncut.json  Natural Earth borders via world-atlas (public domain; the 10m atlas before the disputed areas are cut out, see split-territories.mjs); data/countries.json for names and codes
 //   map-data/lakes.json, map-data/disputed.json   lakes drawn in the sea color; the unsettled Kashmir and Kuril areas drawn neutral and hatched
 // The color scale is 8 bins (not linear: density runs from under 1 to over 18,000), a multi-hue ramp from pale yellow to deep purple
 // with a separate gray for "no data". The palettes below were checked against the real ocean colors and under deuteranopia and protanopia
@@ -133,7 +133,7 @@ const fmtDensity = (d) => (d < 10 ? d.toFixed(1) : Math.round(d).toLocaleString(
 
 // ---------- shapes ----------
 
-const topology = JSON.parse(read("data/countries-10m.json"));
+const topology = JSON.parse(read("data/countries-10m-uncut.json"));
 const geomsByOwner = new Map();
 for (const g of topology.objects.countries.geometries) {
   let a3 = g.id ? numericToA3.get(String(g.id).padStart(3, "0")) : null;

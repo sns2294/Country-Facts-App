@@ -5,7 +5,7 @@
 //   node scripts/build-maps.mjs africa     writes one region (maps/africa/index.html)
 //
 // Inputs (all free, no live calls):
-//   data/countries-10m.json   Natural Earth borders via world-atlas (public domain)
+//   data/countries-10m-uncut.json   Natural Earth borders via world-atlas (public domain; the 10m atlas before the disputed areas are cut out of their owners)
 //   data/countries.json       names and alpha codes (see README for its sources)
 //   map-data/capitals.json    capital coordinates, Natural Earth "populated places" (public domain)
 // The map is an inline SVG so it follows the site's dark-mode toggle (an <img> SVG could not).
@@ -545,7 +545,7 @@ const COLOURED = [...R.members, ...(R.extraColoured || [])];
 const CONTEXT = R.context;
 Object.assign(capitals, R.extraPoints || {});
 
-const topology = JSON.parse(read("data/countries-10m.json"));
+const topology = JSON.parse(read("data/countries-10m-uncut.json"));
 const rawByOwner = new Map(); // alpha3 -> [polygons], polygon = [ring, ring...]
 const geomsByOwner = new Map();
 for (const g of topology.objects.countries.geometries) {

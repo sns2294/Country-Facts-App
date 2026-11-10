@@ -13,6 +13,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
 // Each territory is found among its parent's parts by where the part sits
 // (bounding-box centre, degrees). `box` is [minLon, maxLon, minLat, maxLat].
@@ -72,6 +73,68 @@ export const MERIDIAN_CUTS = [
 export const PARALLEL_CUTS = [
   { parentNumeric: "504", parent: "MA", intoNumeric: "732", into: "EH", name: "Western Sahara", lat: 27 + 40 / 60 },
 ];
+
+
+// ---- Disputed areas ----
+// The site's rule: internationally recognized borders, and areas whose ownership the UN has not settled are given to no
+// country (drawn neutral: hatched on the flat map and country pages, flat gray on the globe, never clickable). Natural
+// Earth puts every such area inside the country that administers it, so they are cut out of their owners here, in the
+// data every surface reads. (The regional and density maps draw them from map-data/disputed.json instead and read
+// data/countries-10m-uncut.json, the 10m atlas before these cuts, so their pages stay as they were.)
+//
+// Whole polygons of the owner (islands): split out like the territories above and named so shape-rules.js can mark them
+// neutral. `optional` shapes are only in the atlases that draw them (the 10m atlas has Senkaku, Dokdo, the Paracels and
+// Matthew Island; the 50m ones do not).
+export const NEUTRAL_SPLITS = [
+  { parentNumeric: "643", parent: "RU", name: "Southern Kuril Islands", boxes: [[145.3, 148.9, 43.2, 45.8]], neutral: true }, // administered by Russia, claimed by Japan
+  { parentNumeric: "156", parent: "CN", name: "Paracel Islands", boxes: [[110.5, 113, 15.5, 17.2]], neutral: true, optional: true },
+  { parentNumeric: "392", parent: "JP", name: "Senkaku Islands", boxes: [[123, 124.6, 25.4, 26.1]], neutral: true, optional: true },
+  { parentNumeric: "410", parent: "KR", name: "Dokdo", boxes: [[131.7, 132, 37.1, 37.4]], neutral: true, optional: true },
+  { parentNumeric: "540", parent: "NC", name: "Matthew Island", boxes: [[171, 172.3, -22.6, -22]], neutral: true, optional: true }, // administered by France, claimed by Vanuatu
+];
+
+// Kashmir runs through the middle of three countries' outlines, so it is cut out with a polygon difference: the area of
+// map-data/disputed.json's `group` (extract-disputed.mjs) is taken out of each owner and becomes one neutral shape `name`
+// (replacing the old Siachen Glacier shape, which is part of it). Pieces the difference leaves that are smaller than
+// `sliver` square degrees are not land of their own but gaps between two drawings of one border, so they join the neutral shape.
+export const DISPUTED_CUTS = [
+  { name: "Kashmir", group: "kashmir", owners: [{ numeric: "356", alpha2: "IN" }, { numeric: "586", alpha2: "PK" }, { numeric: "156", alpha2: "CN" }], absorb: "Siachen Glacier", sliver: 0.01 },
+];
+
+const nodeRequire = createRequire(import.meta.url);
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+let clippingLib = null;
+const clipping = () => (clippingLib ??= nodeRequire(path.join(SCRIPT_DIR, "../vendor/polygon-clipping.umd.min.js")));
+let topojsonLib = null;
+const topojsonClient = () => (topojsonLib ??= nodeRequire(path.join(SCRIPT_DIR, "../vendor/topojson-client.min.js")));
+const disputedAreas = (group) => JSON.parse(fs.readFileSync(path.join(SCRIPT_DIR, "../map-data/disputed.json"), "utf8")).filter((a) => a.group === group);
+const ringArea = (ring) => { let a = 0; for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) a += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1]; return a / 2; };
+const polyBox = (poly) => { const xs = poly[0].map((p) => p[0]), ys = poly[0].map((p) => p[1]); return [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)]; };
+const boxesOverlap = (a, b) => a[0] <= b[1] && b[0] <= a[1] && a[2] <= b[3] && b[2] <= a[3];
+
+// The core of a disputed cut, on polygons in degrees ([[outer ring, ...holes]]; rings closed). `owners` maps a key to its
+// polygons, `absorbed` is extra land that is part of the area (the Siachen shape). Returns the owners without the area
+// and the neutral shape.
+function cutDisputed(owners, absorbed, cut) {
+  const pc = clipping();
+  const area = disputedAreas(cut.group).flatMap((a) => a.p);
+  const U = pc.union(...area.map((poly) => [poly]));
+  const uBox = [Math.min(...U.map((p) => polyBox(p)[0])), Math.max(...U.map((p) => polyBox(p)[1])), Math.min(...U.map((p) => polyBox(p)[2])), Math.max(...U.map((p) => polyBox(p)[3]))];
+  const land = pc.union(...[...owners.values()].flat().map((poly) => [poly]), ...absorbed.map((poly) => [poly]));
+  const slivers = [];
+  const kept = new Map();
+  for (const [key, polys] of owners) {
+    const out = [];
+    for (const poly of polys) {
+      if (!boxesOverlap(polyBox(poly), uBox) || !pc.intersection([poly], U).length) { out.push(poly); continue; }
+      for (const piece of pc.difference([poly], U)) (Math.abs(ringArea(piece[0])) >= cut.sliver ? out : slivers).push(piece);
+    }
+    kept.set(key, out);
+  }
+  // Holes are dropped: the owners' simplified outlines leave tiny gaps inside the area, which belong to it
+  const neutral = pc.union(pc.intersection(U, land), ...slivers.map((p) => [p])).map((poly) => [poly[0]]);
+  return { kept, neutral, slivers: slivers.length };
+}
 
 // The note shown on a territory's fact card, the country it belongs to (alpha3),
 // a noun phrase for its overview sentence and the possessive used where its
@@ -266,12 +329,59 @@ function cutTopologyByParallel(topology, cut) {
   return true;
 }
 
+
+// Replaces a geometry's outline with polygons in degrees, as new arcs on the topology's grid. Outer rings are clockwise
+// and holes counter-clockwise, as in the Natural Earth data.
+function setGeometryPolygons(topology, geometry, polys) {
+  const [sx, sy] = topology.transform.scale;
+  const [tx, ty] = topology.transform.translate;
+  const arcsOf = [];
+  for (const poly of polys) {
+    const rings = [];
+    for (const [i, ring] of poly.entries()) {
+      let pts = ring.map(([x, y]) => [Math.round((x - tx) / sx), Math.round((y - ty) / sy)]);
+      pts = pts.filter((q, k) => k === 0 || q[0] !== pts[k - 1][0] || q[1] !== pts[k - 1][1]);
+      if (pts.length < 4) { if (i === 0) break; continue; }
+      if (ringArea(pts) < 0 !== (i === 0)) pts.reverse(); // grid y points up like latitude, so a negative shoelace is clockwise
+      topology.arcs.push(pts.map(([x, y], k) => (k ? [x - pts[k - 1][0], y - pts[k - 1][1]] : [x, y])));
+      rings.push([topology.arcs.length - 1]);
+    }
+    if (rings.length) arcsOf.push(rings);
+  }
+  geometry.type = "MultiPolygon";
+  geometry.arcs = arcsOf;
+  return geometry;
+}
+
+function cutTopologyDisputed(topology, cut) {
+  const geometries = topology.objects.countries.geometries;
+  if (geometries.some((g) => g.properties?.name === cut.name)) return false;
+  const topo = topojsonClient();
+  const polysOf = (g) => { const f = topo.feature(topology, g).geometry; return !f ? [] : f.type === "Polygon" ? [f.coordinates] : f.coordinates; };
+  const ownerGeoms = cut.owners.map((o) => {
+    const g = geometries.find((x) => x.id === o.numeric);
+    if (!g) throw new Error(`Owner shape ${o.numeric} for ${cut.name} not found`);
+    return g;
+  });
+  const absorbedGeom = geometries.find((g) => g.properties?.name === cut.absorb);
+  const owners = new Map(ownerGeoms.map((g) => [g, polysOf(g)]));
+  const { kept, neutral } = cutDisputed(owners, absorbedGeom ? polysOf(absorbedGeom) : [], cut);
+  for (const [g, polys] of kept) setGeometryPolygons(topology, g, polys);
+  const shape = absorbedGeom || { type: "MultiPolygon", arcs: [], properties: {} };
+  shape.properties = { name: cut.name };
+  delete shape.id;
+  setGeometryPolygons(topology, shape, neutral);
+  if (!absorbedGeom) geometries.push(shape);
+  return true;
+}
+
 // Mutates the topology; returns the names of the shapes it added.
-export function splitTopology(topology) {
+// With { disputed: false } the disputed areas stay inside their owners (the "uncut" atlas the regional maps read).
+export function splitTopology(topology, { disputed = true } = {}) {
   const geometries = topology.objects.countries.geometries;
   const arcs = decodeArcs(topology);
   const added = [];
-  for (const t of [...TERRITORIES, ...SHAPE_SPLITS]) {
+  for (const t of [...TERRITORIES, ...SHAPE_SPLITS, ...(disputed ? NEUTRAL_SPLITS : [])]) {
     if (geometries.some((g) => g.properties?.name === t.name)) continue;
     const parent = geometries.find((g) => g.id === t.parentNumeric);
     if (!parent) throw new Error(`Parent shape ${t.parentNumeric} for ${t.name} not found`);
@@ -282,7 +392,10 @@ export function splitTopology(topology) {
       const [lon, lat] = polygonCentre(polygon, arcs);
       (inBoxes(t.boxes, lon, lat) ? taken : kept).push(polygon);
     }
-    if (!taken.length) throw new Error(`No part of ${parent.properties.name} found for ${t.name}`);
+    if (!taken.length) {
+      if (t.optional) continue;
+      throw new Error(`No part of ${parent.properties.name} found for ${t.name}`);
+    }
     parent.type = "MultiPolygon";
     parent.arcs = kept;
     // No id: shape-rules.js links the shape to its countries.json entry by name.
@@ -295,6 +408,7 @@ export function splitTopology(topology) {
   }
   for (const cut of MERIDIAN_CUTS) if (cutTopologyByMeridian(topology, cut)) added.push(cut.name);
   for (const cut of PARALLEL_CUTS) if (cutTopologyByParallel(topology, cut)) added.push(cut.name);
+  if (disputed) for (const cut of DISPUTED_CUTS) if (cutTopologyDisputed(topology, cut)) added.push(cut.name);
   return added;
 }
 
@@ -309,11 +423,12 @@ function ringCentre(ring) {
 }
 
 const round2 = (n) => Math.round(n * 100) / 100;
+const round3 = (n) => Math.round(n * 1000) / 1000;
 
 // Returns { svg, added }.
-export function splitSvg(svg) {
+export function splitSvg(svg, { disputed = true } = {}) {
   const added = [];
-  for (const t of [...TERRITORIES, ...SHAPE_SPLITS]) {
+  for (const t of [...TERRITORIES, ...SHAPE_SPLITS, ...(disputed ? NEUTRAL_SPLITS : [])]) {
     if (svg.includes(`data-name="${t.name}"`)) continue;
     const parentRe = new RegExp(`<path id="(${t.parent})" class="([^"]*)" data-name="([^"]*)" data-cx="([^"]*)" data-cy="([^"]*)" d="([^"]*)"/>`, "g");
     let done = false;
@@ -329,11 +444,11 @@ export function splitSvg(svg) {
       const lats = pts.filter((_, i) => i % 2 === 1);
       const tcx = round2((Math.min(...lons) + Math.max(...lons)) / 2);
       const tcy = round2(-(Math.min(...lats) + Math.max(...lats)) / 2);
-      const territory = `<path class="country${t.small ? " small" : ""} no-code" data-name="${t.name}" data-cx="${tcx}" data-cy="${tcy}" d="${taken.join("")}"/>`;
+      const territory = `<path class="country${t.small ? " small" : ""} no-code${t.neutral ? " disputed" : ""}" data-name="${t.name}" data-cx="${tcx}" data-cy="${tcy}" d="${taken.join("")}"/>`;
       added.push({ name: t.name, small: t.small, cx: tcx, cy: tcy });
       return `<path id="${id}" class="${cls}" data-name="${name}" data-cx="${cx}" data-cy="${cy}" d="${kept.join("")}"/>\n${territory}`;
     });
-    if (!done) throw new Error(`No ring of any map path found for ${t.name}`);
+    if (!done && !t.optional) throw new Error(`No ring of any map path found for ${t.name}`);
   }
   for (const cut of MERIDIAN_CUTS) {
     if (svg.includes(`data-name="${cut.name}"`)) continue;
@@ -416,6 +531,40 @@ export function splitSvg(svg) {
       .replace(mp[0], `<path id="${cut.parent}" class="${mp[1]}" data-name="${mp[2]}" data-cx="${mx}" data-cy="${my}" d="${d(north)}"/>`)
       .replace(ip[0], `<path id="${cut.into}" class="${ip[1]}" data-name="${ip[2]}" data-cx="${ix}" data-cy="${iy}" d="${d(merged)}"/>`);
     added.push({ name: cut.name, small: false, cx: ix, cy: iy });
+  }
+  if (disputed) for (const cut of DISPUTED_CUTS) {
+    // Same cut as the topology's, on the map's own rings (x = longitude, y = -latitude): the area comes out of each owner's
+    // path and the old Siachen Glacier path becomes the neutral shape.
+    if (svg.includes(`data-name="${cut.name}"`)) continue;
+    const pathRe = (id) => new RegExp(`<path id="${id}" class="([^"]*)" data-name="([^"]*)" data-cx="([^"]*)" data-cy="([^"]*)" d="([^"]*)"/>`);
+    const toPolys = (d) => d.match(/M[^M]*/g).map((r) => {
+      const ring = r.match(/-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?/g).map((q) => { const [x, y] = q.split(",").map(Number); return [x, -y]; });
+      return [[...ring, ring[0]]];
+    });
+    const owners = new Map();
+    const matches = new Map();
+    for (const o of cut.owners) {
+      const m = svg.match(pathRe(o.alpha2));
+      if (!m) throw new Error(`No map path ${o.alpha2} found for ${cut.name}`);
+      matches.set(o.alpha2, m);
+      owners.set(o.alpha2, toPolys(m[5]));
+    }
+    const siachen = svg.match(new RegExp(`<path class="[^"]*" data-name="${cut.absorb}" data-cx="[^"]*" data-cy="[^"]*" d="([^"]*)"/>`));
+    const { kept, neutral } = cutDisputed(owners, siachen ? toPolys(siachen[1]) : [], cut);
+    const dOf = (polys) => polys.map((poly) => {
+      if (poly.length > 1) throw new Error(`${cut.name}: a map ring has a hole (${poly.slice(1).map((r) => `${r.length} pts at ${r[0]}`).join('; ')}; outer starts ${poly[0][0]})`);
+      return "M" + poly[0].slice(0, -1).map(([x, y]) => `${round3(x)},${round3(-y)}`).join("L") + "Z"; // 3 decimals: at 2, the cut's new vertices can tangle with the old border
+    }).join("");
+    for (const [id, polys] of kept) {
+      const m = matches.get(id);
+      svg = svg.replace(m[0], `<path id="${id}" class="${m[1]}" data-name="${m[2]}" data-cx="${m[3]}" data-cy="${m[4]}" d="${dOf(polys)}"/>`);
+    }
+    const xs = neutral.flatMap((p) => p[0].map((q) => q[0])), ys = neutral.flatMap((p) => p[0].map((q) => q[1]));
+    const cx = round2((Math.min(...xs) + Math.max(...xs)) / 2), cy = round2(-(Math.min(...ys) + Math.max(...ys)) / 2);
+    const shape = `<path class="country no-code disputed" data-name="${cut.name}" data-cx="${cx}" data-cy="${cy}" d="${dOf(neutral)}"/>`;
+    if (siachen) svg = svg.replace(siachen[0], shape);
+    else svg = svg.replace("</g>\n<g id=\"hit-targets\"", `${shape}\n</g>\n<g id="hit-targets"`);
+    added.push({ name: cut.name, small: false, cx, cy });
   }
   return { svg, added };
 }

@@ -31,5 +31,14 @@ window.SHAPE_RULES = {
   Mayotte: { linkTo: "YT" },
   "Svalbard and Jan Mayen": { linkTo: "SJ" },
   "Bonaire, Sint Eustatius and Saba": { linkTo: "BQ" },
-  "Siachen Glacier": { neutral: true }, // claimed by India and Pakistan
+  // Areas whose ownership the UN has not settled are given to no country (rule 3). scripts/split-territories.mjs cuts
+  // them out of the country that administers them, in every atlas and in world-map.svg, under these names.
+  Kashmir: { neutral: true }, // Jammu and Kashmir, Azad Kashmir, Gilgit-Baltistan, Aksai Chin, the Shaksgam Valley, Siachen
+  "Southern Kuril Islands": { neutral: true }, // administered by Russia, claimed by Japan
+  "Paracel Islands": { neutral: true }, // administered by China, claimed by Vietnam and Taiwan (10m atlas only)
+  "Spratly Is.": { neutral: true }, // claimed by China, Taiwan, Vietnam, the Philippines, Malaysia and Brunei (10m atlas only)
+  "Scarborough Reef": { neutral: true }, // claimed by China, the Philippines and Taiwan (10m atlas only)
+  "Senkaku Islands": { neutral: true }, // administered by Japan, claimed by China and Taiwan (10m atlas only)
+  Dokdo: { neutral: true }, // administered by South Korea, claimed by Japan (10m atlas only)
+  "Matthew Island": { neutral: true }, // administered by France, claimed by Vanuatu (10m atlas only)
 };

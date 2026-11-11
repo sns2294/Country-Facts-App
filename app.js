@@ -191,9 +191,17 @@
 
   // Case- and accent-insensitive form used to compare typed names ("turkiye"
   // finds Türkiye, "sao tome" finds São Tomé).
-  // Hyphens, apostrophes and full stops count as spaces ("Timor Leste" finds Timor-Leste).
+  // Hyphens count as spaces ("Timor Leste" finds Timor-Leste); full stops, apostrophes and commas are dropped, so "D.C." is "dc" and
+  // "St. George's" is "st georges".
   function normalizeName(text) {
-    return String(text).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[-\u2010-\u2015'\u2019.]/g, " ").trim().replace(/\s+/g, " ");
+    return String(text)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[.,'\u2019\u02bc]/g, "")
+      .replace(/[-\u2010-\u2015]/g, " ")
+      .trim()
+      .replace(/\s+/g, " ");
   }
 
   // Names people type that the data does not carry, by alpha-2 code. A name two countries share ("Korea") finds both and the
@@ -203,7 +211,7 @@
     VA: ["Vatican", "Holy See", "Vatican City State"],
     MK: ["Macedonia", "FYROM"],
     AE: ["UAE", "Emirates"],
-    CI: ["Ivory"],
+    CI: ["Ivory", "Cote d Ivoire"],
     KP: ["Korea", "DPRK", "Democratic People's Republic of Korea"],
     KR: ["Korea", "ROK", "Republic of Korea"],
     GB: ["Britain", "England", "Scotland", "Wales", "Northern Ireland"],
@@ -2930,10 +2938,11 @@
     datalistEl.innerHTML = values.map((value) => `<option value="${value}"></option>`).join("");
   }
 
+  // A typed answer matches the whole value or, for one with a comma, the part before it ("Washington" for "Washington, D.C.").
   function matchPoolItem(pool, rawValue, key) {
     const value = normalizeName(rawValue);
     if (!value) return null;
-    return pool.find((item) => normalizeName(item[key]) === value) || null;
+    return pool.find((item) => normalizeName(item[key]) === value || normalizeName(String(item[key]).split(",")[0]) === value) || null;
   }
 
   async function startGeographyQuiz(region) {

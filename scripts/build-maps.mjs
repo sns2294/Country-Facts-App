@@ -1700,7 +1700,7 @@ const page = `<!doctype html>
   <meta name="description" content="A colorful political map of ${R.name} with every country, capital city and sea labeled." />
   <link rel="canonical" href="${BASE_URL}/maps/${REGION_ID}/" />
 ${INDEXABLE ? "" : `  <meta name="robots" content="noindex" />\n`}  <meta property="og:url" content="${BASE_URL}/maps/${REGION_ID}/" />
-  ${socialTags({ baseUrl: BASE_URL, siteName: "Country Facts", title: `Map of ${R.name}: Countries, Capitals & Seas | Country Facts`, description: `A colorful political map of ${R.name} with every country, capital city and sea labeled.`, image: `og/map-${REGION_ID}.png` })}
+  ${socialTags({ baseUrl: BASE_URL, siteName: "Country Facts", title: `Map of ${R.name}: Countries, Capitals & Seas | Country Facts`, description: `A colorful political map of ${R.name} with every country, capital city and sea labeled.`, image: `og/map-${REGION_ID}.png`, alt: `A political map of ${R.name} with each country colored differently from its neighbors, under the Country Facts name.` })}
   <link rel="icon" href="${FAVICON}" />
   <link rel="icon" type="image/png" sizes="192x192" href="../../favicon-192.png" />
   <script>${THEME_SNIPPET}</script>

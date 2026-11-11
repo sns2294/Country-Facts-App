@@ -1,6 +1,6 @@
 // Link checker for the generated pages: node scripts/check-links.mjs
 //
-// 1. Resolves every internal href/src on the home page, the country index, the maps hub, every map page and
+// 1. Resolves every internal href/src on the home page, the 404 page, the country index, the maps hub, every map page and
 //    every country page against the files in the repo, the way GitHub Pages would serve them (a folder link
 //    means its index.html), and reports the ones that do not exist.
 // 2. Resolves every absolute URL on the site's own base URL (site.config.json: canonical, og:url, og:image,
@@ -23,6 +23,7 @@ const subdirs = (dir, skip = []) =>
     .map((d) => d.name);
 const pages = [
   "index.html",
+  "404.html",
   "country/index.html",
   "maps/index.html",
   ...subdirs("maps", ["thumbs"]).map((d) => `maps/${d}/index.html`),

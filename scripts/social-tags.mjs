@@ -1,12 +1,13 @@
 // The Open Graph and Twitter card tags every page carries, shared by scripts/build-pages.mjs (the country pages, the hub,
 // index.html) and scripts/build-maps.mjs (the regional maps) so they cannot drift apart.
-// `image` is a path from the site root to a 1200x630 preview image (og/<name>.png).
+// `image` is a path from the site root to a 1200x630 preview image (og/<name>.png); `alt` describes it (og:image:alt, twitter:image:alt).
 export const OG_W = 1200;
 export const OG_H = 630;
 
 const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-export const socialTags = ({ baseUrl, siteName, title, description, image }) => {
+export const socialTags = ({ baseUrl, siteName, title, description, image, alt }) => {
+  if (!alt) throw new Error(`socialTags: ${image} needs alt text`);
   const url = `${baseUrl}/${image}`;
   return [
     `<meta property="og:type" content="website" />`,
@@ -16,9 +17,11 @@ export const socialTags = ({ baseUrl, siteName, title, description, image }) => 
     `<meta property="og:image" content="${url}" />`,
     `<meta property="og:image:width" content="${OG_W}" />`,
     `<meta property="og:image:height" content="${OG_H}" />`,
+    `<meta property="og:image:alt" content="${esc(alt)}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${esc(title)}" />`,
     `<meta name="twitter:description" content="${esc(description)}" />`,
     `<meta name="twitter:image" content="${url}" />`,
+    `<meta name="twitter:image:alt" content="${esc(alt)}" />`,
   ].join("\n  ");
 };

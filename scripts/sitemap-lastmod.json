@@ -1,0 +1,842 @@
+{
+  "country/afghanistan/index.html": {
+    "hash": "af9683ac",
+    "lastmod": "2026-11-11"
+  },
+  "country/albania/index.html": {
+    "hash": "f2681054",
+    "lastmod": "2026-11-11"
+  },
+  "country/algeria/index.html": {
+    "hash": "f332ff1c",
+    "lastmod": "2026-11-11"
+  },
+  "country/andorra/index.html": {
+    "hash": "342edd45",
+    "lastmod": "2026-11-11"
+  },
+  "country/angola/index.html": {
+    "hash": "3a14e85f",
+    "lastmod": "2026-11-11"
+  },
+  "country/antigua-and-barbuda/index.html": {
+    "hash": "f2dba226",
+    "lastmod": "2026-11-11"
+  },
+  "country/argentina/index.html": {
+    "hash": "8d7a4f07",
+    "lastmod": "2026-11-11"
+  },
+  "country/armenia/index.html": {
+    "hash": "cdc39850",
+    "lastmod": "2026-11-11"
+  },
+  "country/australia/index.html": {
+    "hash": "2cdaeb4f",
+    "lastmod": "2026-11-11"
+  },
+  "country/austria/index.html": {
+    "hash": "82ea1092",
+    "lastmod": "2026-11-11"
+  },
+  "country/azerbaijan/index.html": {
+    "hash": "9920d9cb",
+    "lastmod": "2026-11-11"
+  },
+  "country/bahamas/index.html": {
+    "hash": "d480dd00",
+    "lastmod": "2026-11-11"
+  },
+  "country/bahrain/index.html": {
+    "hash": "75599f24",
+    "lastmod": "2026-11-11"
+  },
+  "country/bangladesh/index.html": {
+    "hash": "b536589b",
+    "lastmod": "2026-11-11"
+  },
+  "country/barbados/index.html": {
+    "hash": "1b7aaba7",
+    "lastmod": "2026-11-11"
+  },
+  "country/belarus/index.html": {
+    "hash": "8e66f6a9",
+    "lastmod": "2026-11-11"
+  },
+  "country/belgium/index.html": {
+    "hash": "8e8c56ea",
+    "lastmod": "2026-11-11"
+  },
+  "country/belize/index.html": {
+    "hash": "dc958efe",
+    "lastmod": "2026-11-11"
+  },
+  "country/benin/index.html": {
+    "hash": "7d7a7dd9",
+    "lastmod": "2026-11-11"
+  },
+  "country/bhutan/index.html": {
+    "hash": "f3ba3051",
+    "lastmod": "2026-11-11"
+  },
+  "country/bolivia/index.html": {
+    "hash": "d50dcbc1",
+    "lastmod": "2026-11-11"
+  },
+  "country/bosnia-and-herzegovina/index.html": {
+    "hash": "2b5bbecd",
+    "lastmod": "2026-11-11"
+  },
+  "country/botswana/index.html": {
+    "hash": "606e7e29",
+    "lastmod": "2026-11-11"
+  },
+  "country/brazil/index.html": {
+    "hash": "079632a4",
+    "lastmod": "2026-11-11"
+  },
+  "country/brunei/index.html": {
+    "hash": "3b30d12e",
+    "lastmod": "2026-11-11"
+  },
+  "country/bulgaria/index.html": {
+    "hash": "4841f69b",
+    "lastmod": "2026-11-11"
+  },
+  "country/burkina-faso/index.html": {
+    "hash": "d7524348",
+    "lastmod": "2026-11-11"
+  },
+  "country/burundi/index.html": {
+    "hash": "dac7509e",
+    "lastmod": "2026-11-11"
+  },
+  "country/cambodia/index.html": {
+    "hash": "2cd31263",
+    "lastmod": "2026-11-11"
+  },
+  "country/cameroon/index.html": {
+    "hash": "9e77f4c6",
+    "lastmod": "2026-11-11"
+  },
+  "country/canada/index.html": {
+    "hash": "bb043fa8",
+    "lastmod": "2026-11-11"
+  },
+  "country/cape-verde/index.html": {
+    "hash": "35817364",
+    "lastmod": "2026-11-11"
+  },
+  "country/central-african-republic/index.html": {
+    "hash": "d016b260",
+    "lastmod": "2026-11-11"
+  },
+  "country/chad/index.html": {
+    "hash": "20f3d787",
+    "lastmod": "2026-11-11"
+  },
+  "country/chile/index.html": {
+    "hash": "9ba1fb07",
+    "lastmod": "2026-11-11"
+  },
+  "country/china/index.html": {
+    "hash": "eb67c5c5",
+    "lastmod": "2026-11-11"
+  },
+  "country/colombia/index.html": {
+    "hash": "c7e8eb28",
+    "lastmod": "2026-11-11"
+  },
+  "country/comoros/index.html": {
+    "hash": "834823ea",
+    "lastmod": "2026-11-11"
+  },
+  "country/costa-rica/index.html": {
+    "hash": "09853cc7",
+    "lastmod": "2026-11-11"
+  },
+  "country/croatia/index.html": {
+    "hash": "c365ac8a",
+    "lastmod": "2026-11-11"
+  },
+  "country/cuba/index.html": {
+    "hash": "b0928df6",
+    "lastmod": "2026-11-11"
+  },
+  "country/cyprus/index.html": {
+    "hash": "62b00ac0",
+    "lastmod": "2026-11-11"
+  },
+  "country/czech-republic/index.html": {
+    "hash": "12f5262d",
+    "lastmod": "2026-11-11"
+  },
+  "country/denmark/index.html": {
+    "hash": "7958292e",
+    "lastmod": "2026-11-11"
+  },
+  "country/djibouti/index.html": {
+    "hash": "da5b2439",
+    "lastmod": "2026-11-11"
+  },
+  "country/dominica/index.html": {
+    "hash": "0bdb9d41",
+    "lastmod": "2026-11-11"
+  },
+  "country/dominican-republic/index.html": {
+    "hash": "2fbe0dd6",
+    "lastmod": "2026-11-11"
+  },
+  "country/dr-congo/index.html": {
+    "hash": "26611ff5",
+    "lastmod": "2026-11-11"
+  },
+  "country/ecuador/index.html": {
+    "hash": "19a383db",
+    "lastmod": "2026-11-11"
+  },
+  "country/egypt/index.html": {
+    "hash": "07afbdf0",
+    "lastmod": "2026-11-11"
+  },
+  "country/el-salvador/index.html": {
+    "hash": "4f4f4a27",
+    "lastmod": "2026-11-11"
+  },
+  "country/equatorial-guinea/index.html": {
+    "hash": "f34dc823",
+    "lastmod": "2026-11-11"
+  },
+  "country/eritrea/index.html": {
+    "hash": "8f3e359c",
+    "lastmod": "2026-11-11"
+  },
+  "country/estonia/index.html": {
+    "hash": "a8161dab",
+    "lastmod": "2026-11-11"
+  },
+  "country/eswatini/index.html": {
+    "hash": "77d38990",
+    "lastmod": "2026-11-11"
+  },
+  "country/ethiopia/index.html": {
+    "hash": "d427e9dd",
+    "lastmod": "2026-11-11"
+  },
+  "country/fiji/index.html": {
+    "hash": "c6e41ec0",
+    "lastmod": "2026-11-11"
+  },
+  "country/finland/index.html": {
+    "hash": "adcfd938",
+    "lastmod": "2026-11-11"
+  },
+  "country/france/index.html": {
+    "hash": "f5a4b45f",
+    "lastmod": "2026-11-11"
+  },
+  "country/gabon/index.html": {
+    "hash": "68b8f809",
+    "lastmod": "2026-11-11"
+  },
+  "country/gambia/index.html": {
+    "hash": "2bcbf2b5",
+    "lastmod": "2026-11-11"
+  },
+  "country/georgia/index.html": {
+    "hash": "d14c841f",
+    "lastmod": "2026-11-11"
+  },
+  "country/germany/index.html": {
+    "hash": "ad5418b6",
+    "lastmod": "2026-11-11"
+  },
+  "country/ghana/index.html": {
+    "hash": "a898bb5b",
+    "lastmod": "2026-11-11"
+  },
+  "country/greece/index.html": {
+    "hash": "a6dfcba6",
+    "lastmod": "2026-11-11"
+  },
+  "country/grenada/index.html": {
+    "hash": "be796de8",
+    "lastmod": "2026-11-11"
+  },
+  "country/guatemala/index.html": {
+    "hash": "c834ad17",
+    "lastmod": "2026-11-11"
+  },
+  "country/guinea-bissau/index.html": {
+    "hash": "635d6c07",
+    "lastmod": "2026-11-11"
+  },
+  "country/guinea/index.html": {
+    "hash": "9ca552a4",
+    "lastmod": "2026-11-11"
+  },
+  "country/guyana/index.html": {
+    "hash": "1e5281b7",
+    "lastmod": "2026-11-11"
+  },
+  "country/haiti/index.html": {
+    "hash": "29e27637",
+    "lastmod": "2026-11-11"
+  },
+  "country/honduras/index.html": {
+    "hash": "f0e10a3b",
+    "lastmod": "2026-11-11"
+  },
+  "country/hungary/index.html": {
+    "hash": "b6b86e17",
+    "lastmod": "2026-11-11"
+  },
+  "country/iceland/index.html": {
+    "hash": "c9efb898",
+    "lastmod": "2026-11-11"
+  },
+  "country/index.html": {
+    "hash": "efde1a40",
+    "lastmod": "2026-11-11"
+  },
+  "country/india/index.html": {
+    "hash": "13e03a8e",
+    "lastmod": "2026-11-11"
+  },
+  "country/indonesia/index.html": {
+    "hash": "ebc3bd3d",
+    "lastmod": "2026-11-11"
+  },
+  "country/iran/index.html": {
+    "hash": "8069a193",
+    "lastmod": "2026-11-11"
+  },
+  "country/iraq/index.html": {
+    "hash": "5c130039",
+    "lastmod": "2026-11-11"
+  },
+  "country/ireland/index.html": {
+    "hash": "2638d3a2",
+    "lastmod": "2026-11-11"
+  },
+  "country/israel/index.html": {
+    "hash": "ceb59fda",
+    "lastmod": "2026-11-11"
+  },
+  "country/italy/index.html": {
+    "hash": "b61db81c",
+    "lastmod": "2026-11-11"
+  },
+  "country/ivory-coast/index.html": {
+    "hash": "75533c64",
+    "lastmod": "2026-11-11"
+  },
+  "country/jamaica/index.html": {
+    "hash": "4b465065",
+    "lastmod": "2026-11-11"
+  },
+  "country/japan/index.html": {
+    "hash": "2b45f3de",
+    "lastmod": "2026-11-11"
+  },
+  "country/jordan/index.html": {
+    "hash": "cb6f1d2a",
+    "lastmod": "2026-11-11"
+  },
+  "country/kazakhstan/index.html": {
+    "hash": "b1bde33f",
+    "lastmod": "2026-11-11"
+  },
+  "country/kenya/index.html": {
+    "hash": "89e816df",
+    "lastmod": "2026-11-11"
+  },
+  "country/kiribati/index.html": {
+    "hash": "bc4a3b83",
+    "lastmod": "2026-11-11"
+  },
+  "country/kuwait/index.html": {
+    "hash": "164418cb",
+    "lastmod": "2026-11-11"
+  },
+  "country/kyrgyzstan/index.html": {
+    "hash": "aafcefaa",
+    "lastmod": "2026-11-11"
+  },
+  "country/laos/index.html": {
+    "hash": "5b03f11a",
+    "lastmod": "2026-11-11"
+  },
+  "country/latvia/index.html": {
+    "hash": "20e545bf",
+    "lastmod": "2026-11-11"
+  },
+  "country/lebanon/index.html": {
+    "hash": "2532ba03",
+    "lastmod": "2026-11-11"
+  },
+  "country/lesotho/index.html": {
+    "hash": "0a5f0bb4",
+    "lastmod": "2026-11-11"
+  },
+  "country/liberia/index.html": {
+    "hash": "f68cbd32",
+    "lastmod": "2026-11-11"
+  },
+  "country/libya/index.html": {
+    "hash": "b4ca8a09",
+    "lastmod": "2026-11-11"
+  },
+  "country/liechtenstein/index.html": {
+    "hash": "1c92118b",
+    "lastmod": "2026-11-11"
+  },
+  "country/lithuania/index.html": {
+    "hash": "0a10f2ab",
+    "lastmod": "2026-11-11"
+  },
+  "country/luxembourg/index.html": {
+    "hash": "539b50c3",
+    "lastmod": "2026-11-11"
+  },
+  "country/madagascar/index.html": {
+    "hash": "ffb7c87d",
+    "lastmod": "2026-11-11"
+  },
+  "country/malawi/index.html": {
+    "hash": "03ad056f",
+    "lastmod": "2026-11-11"
+  },
+  "country/malaysia/index.html": {
+    "hash": "99e9efb1",
+    "lastmod": "2026-11-11"
+  },
+  "country/maldives/index.html": {
+    "hash": "36c57f16",
+    "lastmod": "2026-11-11"
+  },
+  "country/mali/index.html": {
+    "hash": "f0027623",
+    "lastmod": "2026-11-11"
+  },
+  "country/malta/index.html": {
+    "hash": "9c0eeea0",
+    "lastmod": "2026-11-11"
+  },
+  "country/marshall-islands/index.html": {
+    "hash": "0e79173f",
+    "lastmod": "2026-11-11"
+  },
+  "country/mauritania/index.html": {
+    "hash": "e20bf1f1",
+    "lastmod": "2026-11-11"
+  },
+  "country/mauritius/index.html": {
+    "hash": "7ba7753b",
+    "lastmod": "2026-11-11"
+  },
+  "country/mexico/index.html": {
+    "hash": "6c892eb5",
+    "lastmod": "2026-11-11"
+  },
+  "country/micronesia/index.html": {
+    "hash": "b8bf2abf",
+    "lastmod": "2026-11-11"
+  },
+  "country/moldova/index.html": {
+    "hash": "d025ceea",
+    "lastmod": "2026-11-11"
+  },
+  "country/monaco/index.html": {
+    "hash": "9e2b8a7f",
+    "lastmod": "2026-11-11"
+  },
+  "country/mongolia/index.html": {
+    "hash": "98839b7d",
+    "lastmod": "2026-11-11"
+  },
+  "country/montenegro/index.html": {
+    "hash": "969c6c19",
+    "lastmod": "2026-11-11"
+  },
+  "country/morocco/index.html": {
+    "hash": "fee26e06",
+    "lastmod": "2026-11-11"
+  },
+  "country/mozambique/index.html": {
+    "hash": "41e7bac5",
+    "lastmod": "2026-11-11"
+  },
+  "country/myanmar/index.html": {
+    "hash": "a53f82c9",
+    "lastmod": "2026-11-11"
+  },
+  "country/namibia/index.html": {
+    "hash": "d1e540b1",
+    "lastmod": "2026-11-11"
+  },
+  "country/nauru/index.html": {
+    "hash": "24c2c5a4",
+    "lastmod": "2026-11-11"
+  },
+  "country/nepal/index.html": {
+    "hash": "7f8ded40",
+    "lastmod": "2026-11-11"
+  },
+  "country/netherlands/index.html": {
+    "hash": "9fa67502",
+    "lastmod": "2026-11-11"
+  },
+  "country/new-zealand/index.html": {
+    "hash": "3d44165d",
+    "lastmod": "2026-11-11"
+  },
+  "country/nicaragua/index.html": {
+    "hash": "71abaa41",
+    "lastmod": "2026-11-11"
+  },
+  "country/niger/index.html": {
+    "hash": "1b1feac8",
+    "lastmod": "2026-11-11"
+  },
+  "country/nigeria/index.html": {
+    "hash": "9eb74067",
+    "lastmod": "2026-11-11"
+  },
+  "country/north-korea/index.html": {
+    "hash": "8188684c",
+    "lastmod": "2026-11-11"
+  },
+  "country/north-macedonia/index.html": {
+    "hash": "a0618cd4",
+    "lastmod": "2026-11-11"
+  },
+  "country/norway/index.html": {
+    "hash": "6023c942",
+    "lastmod": "2026-11-11"
+  },
+  "country/oman/index.html": {
+    "hash": "10a90a43",
+    "lastmod": "2026-11-11"
+  },
+  "country/pakistan/index.html": {
+    "hash": "899ae0ef",
+    "lastmod": "2026-11-11"
+  },
+  "country/palau/index.html": {
+    "hash": "6d9a7a77",
+    "lastmod": "2026-11-11"
+  },
+  "country/palestine/index.html": {
+    "hash": "1e31c865",
+    "lastmod": "2026-11-11"
+  },
+  "country/panama/index.html": {
+    "hash": "c7661fb6",
+    "lastmod": "2026-11-11"
+  },
+  "country/papua-new-guinea/index.html": {
+    "hash": "94ec35e7",
+    "lastmod": "2026-11-11"
+  },
+  "country/paraguay/index.html": {
+    "hash": "60b0ef68",
+    "lastmod": "2026-11-11"
+  },
+  "country/peru/index.html": {
+    "hash": "ffe852b9",
+    "lastmod": "2026-11-11"
+  },
+  "country/philippines/index.html": {
+    "hash": "6d917d3b",
+    "lastmod": "2026-11-11"
+  },
+  "country/poland/index.html": {
+    "hash": "1c03114e",
+    "lastmod": "2026-11-11"
+  },
+  "country/portugal/index.html": {
+    "hash": "ed52bddf",
+    "lastmod": "2026-11-11"
+  },
+  "country/qatar/index.html": {
+    "hash": "20959701",
+    "lastmod": "2026-11-11"
+  },
+  "country/republic-of-the-congo/index.html": {
+    "hash": "27b7b0d7",
+    "lastmod": "2026-11-11"
+  },
+  "country/romania/index.html": {
+    "hash": "efa40736",
+    "lastmod": "2026-11-11"
+  },
+  "country/russia/index.html": {
+    "hash": "29080793",
+    "lastmod": "2026-11-11"
+  },
+  "country/rwanda/index.html": {
+    "hash": "a7fdb4a2",
+    "lastmod": "2026-11-11"
+  },
+  "country/saint-kitts-and-nevis/index.html": {
+    "hash": "7815996b",
+    "lastmod": "2026-11-11"
+  },
+  "country/saint-lucia/index.html": {
+    "hash": "3ef19a2f",
+    "lastmod": "2026-11-11"
+  },
+  "country/saint-vincent-and-the-grenadines/index.html": {
+    "hash": "b2908d16",
+    "lastmod": "2026-11-11"
+  },
+  "country/samoa/index.html": {
+    "hash": "36cb46d4",
+    "lastmod": "2026-11-11"
+  },
+  "country/san-marino/index.html": {
+    "hash": "86c84c62",
+    "lastmod": "2026-11-11"
+  },
+  "country/sao-tome-and-principe/index.html": {
+    "hash": "90aeb020",
+    "lastmod": "2026-11-11"
+  },
+  "country/saudi-arabia/index.html": {
+    "hash": "ad1ac610",
+    "lastmod": "2026-11-11"
+  },
+  "country/senegal/index.html": {
+    "hash": "6db6a7c5",
+    "lastmod": "2026-11-11"
+  },
+  "country/serbia/index.html": {
+    "hash": "81a080bc",
+    "lastmod": "2026-11-11"
+  },
+  "country/seychelles/index.html": {
+    "hash": "fa414e40",
+    "lastmod": "2026-11-11"
+  },
+  "country/sierra-leone/index.html": {
+    "hash": "060daf51",
+    "lastmod": "2026-11-11"
+  },
+  "country/singapore/index.html": {
+    "hash": "eb02522a",
+    "lastmod": "2026-11-11"
+  },
+  "country/slovakia/index.html": {
+    "hash": "7cb1af3c",
+    "lastmod": "2026-11-11"
+  },
+  "country/slovenia/index.html": {
+    "hash": "2825783b",
+    "lastmod": "2026-11-11"
+  },
+  "country/solomon-islands/index.html": {
+    "hash": "f2bb6cdc",
+    "lastmod": "2026-11-11"
+  },
+  "country/somalia/index.html": {
+    "hash": "5b35501b",
+    "lastmod": "2026-11-11"
+  },
+  "country/south-africa/index.html": {
+    "hash": "8024b6d0",
+    "lastmod": "2026-11-11"
+  },
+  "country/south-korea/index.html": {
+    "hash": "4488c417",
+    "lastmod": "2026-11-11"
+  },
+  "country/south-sudan/index.html": {
+    "hash": "0e16d40d",
+    "lastmod": "2026-11-11"
+  },
+  "country/spain/index.html": {
+    "hash": "14ef52dd",
+    "lastmod": "2026-11-11"
+  },
+  "country/sri-lanka/index.html": {
+    "hash": "c544a774",
+    "lastmod": "2026-11-11"
+  },
+  "country/sudan/index.html": {
+    "hash": "d976b720",
+    "lastmod": "2026-11-11"
+  },
+  "country/suriname/index.html": {
+    "hash": "97f72947",
+    "lastmod": "2026-11-11"
+  },
+  "country/sweden/index.html": {
+    "hash": "319bc270",
+    "lastmod": "2026-11-11"
+  },
+  "country/switzerland/index.html": {
+    "hash": "a1244fc1",
+    "lastmod": "2026-11-11"
+  },
+  "country/syria/index.html": {
+    "hash": "cc2e5f21",
+    "lastmod": "2026-11-11"
+  },
+  "country/tajikistan/index.html": {
+    "hash": "3ffe6c77",
+    "lastmod": "2026-11-11"
+  },
+  "country/tanzania/index.html": {
+    "hash": "779a1cd0",
+    "lastmod": "2026-11-11"
+  },
+  "country/thailand/index.html": {
+    "hash": "9a78eab9",
+    "lastmod": "2026-11-11"
+  },
+  "country/timor-leste/index.html": {
+    "hash": "96a6883d",
+    "lastmod": "2026-11-11"
+  },
+  "country/togo/index.html": {
+    "hash": "4fc50b92",
+    "lastmod": "2026-11-11"
+  },
+  "country/tonga/index.html": {
+    "hash": "0129b070",
+    "lastmod": "2026-11-11"
+  },
+  "country/trinidad-and-tobago/index.html": {
+    "hash": "d1a527e6",
+    "lastmod": "2026-11-11"
+  },
+  "country/tunisia/index.html": {
+    "hash": "d4b8726c",
+    "lastmod": "2026-11-11"
+  },
+  "country/turkey/index.html": {
+    "hash": "e9d6d40f",
+    "lastmod": "2026-11-11"
+  },
+  "country/turkmenistan/index.html": {
+    "hash": "ecc138b7",
+    "lastmod": "2026-11-11"
+  },
+  "country/tuvalu/index.html": {
+    "hash": "5f0928a4",
+    "lastmod": "2026-11-11"
+  },
+  "country/uganda/index.html": {
+    "hash": "6956a7fb",
+    "lastmod": "2026-11-11"
+  },
+  "country/ukraine/index.html": {
+    "hash": "97b5aaa8",
+    "lastmod": "2026-11-11"
+  },
+  "country/united-arab-emirates/index.html": {
+    "hash": "b53eba35",
+    "lastmod": "2026-11-11"
+  },
+  "country/united-kingdom/index.html": {
+    "hash": "3c0b27b4",
+    "lastmod": "2026-11-11"
+  },
+  "country/united-states/index.html": {
+    "hash": "79f7ac39",
+    "lastmod": "2026-11-11"
+  },
+  "country/uruguay/index.html": {
+    "hash": "b711ec1b",
+    "lastmod": "2026-11-11"
+  },
+  "country/uzbekistan/index.html": {
+    "hash": "22781ce8",
+    "lastmod": "2026-11-11"
+  },
+  "country/vanuatu/index.html": {
+    "hash": "162834fb",
+    "lastmod": "2026-11-11"
+  },
+  "country/vatican-city/index.html": {
+    "hash": "c11c23af",
+    "lastmod": "2026-11-11"
+  },
+  "country/venezuela/index.html": {
+    "hash": "9f26af4e",
+    "lastmod": "2026-11-11"
+  },
+  "country/vietnam/index.html": {
+    "hash": "0eebcb23",
+    "lastmod": "2026-11-11"
+  },
+  "country/yemen/index.html": {
+    "hash": "a59c7200",
+    "lastmod": "2026-11-11"
+  },
+  "country/zambia/index.html": {
+    "hash": "75a0a967",
+    "lastmod": "2026-11-11"
+  },
+  "country/zimbabwe/index.html": {
+    "hash": "02c34145",
+    "lastmod": "2026-11-11"
+  },
+  "index.html": {
+    "hash": "f80d91bf",
+    "lastmod": "2026-11-11"
+  },
+  "maps/africa/index.html": {
+    "hash": "aa939986",
+    "lastmod": "2026-11-11"
+  },
+  "maps/central-america-caribbean/index.html": {
+    "hash": "ce518c1b",
+    "lastmod": "2026-11-11"
+  },
+  "maps/central-asia/index.html": {
+    "hash": "2334bfaf",
+    "lastmod": "2026-11-11"
+  },
+  "maps/east-asia/index.html": {
+    "hash": "f0a7812d",
+    "lastmod": "2026-11-11"
+  },
+  "maps/europe/index.html": {
+    "hash": "b84b2347",
+    "lastmod": "2026-11-11"
+  },
+  "maps/index.html": {
+    "hash": "1d47cb75",
+    "lastmod": "2026-11-11"
+  },
+  "maps/middle-east/index.html": {
+    "hash": "6fa0eead",
+    "lastmod": "2026-11-11"
+  },
+  "maps/north-america/index.html": {
+    "hash": "f24a13de",
+    "lastmod": "2026-11-11"
+  },
+  "maps/oceania/index.html": {
+    "hash": "b8f7097a",
+    "lastmod": "2026-11-11"
+  },
+  "maps/population-density/index.html": {
+    "hash": "624913d7",
+    "lastmod": "2026-11-11"
+  },
+  "maps/south-america/index.html": {
+    "hash": "76f139ed",
+    "lastmod": "2026-11-11"
+  },
+  "maps/south-asia/index.html": {
+    "hash": "3385f5d0",
+    "lastmod": "2026-11-11"
+  },
+  "maps/southeast-asia/index.html": {
+    "hash": "827ec66d",
+    "lastmod": "2026-11-11"
+  }
+}

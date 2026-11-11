@@ -461,3 +461,15 @@ a.hub-card .hub-card-title::after {
 .country-page .map-link-or {
   color: var(--text-muted);
 }
+
+/* The 404 page: the three ways out, in a row that wraps on a phone. */
+.not-found-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.2rem;
+}
+
+.not-found-links a {
+  text-decoration: none;
+}

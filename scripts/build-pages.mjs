@@ -752,7 +752,8 @@ const CHROME = process.env.CHROME_PATH || ["/Applications/Google Chrome.app/Cont
 const OG_ONLY = (process.argv.find((a) => a.startsWith("--og-only=")) || "").slice(10).split(",").filter(Boolean);
 const NO_OG = process.argv.includes("--no-og");
 
-const socialTags = ({ title, description, image }) => socialTagsFor({ baseUrl: BASE_URL, siteName: SITE_NAME, title, description, image });
+const socialTags = ({ title, description, image, alt }) => socialTagsFor({ baseUrl: BASE_URL, siteName: SITE_NAME, title, description, image, alt });
+const HOME_CARD_ALT = "Country Facts: a globe showing Europe, Africa and Asia with every country outlined, beside the line \"Explore countries, browse the map, and test what you know.\"";
 
 const OG_CSS = `
 *{box-sizing:border-box;margin:0}
@@ -955,8 +956,10 @@ const siteNav = (up, current) => `<nav class="section-nav" aria-label="Site sect
       <a href="${up}maps/"${current === "maps" ? ' aria-current="page"' : ""}>Maps</a>
     </nav>`;
 
-function shell({ depth, title, description, canonical, jsonLd, body, ogImage }) {
-  const up = "../".repeat(depth);
+// `absolute` is for the 404 page, which GitHub Pages serves at any address: its links and files are written from the site root URL, it has no
+// canonical address, and it is always noindex.
+function shell({ depth, title, description, canonical, jsonLd, body, ogImage, ogAlt, absolute = false }) {
+  const up = absolute ? `${BASE_URL}/` : "../".repeat(depth);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -964,13 +967,12 @@ function shell({ depth, title, description, canonical, jsonLd, body, ogImage }) 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(description)}" />
-  <link rel="canonical" href="${esc(canonical)}" />${INDEXABLE ? "" : '\n  <meta name="robots" content="noindex" />'}
+${canonical ? `  <link rel="canonical" href="${esc(canonical)}" />` : ""}${INDEXABLE && !absolute ? "" : '\n  <meta name="robots" content="noindex" />'}
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="${SITE_NAME}" />
   <meta property="og:title" content="${esc(title)}" />
   <meta property="og:description" content="${esc(description)}" />
-  <meta property="og:url" content="${esc(canonical)}" />
-${socialTags({ title, description, image: ogImage })}
+${canonical ? `  <meta property="og:url" content="${esc(canonical)}" />\n` : ""}${socialTags({ title, description, image: ogImage, alt: ogAlt })}
   <link rel="icon" href="${FAVICON}" />
   <link rel="icon" type="image/png" sizes="192x192" href="${up}favicon-192.png" />
   <link rel="apple-touch-icon" href="${up}apple-touch-icon.png" />
@@ -1113,7 +1115,7 @@ function countryPage(country) {
       ],
     },
   ];
-  return shell({ depth: 2, title, description, canonical, jsonLd, body, ogImage: `og/${slug}.png` });
+  return shell({ depth: 2, title, description, canonical, jsonLd, body, ogImage: `og/${slug}.png`, ogAlt: `The flag of ${T.nameWithThe(country)} beside a map showing where ${T.nameWithThe(country)} is, under the Country Facts name.` });
 }
 
 function indexPage() {
@@ -1144,7 +1146,7 @@ function indexPage() {
     ${jumps}
     ${sections}
   </main>`;
-  return shell({ depth: 1, title, description, canonical, body, ogImage: "og/home.png" });
+  return shell({ depth: 1, title, description, canonical, body, ogImage: "og/home.png", ogAlt: HOME_CARD_ALT });
 }
 
 // The "More maps" hub (/maps/): a card for each regional map, then one for each themed map such as population density (thumbnails
@@ -1184,14 +1186,49 @@ function mapsHubPage() {
       ],
     },
   ];
-  return shell({ depth: 1, title, description, canonical, jsonLd, body, ogImage: "og/home.png" });
+  return shell({ depth: 1, title, description, canonical, jsonLd, body, ogImage: "og/home.png", ogAlt: HOME_CARD_ALT });
 }
 
+
+// GitHub Pages serves 404.html for any address that is not a page. It can be shown at any depth, so everything it links is absolute.
+function notFoundPage() {
+  const body = `  <main class="country-page not-found">
+    ${siteNav(`${BASE_URL}/`, null)}
+    <h1 class="index-title">Page not found</h1>
+    <p class="hub-intro">There is no page at this address. It may have moved, or the link may have a typo. Try one of these instead:</p>
+    <div class="not-found-links">
+      <a class="quiz-btn-primary" href="${BASE_URL}/">Country Facts home</a>
+      <a class="quiz-btn-secondary" href="${BASE_URL}/maps/">Browse the maps</a>
+      <a class="quiz-btn-secondary" href="${BASE_URL}/country/">All countries</a>
+    </div>
+  </main>`;
+  return shell({ depth: 0, absolute: true, title: `Page not found | ${SITE_NAME}`, description: "That page doesn't exist. Go to the Country Facts home page, the maps, or the list of countries.", canonical: null, body, ogImage: "og/home.png", ogAlt: HOME_CARD_ALT });
+}
+
+// lastmod is the day a page's content last changed: scripts/sitemap-lastmod.json remembers each page's hash and the day it was first seen with that
+// content, so rebuilding unchanged pages keeps their date and a changed page gets today's.
+const LASTMOD_FILE = "scripts/sitemap-lastmod.json";
+let lastmodManifest = null;
 function sitemap() {
-  const urls = [`${BASE_URL}/`, `${BASE_URL}/country/`, `${BASE_URL}/maps/`, ...ALL_MAPS.map((m) => `${BASE_URL}/maps/${m.id}/`), ...built.map((c) => `${BASE_URL}/country/${slugOf.get(c.alpha3Code)}/`)];
+  const pages = [
+    ["", "index.html"],
+    ["country/", "country/index.html"],
+    ["maps/", "maps/index.html"],
+    ...ALL_MAPS.map((m) => [`maps/${m.id}/`, `maps/${m.id}/index.html`]),
+    ...built.map((c) => [`country/${slugOf.get(c.alpha3Code)}/`, `country/${slugOf.get(c.alpha3Code)}/index.html`]),
+  ];
+  const before = fs.existsSync(path.join(ROOT, LASTMOD_FILE)) ? JSON.parse(read(LASTMOD_FILE)) : {};
+  const today = new Date().toISOString().slice(0, 10);
+  const next = {};
+  const urls = pages.map(([p, file]) => {
+    const h = hash(outputs.get(file) ?? read(file)); // the regional maps are written by build-maps.mjs, so they are read from disk
+    next[file] = before[file]?.hash === h ? before[file] : { hash: h, lastmod: today };
+    return `  <url><loc>${esc(`${BASE_URL}/${p}`)}</loc><lastmod>${next[file].lastmod}</lastmod></url>`;
+  });
+  lastmodManifest = next;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map((u) => `  <url><loc>${esc(u)}</loc><lastmod>${updatedDay}</lastmod></url>`).join("\n")}
+${urls.join("\n")}
 </urlset>
 `;
 }
@@ -1212,7 +1249,7 @@ let outputs_index; // index.html with its robots block updated
   if (!block.test(html)) throw new Error("index.html is missing its <!-- robots:start --> / <!-- robots:end --> block");
   const social = /(<!-- social:start[^>]*-->\n)[\s\S]*?(  <!-- social:end -->)/;
   if (!social.test(html)) throw new Error("index.html is missing its <!-- social:start --> / <!-- social:end --> block");
-  const tags = socialTags({ title: SITE_NAME, description: "Explore countries, browse the map, and test what you know.", image: "og/home.png" });
+  const tags = socialTags({ title: SITE_NAME, description: "Explore countries, browse the map, and test what you know.", image: "og/home.png", alt: HOME_CARD_ALT });
   outputs_index = html
     .replace(block, `$1${INDEXABLE ? "" : '  <meta name="robots" content="noindex" />\n'}$2`)
     .replace(social, `$1  ${tags}\n$2`);
@@ -1223,6 +1260,7 @@ outputs.set("country/index.html", indexPage());
 outputs.set("maps/index.html", mapsHubPage());
 for (const c of built) outputs.set(`country/${slugOf.get(c.alpha3Code)}/index.html`, countryPage(c));
 outputs.set("country/world-land.svg", worldLandSvg());
+outputs.set("404.html", notFoundPage());
 outputs.set("sitemap.xml", sitemap());
 outputs.set("robots.txt", robots());
 
@@ -1261,6 +1299,7 @@ if (CHECK) {
     fs.mkdirSync(path.dirname(path.join(ROOT, file)), { recursive: true });
     fs.writeFileSync(path.join(ROOT, file), text);
   }
+  fs.writeFileSync(path.join(ROOT, LASTMOD_FILE), JSON.stringify(Object.fromEntries(Object.entries(lastmodManifest).sort(([a], [b]) => a.localeCompare(b))), null, 2) + "\n");
   if (!NO_OG) {
     // Preview images for slugs no longer built are removed along with their manifest entries.
     const drawn = renderOgImages(ogCards);

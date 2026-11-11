@@ -472,7 +472,7 @@ const page = `<!doctype html>
   <meta name="description" content="${esc(DESCRIPTION)}" />
   <link rel="canonical" href="${BASE_URL}/maps/${ID}/" />
 ${INDEXABLE ? "" : `  <meta name="robots" content="noindex" />\n`}  <meta property="og:url" content="${BASE_URL}/maps/${ID}/" />
-  ${socialTags({ baseUrl: BASE_URL, siteName: "Country Facts", title: TITLE, description: DESCRIPTION, image: `og/map-${ID}.png` })}
+  ${socialTags({ baseUrl: BASE_URL, siteName: "Country Facts", title: TITLE, description: DESCRIPTION, image: `og/map-${ID}.png`, alt: "A world map of population density, from sparse to crowded in eight color steps, under the Country Facts name." })}
   <link rel="icon" href="${FAVICON}" />
   <link rel="icon" type="image/png" sizes="192x192" href="../../favicon-192.png" />
   <script>${THEME_SNIPPET}</script>

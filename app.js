@@ -2646,7 +2646,12 @@
     return questions;
   }
 
+  // Only the most recent start counts: a quiz that finishes loading after the user has started another one,
+  // or left to the mode list, must not replace what they are doing.
+  let quizStartToken = 0;
+
   async function startQuiz(modeKey) {
+    const token = ++quizStartToken;
     quizStatus.classList.remove("error");
     quizStatus.textContent = "Loading quiz…";
     try {
@@ -2655,6 +2660,7 @@
 
       if (modeKey === "mixed") {
         const pools = await prepareMixedPools();
+        if (token !== quizStartToken) return;
         if (!Object.keys(pools.mcqPools).length && pools.geoPool.length < 4) {
           quizStatus.textContent = "Not enough data to run the Mixed quiz right now. Try again later.";
           quizStatus.classList.add("error");
@@ -2666,6 +2672,7 @@
       } else {
         const mode = QUIZ_MODES[modeKey];
         const pool = await mode.preparePool();
+        if (token !== quizStartToken) return;
         if (pool.length < 4) {
           quizStatus.textContent = `Not enough data to run the ${mode.label} quiz right now. Try another mode.`;
           quizStatus.classList.add("error");
@@ -2697,6 +2704,7 @@
       showQuizScreen("question");
       renderQuizQuestion();
     } catch (err) {
+      if (token !== quizStartToken) return;
       quizStatus.textContent = "Couldn't load quiz data. Reload the page and try again.";
       quizStatus.classList.add("error");
       console.error("Failed to start quiz:", err);
@@ -2818,6 +2826,7 @@
   quizGeoNextBtn.addEventListener("click", goToNextQuestion);
 
   function returnToModeSelect() {
+    quizStartToken += 1; // a start still loading is abandoned
     quizGlobe.clearHighlight();
     quizState = null;
     showQuizScreen("mode");
@@ -2859,7 +2868,11 @@
     });
   });
 
-  quizRegionBackBtn.addEventListener("click", () => showQuizScreen("mode"));
+  quizRegionBackBtn.addEventListener("click", () => {
+    quizStartToken += 1;
+    quizRegionStatus.textContent = "";
+    showQuizScreen("mode");
+  });
 
   quizRegionButtons.forEach((btn) => {
     btn.addEventListener("click", () => startGeographyQuiz(btn.dataset.region));
@@ -2886,11 +2899,13 @@
   }
 
   async function startGeographyQuiz(region) {
+    const token = ++quizStartToken;
     quizRegionStatus.classList.remove("error");
     quizRegionStatus.textContent = "Loading quiz…";
     try {
       await quizGlobe.ensureLoaded();
       const countries = await ensureGeoCountries();
+      if (token !== quizStartToken) return;
       const availableCodes = quizGlobe.getAvailableCodes();
       const pool = countries.filter((c) => c.region === region && availableCodes.has(c.alpha2Code));
 
@@ -2920,6 +2935,7 @@
       showQuizScreen("question");
       renderQuizQuestion();
     } catch (err) {
+      if (token !== quizStartToken) return;
       quizRegionStatus.textContent =
         err?.code === "no-webgl" ? `${GLOBE_NEEDS_WEBGL} The Geography quiz needs it. Try another quiz mode.` : "Couldn't load quiz data. Reload the page and try again.";
       quizRegionStatus.classList.add("error");

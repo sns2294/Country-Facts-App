@@ -1249,8 +1249,17 @@ let outputs_index; // index.html with its robots block updated
   if (!block.test(html)) throw new Error("index.html is missing its <!-- robots:start --> / <!-- robots:end --> block");
   const social = /(<!-- social:start[^>]*-->\n)[\s\S]*?(  <!-- social:end -->)/;
   if (!social.test(html)) throw new Error("index.html is missing its <!-- social:start --> / <!-- social:end --> block");
-  const tags = socialTags({ title: SITE_NAME, description: "Explore countries, browse the map, and test what you know.", image: "og/home.png", alt: HOME_CARD_ALT });
+  const homeTitle = `${SITE_NAME}: facts, maps and quizzes for every country`;
+  const homeDescription = "Capital, population, languages, religion and borders for every country, on a flat map and a 3D globe, with regional maps and quizzes to test what you know.";
+  const homeUrl = `${BASE_URL}/`;
+  const tags = [
+    `<meta name="description" content="${esc(homeDescription)}" />`,
+    `<link rel="canonical" href="${homeUrl}" />`,
+    `<meta property="og:url" content="${homeUrl}" />`,
+    socialTags({ title: homeTitle, description: homeDescription, image: "og/home.png", alt: HOME_CARD_ALT }),
+  ].join("\n  ");
   outputs_index = html
+    .replace(/<title>[^<]*<\/title>/, `<title>${esc(homeTitle)}</title>`)
     .replace(block, `$1${INDEXABLE ? "" : '  <meta name="robots" content="noindex" />\n'}$2`)
     .replace(social, `$1  ${tags}\n$2`);
 }

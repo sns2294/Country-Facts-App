@@ -65,6 +65,18 @@ The regional political maps (`maps/<region>/`) are written by `node scripts/buil
 ### Disputed areas
 Internationally recognized borders are used everywhere, and areas whose ownership the UN has not settled are given to no country: Kashmir (Jammu and Kashmir, Azad Kashmir, Gilgit-Baltistan, Aksai Chin, the Shaksgam Valley, the Siachen Glacier), the Southern Kuril Islands, and where the 10m atlas draws them the Paracel and Spratly Islands, Scarborough Shoal, the Senkaku Islands, Dokdo and Matthew Island. Natural Earth draws each inside its administering country, so `scripts/split-territories.mjs` cuts them out (a polygon difference with the area from `map-data/disputed.json` for Kashmir, whole polygons for the islands) in `data/countries-50m*.json`, `data/countries-10m.json` and `world-map.svg`, as neutral shapes named in `shape-rules.js`; a data refresh repeats the cuts. Western Sahara is cut out of Morocco's outline the same way, at the 27°40'N parallel. The regional and density maps draw the disputed areas themselves, hatched, over `data/countries-10m-uncut.json` (the 10m atlas before the cuts), so those pages are unaffected. `node scripts/check-disputed.mjs` verifies the cuts.
 
+### Launch day
+The site is `noindex` (and `robots.txt` does not list the sitemap) until `"indexable": true` in `site.config.json`. `scripts/launch.mjs` does the whole switch in the right order:
+
+```
+node scripts/launch.mjs --dry-run   # every step and check, then puts the repo back exactly as it was
+node scripts/launch.mjs             # the real thing
+```
+
+It needs a clean working tree. It sets `indexable` to true, then runs `build-maps.mjs`, `build-density-map.mjs`, `build-map-thumbs.mjs`, `stamp-version.mjs` and `build-pages.mjs` (country pages, hub, 404, preview images, `sitemap.xml`, `robots.txt`). The version stamp comes before the pages because `index.html` carries the stamps and `sitemap.xml` dates a page by its content. Then it runs `stamp-version`, `build-map-thumbs` and `build-pages` with `--check`, `check-insets`, `check-disputed` and `check-links`, and checks of its own: no page says noindex except the 404 page, `robots.txt` lists the sitemap, and `sitemap.xml` lists every public page. The first failure stops it and puts the repo back as it was. If everything passes it shows the diff summary and waits: type `launch` to commit and push, anything else to abort (the repo is restored). After the push, submit `https://countryfacts.app/sitemap.xml` in Google Search Console and Bing Webmaster Tools.
+
+`build-pages.mjs` itself no longer depends on build order: it rebuilds the regional map pages first (skip with `--no-map-builds`), and with `--check` it fails, naming the stale map pages, instead of changing anything.
+
 ### Cache-busting
 `index.html` and `app.js` carry content-hash version strings (`app.js?v=…`, `DATA_VERSION`) so a deployed change loads immediately instead of waiting for browser caches to expire; unchanged files keep their URL and stay cached. After changing `style.css`, any script, `world-map.svg` or anything in `data/`, run this before committing:
 

@@ -119,6 +119,22 @@
   stroke-linejoin: round;
 }
 
+.country-map .map-disputed {
+  fill: url(#disputed-hatch);
+  stroke: var(--map-stroke);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.country-map .hatch-base {
+  fill: var(--map-fill);
+}
+
+.country-map .hatch-line {
+  stroke: var(--map-stroke);
+  stroke-width: 1;
+}
+
 .country-map .map-country {
   fill: var(--map-highlight);
   stroke: var(--map-stroke);
@@ -412,6 +428,17 @@ a.hub-card .hub-card-title::after {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 999px;
+}
+
+/* "Hatched areas are disputed." under a locator that shows disputed areas; set like the link line below it, in the muted text color. */
+.country-page .map-note {
+  margin: 0.9rem 0 0;
+  line-height: 1.9;
+  color: var(--text-muted);
+}
+
+.country-page .map-note + .map-link {
+  margin-top: 0;
 }
 
 /* "See Germany on the Europe map →" under the locator map on a country page (two links, joined by "or", for a country on two maps). */

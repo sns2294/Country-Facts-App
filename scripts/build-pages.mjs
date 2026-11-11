@@ -132,10 +132,12 @@ function loadShapes(topology) {
     if (!rule || rule.neutral) return null;
     return alpha2ToNumeric.get(rule.linkTo || rule.mergeInto) || null;
   });
+  // Areas whose ownership is unsettled (shape-rules.js `neutral`) are drawn hatched, apart from the land.
+  const neutral = features.map((f) => !f.id && SHAPE_RULES[f.properties?.name]?.neutral === true);
   // One merged geometry per owner; shapes nobody owns stay as they are.
   const groups = new Map();
   owner.forEach((id, i) => {
-    const key = id || `shape-${i}`;
+    const key = id || `${neutral[i] ? "neutral" : "shape"}-${i}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(i);
   });
@@ -623,11 +625,14 @@ function buildMap(country, og = false) {
   }
 
   const others = [];
+  const disputed = [];
   set.forEach((geometry, key) => {
     if (key === targetKey) return;
     const d = pathFor(geometry);
-    if (d) others.push(d);
+    if (d) (String(key).startsWith("neutral-") ? disputed : others).push(d);
   });
+  const hatch = disputed.length ? `<defs><pattern id="disputed-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" class="hatch-base"/><line x1="0" y1="0" x2="0" y2="7" class="hatch-line"/></pattern></defs>\n` : "";
+  const disputedPath = disputed.length ? `<path class="map-disputed" d="${disputed.join("")}"/>\n` : "";
   const points = [];
   const own = pathFor(target, points);
   // Every island too small to read as an island gets a dot.
@@ -669,15 +674,15 @@ function buildMap(country, og = false) {
   }
   const inset = og ? "" : insetMarkup(country, target, fullBox, points, height);
   if (og) return `<svg class="country-map" viewBox="0 0 800 ${height}" preserveAspectRatio="xMidYMid slice">
-<rect width="800" height="${height}" class="map-sea"/>
+${hatch}<rect width="800" height="${height}" class="map-sea"/>
 <path class="map-land" d="${others.join("")}"/>
-<path class="map-country" d="${own}"/>
+${disputedPath}<path class="map-country" d="${own}"/>
 ${dots.size ? `<g class="map-dots">${[...dots.values()].join("")}</g>\n` : ""}${ring}
 </svg>`;
   return `<svg class="country-map" viewBox="0 0 800 ${height}" role="img" aria-label="Map showing the location of ${esc(T.nameWithThe(country))}" preserveAspectRatio="xMidYMid slice">
-<rect width="800" height="${height}" class="map-sea"/>
+${hatch}<rect width="800" height="${height}" class="map-sea"/>
 <path class="map-land" d="${others.join("")}"/>
-<path class="map-country" d="${own}"/>
+${disputedPath}<path class="map-country" d="${own}"/>
 ${dots.size ? `<g class="map-dots">${[...dots.values()].join("")}</g>\n` : ""}${ring}
 ${inset}
 </svg>`;
@@ -758,6 +763,7 @@ body{background:radial-gradient(900px 500px at 20% 0%,#1a2236 0%,#12141c 70%);co
 .accent{position:absolute;left:0;top:0;bottom:0;width:10px;background:#ffb02e}
 .map-sea{fill:#123a63}.map-land{fill:#9db4cb;stroke:#0b1d30;stroke-width:1.4;stroke-linejoin:round}
 .map-country{fill:#ffb02e;stroke:#0b1d30;stroke-width:2;stroke-linejoin:round}
+.map-disputed{fill:url(#disputed-hatch);stroke:#0b1d30;stroke-width:1.4;stroke-linejoin:round}.hatch-base{fill:#9db4cb}.hatch-line{stroke:#0b1d30;stroke-width:1}
 .map-dots circle{fill:#ffb02e;stroke:#0b1d30;stroke-width:1.4}
 .map-ring-halo{fill:none;stroke:#9db4cb;stroke-width:9}.map-ring{fill:none;stroke:#ffb02e;stroke-width:5}
 `;
@@ -1052,6 +1058,9 @@ function countryPage(country) {
     .map((m, i) => `<a href="../../maps/${m.id}/">${i === 0 ? `See ${esc(T.nameWithThe(country))} on the ` : "the "}${esc(m.name)} map <span aria-hidden="true">→</span></a>`)
     .join(' <span class="map-link-or">or</span> ');
 
+  // Where the locator draws a hatched (disputed) area in its frame, a line under it says so; decided from the drawn map, so it follows the data.
+  const mapNote = map && map.includes('class="map-disputed"') ? `<p class="map-note">Hatched areas are disputed.</p>` : "";
+
   const app = `../../?country=${code}`;
   const body = `  <main class="country-page">
     ${siteNav("../../")}
@@ -1072,7 +1081,7 @@ function countryPage(country) {
         ${bordersMarkup}
       </div>
     </article>
-    ${map ? `<section class="page-card"><h2>Where is ${esc(T.nameWithThe(country))}?</h2>${map}<p class="map-link">${mapLinks}</p></section>` : ""}
+    ${map ? `<section class="page-card"><h2>Where is ${esc(T.nameWithThe(country))}?</h2>${map}${mapNote}<p class="map-link">${mapLinks}</p></section>` : ""}
     <section class="page-card cta">
       <h2>Explore and practice</h2>
       <div class="cta-links">

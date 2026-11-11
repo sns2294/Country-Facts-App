@@ -68,9 +68,9 @@ function stepRun(name, fn) {
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
   if (!ok) {
     say(`FAILED (${secs}s)`);
-    fail(name, r.output ?? `${r.stdout || ""}${r.stderr || ""}`);
+    fail(name, typeof r.output === "string" ? r.output : `${r.stdout || ""}${r.stderr || ""}`);
   }
-  const last = String(r.output ?? r.stdout ?? "").trim().split("\n").filter(Boolean).pop() || "";
+  const last = (typeof r.output === "string" ? r.output : String(r.stdout || "")).trim().split("\n").filter(Boolean).pop() || "";
   say(`ok (${secs}s)${last && last.length < 100 ? ` ${last}` : ""}`);
 }
 
@@ -144,7 +144,7 @@ stepRun("Launch checks: no noindex, robots.txt, sitemap.xml", () => {
 
 // ---- 9. summary and confirmation ----
 say("\nWhat changes:");
-const changed = git("status", "--porcelain").stdout.trim().split("\n").filter(Boolean).map((l) => l.slice(3));
+const changed = git("status", "--porcelain").stdout.trimEnd().split("\n").filter(Boolean).map((l) => l.slice(3));
 const groups = {};
 for (const f of changed) {
   const k = f.startsWith("country/") ? "country pages" : f.startsWith("maps/thumbs/") ? "map thumbnails" : f.startsWith("maps/") ? "map pages" : f.startsWith("og/") ? "preview images" : "other files";

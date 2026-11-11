@@ -89,6 +89,33 @@ if (unknownOnly.length) throw new Error(`Unknown slug(s) in --only: ${unknownOnl
 const built = sovereign.filter((c) => !SPEC_ONLY.length || SPEC_ONLY.includes(slugOf.get(c.alpha3Code)));
 const hasPage = new Set(built.map((c) => c.alpha3Code));
 
+// ---------- map pages first ----------
+// This build reads the regional map pages (which countries each draws, and their content hashes for sitemap.xml), and those pages are
+// written by build-maps.mjs and build-density-map.mjs. So they are rebuilt here first, whatever order the scripts were run in. With
+// --check nothing stays changed: a map page that was out of date is put back and the check fails, saying which. `--no-map-builds`
+// skips this (scripts/launch.mjs has just run both).
+{
+  const mapFiles = () => ["maps/maps.css", ...fs.readdirSync(path.join(ROOT, "maps"), { withFileTypes: true }).filter((d) => d.isDirectory() && d.name !== "thumbs").map((d) => `maps/${d.name}/index.html`)].filter((f) => fs.existsSync(path.join(ROOT, f)));
+  if (!process.argv.includes("--no-map-builds") && !process.argv.some((a) => a.startsWith("--og-only="))) {
+    const before = new Map(mapFiles().map((f) => [f, read(f)]));
+    for (const script of ["build-maps.mjs", "build-density-map.mjs"]) {
+      try {
+        execFileSync(process.execPath, [path.join(ROOT, "scripts", script)], { stdio: "pipe" });
+      } catch (err) {
+        console.error(`scripts/${script} failed, so the map pages cannot be brought up to date:\n${String(err.stderr || err.message).split("\n").slice(0, 8).join("\n")}`);
+        process.exit(1);
+      }
+    }
+    const changed = mapFiles().filter((f) => before.get(f) !== read(f));
+    if (changed.length && CHECK) {
+      for (const f of changed) if (before.has(f)) fs.writeFileSync(path.join(ROOT, f), before.get(f));
+      console.error(`${changed.length} map page file(s) are out of date (${changed.slice(0, 4).join(", ")}${changed.length > 4 ? ", ..." : ""}). Run: node scripts/build-pages.mjs (it rebuilds the map pages first), then node scripts/build-map-thumbs.mjs`);
+      process.exit(1);
+    }
+    if (changed.length) console.log(`Rebuilt ${changed.length} map page file(s) first, since this build reads them.`);
+  }
+}
+
 // ---------- regional maps ----------
 // A country is "on" a regional map when that map draws it in color (a path with its code), not when it is only gray context.
 // Read from the maps' own pages, so the links follow the maps. Two hand rules, then a check that no country is left out.

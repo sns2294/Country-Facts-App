@@ -5,7 +5,8 @@
   --text: #1b1e23;
   --text-muted: #5b6270;
   --border: #dde1e6;
-  --accent: #2f6fed;
+  --accent: #2a63d8; /* 4.9:1 on the page background (#f5f6f8), 5.3:1 on white */
+  --wrong: #c73e29; /* error and "Incorrect" text: 4.7:1 on the page background */
   --button-bg: #2a63d8;
   --button-text: #ffffff;
   --danger-bg: #c73e29;
@@ -30,6 +31,7 @@
   --text-muted: #9aa2ad;
   --border: #2c3038;
   --accent: #6fa1ff;
+  --wrong: #f0705c; /* 5.5:1 on the card color */
   --button-bg: #2f6fed;
   --shadow: rgba(0, 0, 0, 0.4);
   --map-ocean: #123a63;
@@ -641,7 +643,7 @@ main {
 }
 
 .status.error {
-  color: #e0553f;
+  color: var(--wrong);
 }
 
 .fact-card {
@@ -952,8 +954,8 @@ main {
 }
 
 .quiz-exit-btn:hover {
-  border-color: #e0553f;
-  color: #e0553f;
+  border-color: var(--wrong);
+  color: var(--wrong);
 }
 
 .quiz-prompt {
@@ -1061,7 +1063,7 @@ main {
 }
 
 .quiz-option-btn.wrong {
-  border-color: #e0553f;
+  border-color: var(--wrong);
   background: rgba(224, 85, 63, 0.12);
 }
 
@@ -1077,7 +1079,7 @@ main {
 }
 
 .quiz-feedback.wrong {
-  color: #e0553f;
+  color: var(--wrong);
 }
 
 .quiz-btn-primary {

@@ -1922,12 +1922,15 @@
       const hoverColor = getCssVar("--map-hover");
       const strokeColor = getCssVar("--map-stroke");
       const targetColor = getCssVar("--map-highlight");
+      // Areas whose ownership is unsettled (Kashmir, the Southern Kurils...) are flat gray: no hover, no highlight (see SHAPE_RULES).
+      const neutralColor = getCssVar("--map-nodata");
       globe
         .polygonCapColor((d) => {
+          if (d.properties?.neutral) return neutralColor;
           const base = canon.get(d) || d;
           return base === targetFeature ? targetColor : base === hoverFeature ? hoverColor : fillColor;
         })
-        .polygonSideColor((d) => ((canon.get(d) || d) === targetFeature ? targetColor : fillColor))
+        .polygonSideColor((d) => (d.properties?.neutral ? neutralColor : (canon.get(d) || d) === targetFeature ? targetColor : fillColor))
         .polygonStrokeColor(() => strokeColor)
         .polygonAltitude((d) => {
           const base = canon.get(d) || d;

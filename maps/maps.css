@@ -65,6 +65,7 @@ html.map-viewer-open, html.map-viewer-open body { overflow: hidden; overscroll-b
 .map-viewer-help { font-size: 0.85rem; color: var(--text-muted); }
 .map-viewer-buttons { display: flex; gap: 0.4rem; }
 .map-viewer-buttons button { min-width: 2.5rem; height: 2.5rem; padding: 0 0.6rem; border: 1px solid rgba(128, 128, 128, 0.4); border-radius: 0.6rem; background: var(--card-bg, var(--bg)); color: var(--text); font: inherit; font-size: 1.1rem; line-height: 1; cursor: pointer; }
+.map-viewer-stage:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 .map-viewer-stage { position: relative; flex: 1; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
 .map-viewer-stage .map-svg { position: absolute; left: 0; top: 0; transform-origin: 0 0; max-width: none; will-change: transform; }
 

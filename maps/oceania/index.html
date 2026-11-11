@@ -256,7 +256,23 @@ function hide(fromPop){if(viewer.hidden)return;viewer.hidden=true;document.docum
  if(pushed&&!fromPop){pushed=false;try{history.back()}catch(e){}}pushed=false;open.focus()}
 open.addEventListener("click",show);
 window.addEventListener("popstate",function(){if(!viewer.hidden)hide(true)});
-document.addEventListener("keydown",function(e){if(!viewer.hidden&&e.key==="Escape")hide()});
+stage.setAttribute("tabindex","0");stage.setAttribute("role","group");stage.setAttribute("aria-label","Map. Use plus and minus to zoom, the arrow keys to move, zero to reset.");
+function focusables(){return Array.prototype.filter.call(viewer.querySelectorAll("button,[tabindex='0']"),function(el){return !el.disabled})}
+document.addEventListener("keydown",function(e){if(viewer.hidden)return;
+ if(e.key==="Escape"){hide();return}
+ if(e.key==="Tab"){var f=focusables();if(!f.length)return;var first=f[0],end=f[f.length-1],a=document.activeElement;
+  if(!viewer.contains(a)){e.preventDefault();first.focus()}
+  else if(e.shiftKey&&a===first){e.preventDefault();end.focus()}
+  else if(!e.shiftKey&&a===end){e.preventDefault();first.focus()}
+  return}
+ if(e.ctrlKey||e.metaKey||e.altKey)return;
+ var c=center(),k=e.key,step=80;
+ if(k==="+"||k==="="){zoomAt(1.6,c[0],c[1])}else if(k==="-"||k==="_"){zoomAt(1/1.6,c[0],c[1])}else if(k==="0"){fit()}
+ else if(k==="ArrowLeft"){tx+=step;apply()}else if(k==="ArrowRight"){tx-=step;apply()}
+ else if(k==="ArrowUp"){ty+=step;apply()}else if(k==="ArrowDown"){ty-=step;apply()}
+ else return;
+ e.preventDefault()});
+document.addEventListener("focusin",function(e){if(!viewer.hidden&&!viewer.contains(e.target))document.getElementById("map-close").focus()});
 document.getElementById("map-close").addEventListener("click",function(){hide()});
 function center(){var sz=size();return[sz[0]/2,sz[1]/2]}
 document.getElementById("map-zoom-in").addEventListener("click",function(){var c=center();zoomAt(1.6,c[0],c[1])});

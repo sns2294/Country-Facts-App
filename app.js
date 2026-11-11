@@ -178,6 +178,7 @@
           });
           countries.forEach((c) => {
             if (c.alpha2Code && c.name) displayNameByCode.set(c.alpha2Code, c.name);
+            if (c.name) nameTerms.set(c.name, otherNames(c).map(normalizeName));
           });
           return { countries, byCode };
         });
@@ -190,15 +191,52 @@
 
   // Case- and accent-insensitive form used to compare typed names ("turkiye"
   // finds Türkiye, "sao tome" finds São Tomé).
+  // Hyphens, apostrophes and full stops count as spaces ("Timor Leste" finds Timor-Leste).
   function normalizeName(text) {
-    return String(text).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
+    return String(text).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[-\u2010-\u2015'\u2019.]/g, " ").trim().replace(/\s+/g, " ");
   }
 
+  // Names people type that the data does not carry, by alpha-2 code. A name two countries share ("Korea") finds both and the
+  // search asks which.
+  const EXTRA_ALIASES = {
+    TL: ["East Timor", "Timor"],
+    VA: ["Vatican", "Holy See", "Vatican City State"],
+    MK: ["Macedonia", "FYROM"],
+    AE: ["UAE", "Emirates"],
+    CI: ["Ivory"],
+    KP: ["Korea", "DPRK", "Democratic People's Republic of Korea"],
+    KR: ["Korea", "ROK", "Republic of Korea"],
+    GB: ["Britain", "England", "Scotland", "Wales", "Northern Ireland"],
+    US: ["US", "America", "United States of America"],
+    CD: ["DRC", "DR of the Congo"],
+    CG: ["Congo Republic", "Republic of Congo"],
+    NL: ["Holland", "The Netherlands"],
+    PS: ["West Bank", "Gaza", "State of Palestine"],
+    BS: ["The Bahamas"],
+    GM: ["The Gambia"],
+    LA: ["Lao PDR"],
+    VN: ["Viet Nam"],
+    IR: ["Persia"],
+    FM: ["Federated States of Micronesia", "FSM"],
+    KN: ["St Kitts", "St Kitts and Nevis", "Saint Kitts", "Nevis"],
+    LC: ["St Lucia"],
+    VC: ["St Vincent", "St Vincent and the Grenadines", "Saint Vincent"],
+    ST: ["Sao Tome", "São Tomé", "Principe"],
+    BA: ["Bosnia", "Herzegovina"],
+    TT: ["Trinidad", "Tobago"],
+    AG: ["Antigua", "Barbuda"],
+    PG: ["PNG"],
+    MM: ["Myanmar (Burma)"],
+  };
+
   // The common name shown everywhere, then the official and alternate names
-  // people may type (data/countries.json: officialName, altNames).
+  // people may type (data/countries.json: officialName, altNames) and EXTRA_ALIASES.
   function otherNames(country) {
-    return [country.officialName, ...(country.altNames || [])].filter(Boolean);
+    return [country.officialName, ...(country.altNames || []), ...(EXTRA_ALIASES[country.alpha2Code] || [])].filter(Boolean);
   }
+
+  // common name -> its other names, normalized: what the suggestion lists also match on.
+  const nameTerms = new Map();
 
   function countryHasName(country, rawValue) {
     const value = normalizeName(rawValue);
@@ -2893,9 +2931,9 @@
   }
 
   function matchPoolItem(pool, rawValue, key) {
-    const value = rawValue.trim().toLowerCase();
+    const value = normalizeName(rawValue);
     if (!value) return null;
-    return pool.find((item) => item[key].toLowerCase() === value) || null;
+    return pool.find((item) => normalizeName(item[key]) === value) || null;
   }
 
   async function startGeographyQuiz(region) {
@@ -3136,10 +3174,16 @@
       active = -1;
     }
 
+    // Matches ignore case, accents and hyphens ("turkiye" finds Türkiye), and a country is also found by its other names
+    // ("macedonia" finds North Macedonia): its own name first, then another name.
+    const wordStarts = (text, q) => text.startsWith(q) || text.split(/[\s(]+/).some((w) => w.startsWith(q));
+    const matchesTerm = (v, q) => normalizeName(v).includes(q) || (nameTerms.get(v) || []).some((t) => t.includes(q));
     function rank(v, q) {
-      const l = v.toLowerCase();
+      const l = normalizeName(v);
       if (l.startsWith(q)) return 0;
-      return l.split(/[\s\-'(]+/).some((w) => w.startsWith(q)) ? 1 : 2;
+      if (wordStarts(l, q)) return 1;
+      if (l.includes(q)) return 2;
+      return 3;
     }
 
     function pick(value) {
@@ -3150,14 +3194,14 @@
     }
 
     function open() {
-      const q = input.value.trim().toLowerCase();
+      const q = normalizeName(input.value);
       if (input.disabled || !q) return close();
       const matches = Array.from(datalist.options)
         .map((o) => o.value)
-        .filter((v) => v.toLowerCase().includes(q))
+        .filter((v) => matchesTerm(v, q))
         .sort((a, b) => rank(a, q) - rank(b, q));
       const key = `${datalist.options.length}|${q}|${isPhone()}`;
-      if (!matches.length || (matches.length === 1 && matches[0].toLowerCase() === q)) return close();
+      if (!matches.length || (matches.length === 1 && normalizeName(matches[0]) === q)) return close();
       if (isPhone()) {
         listEl.hidden = true;
         if (key !== renderedKey) {

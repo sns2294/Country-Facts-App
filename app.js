@@ -1343,6 +1343,19 @@
   // Country polygon data + the ISO numeric<->alpha2 lookup are fetched once
   // and shared by every Globe() instance (Explore's and the quiz's) rather
   // than being re-fetched per instance.
+  const GLOBE_NEEDS_WEBGL = "Your browser can't display the 3D globe.";
+  let webglProbe = null;
+  function webglAvailable() {
+    if (webglProbe === null) {
+      try {
+        const canvas = document.createElement("canvas");
+        webglProbe = !!(window.WebGLRenderingContext && (canvas.getContext("webgl2") || canvas.getContext("webgl")));
+      } catch (err) {
+        webglProbe = false;
+      }
+    }
+    return webglProbe;
+  }
   const GLOBE_GEO_URL = versioned("data/countries-50m.json");
   const GLOBE_FULL_GEO_URL = versioned("data/countries-50m-full.json");
   // Below this camera altitude the simplified shapes start to look rough, so
@@ -1980,6 +1993,15 @@
         resize();
         return;
       }
+      if (!webglAvailable()) {
+        // No point downloading the shapes: say so where the globe would be (see GLOBE_NEEDS_WEBGL).
+        if (loadingEl) {
+          loadingEl.hidden = false;
+          loadingEl.textContent = GLOBE_NEEDS_WEBGL;
+        }
+        if (zoomInBtn?.parentElement) zoomInBtn.parentElement.style.display = "none"; // nothing to zoom
+        throw Object.assign(new Error("WebGL is not available"), { code: "no-webgl" });
+      }
       try {
         const [loaded, numericToAlpha2] = await Promise.all([fetchGlobeFeatures(), fetchNumericToAlpha2Map()]);
         features = loaded;
@@ -1988,6 +2010,7 @@
           if (alpha2) alpha2ToFeature.set(alpha2, feature);
         });
 
+        const keepInContainer = [loadingEl, zoomInBtn?.parentElement].filter(Boolean);
         globe = Globe()(container)
           .showAtmosphere(true)
           .atmosphereAltitude(0.15)
@@ -2013,6 +2036,8 @@
           .ringMaxRadius(3.5)
           .ringPropagationSpeed(2.5)
           .ringRepeatPeriod(1400);
+        // globe.gl empties its container when it starts: put back the loading line and the zoom buttons.
+        keepInContainer.forEach((node) => container.appendChild(node));
 
         if (enableCountryInteraction) {
           hitTargets = buildHitTargets(numericToAlpha2);
@@ -2079,7 +2104,11 @@
         refreshHitDiscs();
         if (loadingEl) loadingEl.hidden = true;
       } catch (err) {
-        if (loadingEl) loadingEl.textContent = "Couldn't load the globe. Reload the page and try again.";
+        if (loadingEl) {
+          if (!loadingEl.isConnected) container.appendChild(loadingEl);
+          loadingEl.hidden = false;
+          loadingEl.textContent = "Couldn't load the globe. Reload the page and try again.";
+        }
         console.error("Failed to load globe:", err);
         throw err;
       }
@@ -2891,7 +2920,8 @@
       showQuizScreen("question");
       renderQuizQuestion();
     } catch (err) {
-      quizRegionStatus.textContent = "Couldn't load quiz data. Reload the page and try again.";
+      quizRegionStatus.textContent =
+        err?.code === "no-webgl" ? `${GLOBE_NEEDS_WEBGL} The Geography quiz needs it. Try another quiz mode.` : "Couldn't load quiz data. Reload the page and try again.";
       quizRegionStatus.classList.add("error");
       console.error("Failed to start geography quiz:", err);
     }

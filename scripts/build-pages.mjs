@@ -780,7 +780,7 @@ const OG_ONLY = (process.argv.find((a) => a.startsWith("--og-only=")) || "").sli
 const NO_OG = process.argv.includes("--no-og");
 
 const socialTags = ({ title, description, image, alt }) => socialTagsFor({ baseUrl: BASE_URL, siteName: SITE_NAME, title, description, image, alt });
-const HOME_CARD_ALT = "Country Facts: a globe showing Europe, Africa and Asia with every country outlined, beside the line \"Explore countries, browse the map, and test what you know.\"";
+const HOME_CARD_ALT = "Country Facts: a globe showing Europe, Africa and Asia, beside the line \"Explore countries, browse the map, and test what you know.\"";
 
 const OG_CSS = `
 *{box-sizing:border-box;margin:0}
@@ -829,17 +829,21 @@ function globeLand(R, lon0, lat0, eps) {
   return d;
 }
 
-// The globe as an <svg> of `size` px, drawn in the map's dark colours.
-function globeSvg(size, { lon0 = 15, lat0 = 20, glow = false } = {}) {
+// The globe as an <svg> of `size` px, in the colours of the site icon and profile picture: a blue ocean lit from the upper left, green land with
+// no country outlines (they turn to clutter at card sizes), a dark shaded limb and a light rim. Same view as the icons (Europe and Africa).
+function globeSvg(size, { lon0 = 20, lat0 = 12, glow = false } = {}) {
   const R = 100;
   const pad = glow ? 14 : 2;
   const d = globeLand(R, lon0, lat0, size > 200 ? 0.12 : 0.5);
   return `<svg width="${size}" height="${size}" viewBox="${-R - pad} ${-R - pad} ${2 * (R + pad)} ${2 * (R + pad)}">
-<defs><clipPath id="gc"><circle r="${R}"/></clipPath><radialGradient id="gs" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="#1d5a99"/><stop offset="1" stop-color="#0d2f52"/></radialGradient></defs>
+<defs><clipPath id="gc"><circle r="${R}"/></clipPath>
+<radialGradient id="go" cx="-35" cy="-40" r="${R * 1.45}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5aa0ee"/><stop offset=".38" stop-color="#2f6fd2"/><stop offset="1" stop-color="#1a3f93"/></radialGradient>
+<linearGradient id="gl" x1="-100" y1="-100" x2="100" y2="100" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#f0e98e"/><stop offset=".5" stop-color="#a9c455"/><stop offset="1" stop-color="#6f9a3e"/></linearGradient>
+<radialGradient id="gh" cx="-40" cy="-45" r="${R * 1.02}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#050a28" stop-opacity=".5"/></radialGradient></defs>
 ${glow ? `<circle r="${R + 10}" fill="#3f86c9" opacity=".18"/><circle r="${R + 4}" fill="#3f86c9" opacity=".28"/>` : ""}
-<circle r="${R}" fill="url(#gs)"/>
-<g clip-path="url(#gc)"><path d="${d}" fill="#9db4cb" stroke="#0b1d30" stroke-width="${size > 200 ? 0.35 : 0.9}" stroke-linejoin="round"/></g>
-<circle r="${R}" fill="none" stroke="#0b1d30" stroke-opacity=".55" stroke-width="1"/>
+<circle r="${R}" fill="url(#go)"/>
+<g clip-path="url(#gc)"><path d="${d}" fill="url(#gl)" fill-rule="evenodd"/><circle r="${R}" fill="url(#gh)"/></g>
+<circle r="${R}" fill="none" stroke="#96c8ff" stroke-opacity=".4" stroke-width="${size > 200 ? 0.9 : 1.6}"/>
 </svg>`;
 }
 

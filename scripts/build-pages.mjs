@@ -960,8 +960,6 @@ const updatedLong = updatedAt.toLocaleDateString("en-US", { year: "numeric", mon
 const THEME_SNIPPET = `try{var s=localStorage.getItem(${JSON.stringify(DARK_MODE_KEY)});var d=s===null?matchMedia("(prefers-color-scheme: dark)").matches:s==="true";document.documentElement.classList.toggle("dark",d)}catch(e){}`;
 const TOGGLE_SNIPPET = `(function(){var b=document.getElementById("dark-mode-toggle"),i=document.getElementById("dark-mode-icon"),r=document.documentElement;function sync(){var d=r.classList.contains("dark");b.setAttribute("aria-pressed",String(d));i.textContent=d?"\\u2600\\uFE0F":"\\uD83C\\uDF19"}sync();b.addEventListener("click",function(){var d=!r.classList.contains("dark");r.classList.toggle("dark",d);try{localStorage.setItem(${JSON.stringify(DARK_MODE_KEY)},String(d))}catch(e){}sync()})})();`;
 
-const FAVICON = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>`;
-
 const footer = (up) => `<footer class="site-footer">
     <p>Data last updated: ${esc(updatedLong)}</p>
     <p class="data-credits">
@@ -1000,7 +998,7 @@ ${canonical ? `  <link rel="canonical" href="${esc(canonical)}" />` : ""}${INDEX
   <meta property="og:title" content="${esc(title)}" />
   <meta property="og:description" content="${esc(description)}" />
 ${canonical ? `  <meta property="og:url" content="${esc(canonical)}" />\n` : ""}${socialTags({ title, description, image: ogImage, alt: ogAlt })}
-  <link rel="icon" href="${FAVICON}" />
+  <link rel="icon" type="image/png" sizes="32x32" href="${up}favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="${up}favicon-192.png" />
   <link rel="apple-touch-icon" href="${up}apple-touch-icon.png" />
   <script>${THEME_SNIPPET}</script>

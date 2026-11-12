@@ -16,7 +16,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { socialTags } from "./social-tags.mjs";
 import { clipHalf, key, stitch } from "./geo-util.mjs";
-import { THEME_SNIPPET, TOGGLE_SNIPPET, VIEWER_SNIPPET, FAVICON } from "./map-page.mjs";
+import { THEME_SNIPPET, TOGGLE_SNIPPET, VIEWER_SNIPPET } from "./map-page.mjs";
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -1701,7 +1701,7 @@ const page = `<!doctype html>
   <link rel="canonical" href="${BASE_URL}/maps/${REGION_ID}/" />
 ${INDEXABLE ? "" : `  <meta name="robots" content="noindex" />\n`}  <meta property="og:url" content="${BASE_URL}/maps/${REGION_ID}/" />
   ${socialTags({ baseUrl: BASE_URL, siteName: "Country Facts", title: `Map of ${R.name}: Countries, Capitals & Seas | Country Facts`, description: `A colorful political map of ${R.name} with every country, capital city and sea labeled.`, image: `og/map-${REGION_ID}.png`, alt: `A political map of ${R.name} with each country colored differently from its neighbors, under the Country Facts name.` })}
-  <link rel="icon" href="${FAVICON}" />
+  <link rel="icon" type="image/png" sizes="32x32" href="../../favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="../../favicon-192.png" />
   <script>${THEME_SNIPPET}</script>
   <link rel="stylesheet" href="../../style.css" />

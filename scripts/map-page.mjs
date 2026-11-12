@@ -1,5 +1,5 @@
 // Pieces of the map pages that every map shares (scripts/build-maps.mjs, scripts/build-density-map.mjs): the theme and dark-mode
-// toggle scripts, the full-screen viewer (tap to open, pinch/scroll to zoom) and the favicon.
+// toggle scripts, the full-screen viewer (tap to open, pinch/scroll to zoom).
 export const DARK_MODE_KEY = "countryFacts.darkMode".replace("countryFacts.", "countryFactsApp.");
 
 export const THEME_SNIPPET = `try{var s=localStorage.getItem(${JSON.stringify(DARK_MODE_KEY)});var d=s===null?matchMedia("(prefers-color-scheme: dark)").matches:s==="true";document.documentElement.classList.toggle("dark",d)}catch(e){}`;
@@ -70,4 +70,3 @@ stage.addEventListener("dblclick",function(e){var p=rel(e);zoomAt(s>=MAX/2?minS/
 };
 export const VIEWER_SNIPPET = viewerSnippet();
 
-export const FAVICON = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>`;

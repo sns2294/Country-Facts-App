@@ -18,7 +18,7 @@
 //                                dates a page by its content)
 //   7. build-pages.mjs           country pages, hub, 404, preview images, sitemap.xml, robots.txt
 //   8. the checks: stamp-version --check, build-map-thumbs --check, build-pages --check (which also proves the map pages are
-//      current), check-insets, check-disputed, check-links, then launch checks of its own: no page is noindex except the 404
+//      current), check-insets, check-disputed, check-borders, check-links, then launch checks of its own: no page is noindex except the 404
 //      page, robots.txt lists the sitemap, sitemap.xml lists every public page
 //   9. shows the git diff summary and waits for you to type "launch"; then commits and pushes
 import { spawnSync } from "node:child_process";
@@ -122,6 +122,7 @@ stepRun("build-map-thumbs.mjs --check", () => script("build-map-thumbs.mjs", "--
 stepRun("build-pages.mjs --check (also rebuilds the map pages to prove them current)", () => script("build-pages.mjs", "--check"));
 stepRun("check-insets.mjs", () => script("check-insets.mjs"));
 stepRun("check-disputed.mjs", () => script("check-disputed.mjs"));
+stepRun("check-borders.mjs", () => script("check-borders.mjs"));
 stepRun("check-links.mjs", () => script("check-links.mjs"));
 
 stepRun("Launch checks: no noindex, robots.txt, sitemap.xml", () => {

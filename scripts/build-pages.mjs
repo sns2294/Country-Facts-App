@@ -1049,9 +1049,11 @@ function countryPage(country) {
   const chipMarkup = chips
     .map((b) => {
       const label = `${esc(b.name)}${b.via ? ` <span class="chip-via">via ${esc(b.via)}</span>` : ""}`;
-      return hasPage.has(b.code)
-        ? `<a class="border-chip" href="../${slugOf.get(b.code)}/">${label}</a>`
-        : `<span class="border-chip">${label}</span>`;
+      // A sovereign country links to its page (by slug, even under --only, where the other pages are simply not rebuilt); anything else
+      // (Western Sahara, Kosovo, a territory) opens the app with that entry selected, the same ?country= link the page's own app button uses.
+      if (slugOf.has(b.code)) return `<a class="border-chip" href="../${slugOf.get(b.code)}/">${label}</a>`;
+      const target = byAlpha3.get(b.code);
+      return `<a class="border-chip" href="../../?country=${esc((target.alpha2Code || target.alpha3Code).toLowerCase())}">${label}</a>`;
     })
     .join("");
   const bordersMarkup = chips.length
@@ -1342,4 +1344,13 @@ if (CHECK) {
     console.log(`Drew ${drawn} preview image(s).`);
   }
   console.log(`Wrote ${built.length} country pages, the country index, sitemap.xml and robots.txt (base URL ${BASE_URL}).`);
+  // Every border chip must have a working target; a full build fails (exit 1) if one does not. See scripts/check-borders.mjs.
+  if (!SPEC_ONLY.length) {
+    try {
+      process.stdout.write(execFileSync(process.execPath, [path.join(ROOT, "scripts/check-borders.mjs")], { encoding: "utf8" }));
+    } catch (err) {
+      process.stderr.write(String(err.stdout || "") + String(err.stderr || ""));
+      process.exit(1);
+    }
+  }
 }

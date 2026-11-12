@@ -79,6 +79,9 @@ It needs a clean working tree. It sets `indexable` to true, then runs `build-map
 
 `build-pages.mjs` itself no longer depends on build order: it rebuilds the regional map pages first (skip with `--no-map-builds`), and with `--check` it fails, naming the stale map pages, instead of changing anything.
 
+### Instagram posts (not part of the site)
+`node scripts/instagram/make.mjs country [code]`, `quiz <outline|flag|capital> [code]`, `map <map-id>` and `week` draw 1080x1350 post images and a `caption.txt` into `instagram-posts/` (in `.gitignore`, so nothing is deployed). They use only our own data, maps, country pages and the flag-icons flags, so the disputed-area rules are the site's; headless Google Chrome draws the images, and no emoji are drawn into them. Map posts are carousels: slide 1 the map cropped to the frame, then zoomed sections (the crops and sections of each map are in `scripts/instagram/sections.mjs`); labels that would be cut by the frame are moved inside or hidden. The "did you know" fact is the most striking one our data proves (`funFacts` in `scripts/instagram/data.mjs`: enclaves, rankings, neighbour counts, landlocked from the shape data). Quiz wrong answers come from the same region, similar in size, never a microstate unless the answer is one. Captions open with a hook line (the first ~125 characters show before "more"), then details, the call to action and at most 5 hashtags.
+
 ### Cache-busting
 `index.html` and `app.js` carry content-hash version strings (`app.js?v=…`, `DATA_VERSION`) so a deployed change loads immediately instead of waiting for browser caches to expire; unchanged files keep their URL and stay cached. After changing `style.css`, any script, `world-map.svg` or anything in `data/`, run this before committing:
 

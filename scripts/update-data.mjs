@@ -100,6 +100,10 @@ const PLACE_OVERRIDES = {
   UM: { region: "Pacific Ocean", subregion: null },
   CX: { region: "Oceania", subregion: "Indian Ocean" },
   CC: { region: "Oceania", subregion: "Indian Ocean" },
+  // countries.dev files these two outside the UN geoscheme's Eastern Africa (South Sudan under Middle Africa, Zimbabwe under
+  // Southern Africa). Applied on every refresh, so an update cannot undo it. Cyprus stays in Southern Europe on purpose.
+  SS: { region: "Africa", subregion: "Eastern Africa" },
+  ZW: { region: "Africa", subregion: "Eastern Africa" },
 };
 
 // Subregion names shown differently from the source's ("Northern America" is

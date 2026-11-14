@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { ROOT, read, nameOf, T } from "./data.mjs";
+import { ROOT, read, nameOf, regionName, T } from "./data.mjs";
 
 export const W = 1080, H = 1350;
 const CHROME = process.env.CHROME_PATH || ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/usr/bin/google-chrome", "/usr/bin/chromium"].find((p) => fs.existsSync(p));
@@ -61,7 +61,7 @@ export function countryMapSlide(c, mapSvgMarkup, locator) {
 <div class="panel maps-page" style="top:${panel.y}px;height:${panel.h}px;background:#0f2233" id="panel">${map || locator}</div>
 <div style="position:absolute;left:64px;right:64px;top:${panel.y + panel.h + 44}px;display:flex;align-items:center;gap:36px">
   <div class="flagbox" style="width:230px;height:154px;flex:none"><img class="flag" src="${flag}" alt=""></div>
-  <div><div class="kicker">Country of the day</div><h1 style="font-size:${nameOf(c).length > 16 ? 64 : 84}px;margin-top:10px">${esc(nameOf(c))}</h1><div class="sub" style="font-size:34px;margin-top:10px">${esc(c.subregion || c.region)}</div></div>
+  <div><div class="kicker">Country of the day</div><h1 style="font-size:${nameOf(c).length > 16 ? 64 : 84}px;margin-top:10px">${esc(nameOf(c))}</h1><div class="sub" style="font-size:34px;margin-top:10px">${esc(regionName(c.subregion || c.region, { bare: true }))}</div></div>
 </div>`;
   const css = `${MAP_OVERRIDES}${hlCss}`;
   const script = map ? `<script>

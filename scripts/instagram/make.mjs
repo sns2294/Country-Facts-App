@@ -13,7 +13,7 @@
 // details, then the call to action, then at most 5 hashtags (#Geography #CountryFacts and up to 3 specific ones).
 import fs from "node:fs";
 import path from "node:path";
-import { ROOT, T, ALL_MAPS, sovereign, nameOf, findCountry, pick, factRows, funFact, hookLine, flagEmoji, regionalMapFor, mapSvg, locatorSvg, quizPool, buildQuiz, hashtags } from "./data.mjs";
+import { ROOT, T, ALL_MAPS, sovereign, nameOf, findCountry, pick, regionName, factRows, funFact, hookLine, flagEmoji, regionalMapFor, mapSvg, locatorSvg, quizPool, buildQuiz, hashtags } from "./data.mjs";
 import { VIEWS } from "./sections.mjs";
 import { countryMapSlide, factsSlide, quizQuestionSlide, quizAnswerSlide, mapSlide, renderSlides } from "./slides.mjs";
 
@@ -24,7 +24,23 @@ const OCEAN = "#0f2233";
 // A short hashtag for the map with a long name (the full name would make a 30-character tag).
 const MAP_TAG = { "central-america-caribbean": "Caribbean Map" };
 // The regional hashtag words: the subregion, unless it is a compound ("Australia and New Zealand"), then the region.
-const regionWords = (c) => (c.subregion && !/ and /.test(c.subregion) ? c.subregion : c.region);
+const regionWords = (c) => regionName(c.subregion && !/ and /.test(c.subregion) ? c.subregion : c.region, { bare: true });
+
+// The friendly one-liner under each map's hook (the app's own blurbs are more technical).
+const MAP_LINES = {
+  europe: "Every country from Iceland to Russia, including the tiny ones you might forget. 👀",
+  africa: "All 54 countries, from Morocco to South Africa, plus every island nation. Can you find them all? 🌍",
+  "middle-east": "From Turkey to Yemen and Egypt to the Caucasus: how many can you place without peeking? 🧭",
+  "central-asia": "The six “-stans” in the heart of Asia. Quick: which is which? 🏔️",
+  "south-asia": "India and all its neighbors, from the Himalayas to the Maldives. Can you place them all? 🗺️",
+  "east-asia": "China, Japan, Mongolia, the Koreas and Taiwan: do you know who sits where? 🏯",
+  "southeast-asia": "From Myanmar to Timor-Leste, a region of islands and peninsulas. Can you name all 11? 🌴",
+  "north-america": "Canada, the United States and Mexico, plus Hawaii tucked into its own corner. 🍁",
+  "central-america-caribbean": "The land bridge and the island chains: a crowd of small countries packed into one map. 🏝️",
+  "south-america": "All 12 countries, plus a few territories you might not expect. 🌎",
+  oceania: "Australia, New Zealand and the Pacific islands, scattered across the world’s biggest ocean. 🌊",
+  "population-density": "Shaded by how many people live on each square kilometer. The crowded spots may surprise you. 👀",
+};
 
 function write(dir, slides, caption) {
   renderSlides(slides.map((html, i) => ({ html, out: path.join(dir, `slide-${i + 1}.png`) })));
@@ -82,7 +98,7 @@ function mapPost(id, base = OUT) {
   const hook = id === "population-density" ? "Which places on Earth are the most crowded? 🗺️ Swipe to zoom in 👉" : `How many countries on this map of ${m.name} can you name? 🗺️ Swipe to zoom in 👉`;
   const caption = `${hook}
 
-${m.name}: ${m.kind ? m.kind.toLowerCase() : "political map"}. ${m.blurb}
+${MAP_LINES[id] || m.blurb}
 Zoomed in on: ${v.sections.map((s) => s.name).join("; ")}.
 
 ${CTA}.
@@ -91,18 +107,19 @@ ${hashtags(m.kind ? [m.name, "World Map", "Data Visualization"] : [MAP_TAG[id] |
   write(path.join(base, `${today}-map-${id}`), slides, caption);
 }
 
-const [cmd, a, b] = process.argv.slice(2);
+const [cmd, a, b, d] = process.argv.slice(2);
 try {
   if (cmd === "country") countryPost(a);
   else if (cmd === "quiz") quizPost(a, b);
   else if (cmd === "map") mapPost(a);
   else if (cmd === "week") {
     const base = path.join(OUT, `${today}-week`);
-    countryPost(null, base);
-    quizPost(pick(["outline", "flag", "capital"]), null, base);
+    const [qType, qCode] = d ? d.split(":") : [];
+    countryPost(b && b !== "-" ? b : null, base);
+    quizPost(qType || pick(["outline", "flag", "capital"]), qCode, base);
     mapPost(a || pick(ALL_MAPS).id, base);
   } else {
-    console.error("Usage: make.mjs country [code] | quiz <outline|flag|capital> [code] | map <map-id> | week [map-id]");
+    console.error("Usage: make.mjs country [code] | quiz <outline|flag|capital> [code] | map <map-id> | week [map-id|-] [country|-] [quiz-type[:code]]");
     process.exit(2);
   }
 } catch (err) {

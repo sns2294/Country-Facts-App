@@ -27,6 +27,26 @@ export function findCountry(code) {
   return c;
 }
 
+// ---- region names ----
+// The data uses UN statistical names; captions and slides use the familiar ones. Names not listed here are used as they are.
+const FRIENDLY_REGIONS = {
+  "Middle Africa": "Central Africa",
+  "Northern Africa": "North Africa",
+  "Western Africa": "West Africa",
+  "Eastern Africa": "East Africa",
+  "Southern Asia": "South Asia",
+  "Eastern Asia": "East Asia",
+  "South-Eastern Asia": "Southeast Asia",
+  "Western Asia": "the Middle East",
+  "Northern America": "North America",
+  Americas: "the Americas",
+};
+// In a sentence ("in the Middle East"), or bare for a label or hashtag ("Middle East").
+export const regionName = (r, { bare = false } = {}) => {
+  const n = FRIENDLY_REGIONS[r] || r;
+  return bare ? n.replace(/^the /, "") : n;
+};
+
 // ---- facts ----
 const ordinal = (n) => { const v = n % 100; return `${n}${["th", "st", "nd", "rd"][v >= 11 && v <= 13 ? 0 : n % 10 < 4 ? n % 10 : 0]}`; };
 const N = sovereign.length;
@@ -97,10 +117,10 @@ export function funFacts(c) {
     if (group.length < 4) continue;
     const bonus = scope === "subregion" ? 4 : 0;
     const big = rankBy(c, areaOf, group), small = group.length + 1 - big;
-    if (big === 1) add(62 + bonus, `The largest country in ${key} by area.`);
-    if (small === 1) add(62 + bonus, `The smallest country in ${key} by area.`);
-    if (rankBy(c, popOf, group) === 1 && big !== 1) add(58 + bonus, `The most populous country in ${key}.`);
-    if (group.length + 1 - rankBy(c, popOf, group) === 1 && small !== 1) add(58 + bonus, `The least populous country in ${key}.`);
+    if (big === 1) add(62 + bonus, `The largest country in ${regionName(key)} by area.`);
+    if (small === 1) add(62 + bonus, `The smallest country in ${regionName(key)} by area.`);
+    if (rankBy(c, popOf, group) === 1 && big !== 1) add(58 + bonus, `The most populous country in ${regionName(key)}.`);
+    if (group.length + 1 - rankBy(c, popOf, group) === 1 && small !== 1) add(58 + bonus, `The least populous country in ${regionName(key)}.`);
   }
 
   // Mid-tier facts, so a country with no extreme still gets something better than a density figure.
@@ -108,8 +128,8 @@ export function funFacts(c) {
     const group = sovereign.filter((x) => x.subregion === c.subregion);
     if (group.length >= 6) {
       const popRank = rankBy(c, popOf, group), areaRank = rankBy(c, areaOf, group);
-      if (popRank >= 2 && popRank <= 3) add(54, `The ${ordinal(popRank)} most populous of the ${group.length} countries in ${c.subregion}.`);
-      if (areaRank >= 2 && areaRank <= 3) add(53, `The ${ordinal(areaRank)} largest of the ${group.length} countries in ${c.subregion}, by area.`);
+      if (popRank >= 2 && popRank <= 3) add(54, `The ${ordinal(popRank)} most populous of the ${group.length} countries in ${regionName(c.subregion)}.`);
+      if (areaRank >= 2 && areaRank <= 3) add(53, `The ${ordinal(areaRank)} largest of the ${group.length} countries in ${regionName(c.subregion)}, by area.`);
     }
   }
   const faith = c.religions?.[0];
@@ -241,7 +261,7 @@ export function buildQuiz(type, c) {
 // ---- hashtags ----
 // Instagram allows 5 hashtags: the two brand tags first, then up to 3 specific ones. Each is built from words (letters and digits only, one
 // capital per word) and checked, so a typo or a stray character cannot get through.
-const tag = (s) => "#" + slugify(s).split("-").filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join("");
+const tag = (s) => "#" + slugify(s.replace(/^the /i, "")).split("-").filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join("");
 export function hashtags(specific = []) {
   const out = [];
   for (const t of ["#Geography", "#CountryFacts", ...specific.map((s) => (s.startsWith("#") ? s : tag(s)))]) {

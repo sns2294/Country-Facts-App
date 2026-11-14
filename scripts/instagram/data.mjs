@@ -151,6 +151,15 @@ export function funFact(c) {
   return pick(facts.filter((f) => f.score >= facts[0].score - 6)).text;
 }
 
+// The fact as a caption hook that names the country, so it reads on its own outside the image. Facts that already name it pass through;
+// fragments ("The 5th largest country...", "One of the emptiest...") become "Brazil is the 5th largest country...". The slide keeps the fragment.
+export function hookLine(c, fact) {
+  if (fact.toLowerCase().includes(nameOf(c).toLowerCase())) return fact;
+  const name = T.sentenceName(c);
+  if (/^(The|One of) /.test(fact)) return `${name} is ${fact[0].toLowerCase()}${fact.slice(1)}`;
+  return fact;
+}
+
 export function languagesText(c) {
   const names = (c.languages || []).map((l) => l.name.replace(/\s*\([^)]*\)\s*/g, " ").trim()).filter(Boolean);
   if (!names.length) return "N/A";

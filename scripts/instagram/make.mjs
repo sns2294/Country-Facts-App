@@ -13,7 +13,7 @@
 // details, then the call to action, then at most 5 hashtags (#Geography #CountryFacts and up to 3 specific ones).
 import fs from "node:fs";
 import path from "node:path";
-import { ROOT, T, ALL_MAPS, sovereign, nameOf, findCountry, pick, factRows, funFact, flagEmoji, regionalMapFor, mapSvg, locatorSvg, quizPool, buildQuiz, hashtags } from "./data.mjs";
+import { ROOT, T, ALL_MAPS, sovereign, nameOf, findCountry, pick, factRows, funFact, hookLine, flagEmoji, regionalMapFor, mapSvg, locatorSvg, quizPool, buildQuiz, hashtags } from "./data.mjs";
 import { VIEWS } from "./sections.mjs";
 import { countryMapSlide, factsSlide, quizQuestionSlide, quizAnswerSlide, mapSlide, renderSlides } from "./slides.mjs";
 
@@ -38,7 +38,7 @@ function countryPost(code, base = OUT) {
   const first = countryMapSlide(c, mapId ? mapSvg(mapId) : null, mapId ? null : locatorSvg(c));
   const fact = funFact(c); // chosen once: the hook line and the slide's "Did you know?" are this very sentence
   const rows = factRows(c, fact);
-  const caption = `${fact} ${flagEmoji(c)}
+  const caption = `${hookLine(c, fact)} ${flagEmoji(c)}
 
 Country of the day: ${nameOf(c)}
 ${rows.slice(0, 4).map(([k, v]) => `• ${k}: ${v}`).join("\n")}
@@ -100,9 +100,9 @@ try {
     const base = path.join(OUT, `${today}-week`);
     countryPost(null, base);
     quizPost(pick(["outline", "flag", "capital"]), null, base);
-    mapPost(pick(ALL_MAPS).id, base);
+    mapPost(a || pick(ALL_MAPS).id, base);
   } else {
-    console.error("Usage: make.mjs country [code] | quiz <outline|flag|capital> [code] | map <map-id> | week");
+    console.error("Usage: make.mjs country [code] | quiz <outline|flag|capital> [code] | map <map-id> | week [map-id]");
     process.exit(2);
   }
 } catch (err) {

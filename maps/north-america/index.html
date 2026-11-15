@@ -309,24 +309,39 @@
   <script>(function(){
 var open=document.getElementById("map-open"),viewer=document.getElementById("map-viewer"),stage=document.getElementById("map-stage");
 if(!open||!viewer||!stage)return;
-var narrow=window.matchMedia("(max-width: 700px)"),svg=null,s=1,tx=0,ty=0,base=1,w0=0,h0=0,MAX=10,minS=1,pts={},last=null,pushed=false,pinch=null,sz=[0,0],org=[0,0],raf=0;
+var narrow=window.matchMedia("(max-width: 700px)"),svg=null,s=1,tx=0,ty=0,base=1,w0=0,h0=0,MAX=10,minS=1,pts={},last=null,pushed=false,pinch=null,sz=[0,0],org=[0,0],raf=0,vb0=[0,0,1,1],k0=1,st=0,mx=0,my=0,EW=0,EH=0,bs=1,btx=0,bty=0;
 // The stage's size and position are measured once (on open, on resize, and when a ResizeObserver reports a change), never during a gesture:
 // a layout read between touch events would force a layout every time.
 function measure(){var r=stage.getBoundingClientRect();sz=[r.width,r.height];org=[r.left,r.top]}
 function size(){return sz}
 function clamp(){var sz=size(),W=w0*s,H=h0*s;
  tx=W<=sz[0]?(sz[0]-W)/2:Math.min(0,Math.max(sz[0]-W,tx));ty=H<=sz[1]?(sz[1]-H)/2:Math.min(0,Math.max(sz[1]-H,ty))}
+// Sharp after the gesture, smooth during it. The view (s, tx, ty) is where the whole map sits on the stage. The SVG element is only ever a
+// little bigger than the stage (MARGIN of it on every side) and its viewBox is cropped to what that element shows ("baked"), so the browser
+// draws the vectors at the size they are seen at: sharp at any zoom, and never a bitmap of the whole map blown up. While a finger or the wheel
+// is moving, the element is instead moved and scaled by a CSS transform relative to the last bake (cheap, but a bitmap stretched while it lasts);
+// when the gesture has been still for SETTLE ms, or the transformed element would stop covering the stage, the view is baked again. Bake and
+// transform reset happen in one frame, so the old picture stays until the new one is painted. A pan that stays inside the margin needs no re-draw.
+var MARGIN=0.3,SETTLE=140;
+function bake(){if(!svg)return;clearTimeout(st);mx=Math.round(sz[0]*MARGIN);my=Math.round(sz[1]*MARGIN);EW=sz[0]+2*mx;EH=sz[1]+2*my;var k=k0*s;
+ svg.setAttribute("viewBox",(vb0[0]+(-mx-tx)/k)+" "+(vb0[1]+(-my-ty)/k)+" "+EW/k+" "+EH/k);
+ svg.style.width=EW+"px";svg.style.height=EH+"px";svg.style.left=-mx+"px";svg.style.top=-my+"px";svg.style.transform="";
+ bs=s;btx=tx;bty=ty}
+function settle(){st=0;if(!svg)return;if(raf||Object.keys(pts).length){schedule();return}
+ var r=s/bs;if(Math.abs(r-1)>0.001||Math.abs(tx-btx)>mx*0.5||Math.abs(ty-bty)>my*0.5){bake()}}
+function schedule(){clearTimeout(st);st=setTimeout(settle,SETTLE)}
 // Touch events can arrive faster than frames (120 per second on some phones); the view state is updated on each, the page once per frame.
-function flush(){raf=0;if(!svg)return;svg.style.transform="translate("+tx+"px,"+ty+"px) scale("+s+")"}
-function apply(now){clamp();if(now){if(raf){cancelAnimationFrame(raf);raf=0}flush()}else if(!raf)raf=requestAnimationFrame(flush)}
+function flush(force){raf=0;if(!svg)return;var r=s/bs,T=tx+mx-r*(mx+btx),U=ty+my-r*(my+bty);
+ if(force===true||T-mx>0.5||r*EW+T-mx<sz[0]-0.5||U-my>0.5||r*EH+U-my<sz[1]-0.5)bake();
+ else{svg.style.transform="translate("+T+"px,"+U+"px) scale("+r+")";schedule()}}
+function apply(now){clamp();if(now){if(raf){cancelAnimationFrame(raf);raf=0}flush(true)}else if(!raf)raf=requestAnimationFrame(flush)}
 function zoomAt(f,cx,cy,now){var n=Math.min(MAX,Math.max(minS,s*f));f=n/s;tx=cx-(cx-tx)*f;ty=cy-(cy-ty)*f;s=n;apply(now)}
-function fit(){measure();var ratio=svg.viewBox.baseVal.height/svg.viewBox.baseVal.width;w0=sz[0];h0=w0*ratio;
- svg.style.width=w0+"px";svg.style.height=h0+"px";
+function fit(){measure();var ratio=vb0[3]/vb0[2];w0=sz[0];h0=w0*ratio;k0=w0/vb0[2];
  if(narrow.matches){minS=1;s=Math.min(3,Math.max(1,sz[1]/h0))}else{minS=Math.min(1,sz[1]/h0);s=minS}tx=(sz[0]-w0*s)/2;ty=(sz[1]-h0*s)/2;apply(true)}
 function show(){svg=open.querySelector("svg").cloneNode(true);svg.removeAttribute("class");svg.setAttribute("class","map-svg map-svg-big");
- svg.style.minWidth="0";stage.innerHTML="";stage.appendChild(svg);viewer.hidden=false;document.documentElement.classList.add("map-viewer-open");
+ svg.style.minWidth="0";var v=svg.viewBox.baseVal;vb0=[v.x,v.y,v.width,v.height];bs=1;btx=bty=0;stage.innerHTML="";stage.appendChild(svg);viewer.hidden=false;document.documentElement.classList.add("map-viewer-open");
  fit();document.getElementById("map-close").focus();try{history.pushState({mapViewer:1},"");pushed=true}catch(e){}}
-function hide(fromPop){if(viewer.hidden)return;if(raf){cancelAnimationFrame(raf);raf=0}viewer.hidden=true;document.documentElement.classList.remove("map-viewer-open");stage.innerHTML="";svg=null;
+function hide(fromPop){if(viewer.hidden)return;if(raf){cancelAnimationFrame(raf);raf=0}clearTimeout(st);viewer.hidden=true;document.documentElement.classList.remove("map-viewer-open");stage.innerHTML="";svg=null;
  if(pushed&&!fromPop){pushed=false;try{history.back()}catch(e){}}pushed=false;open.focus()}
 open.addEventListener("click",show);
 window.addEventListener("popstate",function(){if(!viewer.hidden)hide(true)});

@@ -431,6 +431,7 @@ function ring(){if(!ringIn)return;var f=current&&FOCUS[current];
    ringIn.style.strokeWidth=(2/k)+"px";ringOut.style.strokeWidth=(4.5/k)+"px";
    [ringIn,ringOut].forEach(function(c){c.setAttribute("cx",f[0]);c.setAttribute("cy",f[1]);c.setAttribute("r",r);c.style.display=""});return}}
  ringIn.style.display=ringOut.style.display="none"}
+// Runs after each bake of the viewer (when a gesture settles, or on a jump), not on every frame of a gesture; it reads the zoom from V.px().
 // At high zoom the page-sized extras get in the way: the names (they would be hundreds of px tall), and the hatching (which would be a few huge stripes).
 function tune(){var s=V.svg();if(!s)return;var k=V.px(),f=k>1.2?k:1,d=5/f;s.style.setProperty("--sw",String(0.8/k));
  s.querySelector(".labels").style.display=k>6?"none":"";

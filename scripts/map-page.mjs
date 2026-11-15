@@ -31,14 +31,16 @@ var MARGIN=0.3,SETTLE=140;
 function bake(){if(!svg)return;clearTimeout(st);mx=Math.round(sz[0]*MARGIN);my=Math.round(sz[1]*MARGIN);EW=sz[0]+2*mx;EH=sz[1]+2*my;var k=k0*s;
  svg.setAttribute("viewBox",(vb0[0]+(-mx-tx)/k)+" "+(vb0[1]+(-my-ty)/k)+" "+EW/k+" "+EH/k);
  svg.style.width=EW+"px";svg.style.height=EH+"px";svg.style.left=-mx+"px";svg.style.top=-my+"px";svg.style.transform="";
- bs=s;btx=tx;bty=ty}
+ bs=s;btx=tx;bty=ty${A?';if(api.onchange)api.onchange()':''}}
 function settle(){st=0;if(!svg)return;if(raf||Object.keys(pts).length){schedule();return}
- var r=s/bs;if(Math.abs(r-1)>0.001||Math.abs(tx-btx)>mx*0.5||Math.abs(ty-bty)>my*0.5){bake()${A?';if(api.onchange)api.onchange()':''}}}
+ var r=s/bs;if(Math.abs(r-1)>0.001||Math.abs(tx-btx)>mx*0.5||Math.abs(ty-bty)>my*0.5)bake()}
 function schedule(){clearTimeout(st);st=setTimeout(settle,SETTLE)}
+// window.mapViewer.onchange (the density map's border width, hatching, name toggle and focus ring, all set from the zoom) runs after a bake, not
+// on every frame of a gesture: it changes style on the whole SVG, which is the expensive thing to do while a finger is moving.
 // Touch events can arrive faster than frames (120 per second on some phones); the view state is updated on each, the page once per frame.
 function flush(force){raf=0;if(!svg)return;var r=s/bs,T=tx+mx-r*(mx+btx),U=ty+my-r*(my+bty);
  if(force===true||T-mx>0.5||r*EW+T-mx<sz[0]-0.5||U-my>0.5||r*EH+U-my<sz[1]-0.5)bake();
- else{svg.style.transform="translate("+T+"px,"+U+"px) scale("+r+")";schedule()}${A?';if(api.onchange)api.onchange()':''}}
+ else{svg.style.transform="translate("+T+"px,"+U+"px) scale("+r+")";schedule()}}
 function apply(now){clamp();if(now){if(raf){cancelAnimationFrame(raf);raf=0}flush(true)}else if(!raf)raf=requestAnimationFrame(flush)}
 function zoomAt(f,cx,cy,now){var n=Math.min(MAX,Math.max(minS,s*f));f=n/s;tx=cx-(cx-tx)*f;ty=cy-(cy-ty)*f;s=n;apply(now)}
 function fit(){measure();var ratio=vb0[3]/vb0[2];w0=sz[0];h0=w0*ratio;k0=w0/vb0[2];${A?`vbW=vb0[2];MAX=${opt.maxPxPerUnit}*vbW/w0;`:''}

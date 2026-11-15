@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { ROOT, read, nameOf, regionName, T } from "./data.mjs";
+import { ROOT, all, read, nameOf, regionName, T } from "./data.mjs";
 
 export const W = 1080, H = 1350;
 const CHROME = process.env.CHROME_PATH || ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/usr/bin/google-chrome", "/usr/bin/chromium"].find((p) => fs.existsSync(p));
@@ -129,8 +129,14 @@ export function quizAnswerSlide(q, fact) {
 //   - a country name may slide as far as needed, as long as it stays inside its own country's shape (Russia on Europe's first slide);
 //   - any other label may move at most 40% of its own size;
 //   - and a move that would touch another label is not made: the label is hidden instead.
-const FIT_LABELS = `<script>
+// Two more rules, so the crop never misleads:
+//   - a pointer label (callout) whose target lies outside the frame is hidden with its line, or it would seem to name whatever is beside it;
+//   - a capital dot never shows without its name: the name is added next to it where it fits, otherwise the dot is hidden.
+// Capital names come from the country data (single-city capitals only), keyed by the alpha-3 code on the land under the dot.
+const CAPITALS = JSON.stringify(Object.fromEntries(all.filter((c) => c.capital && !/[,/]/.test(c.capital)).map((c) => [c.alpha3Code, c.capital])));
+const FIT_LABELS = () => `<script>
 (function () {
+  const CAPITALS = ${CAPITALS};
   const panel = document.querySelector(".panel").getBoundingClientRect(), M = 10;
   const L = panel.left + M, R = panel.right - M, T = panel.top + M, B = panel.bottom - M;
   const svg = document.querySelector(".map-svg"), dots = [...svg.querySelectorAll(".capitals circle")], lands = [...svg.querySelectorAll("path.c")];
@@ -140,6 +146,12 @@ const FIT_LABELS = `<script>
   const touches = (a, b) => a.left < b.right + 3 && a.right > b.left - 3 && a.top < b.bottom + 3 && a.bottom > b.top - 3;
   const centre = (t) => { const b = t.getBBox(), m = t.transform.baseVal.numberOfItems ? t.transform.baseVal.consolidate().matrix : new DOMMatrix(); return new DOMPoint(b.x + b.width / 2, b.y + b.height / 2).matrixTransform(m); };
   const landAt = (p) => lands.find((l) => l.isPointInFill(p));
+  // A pointer label whose target is outside the frame goes, with its line (a leader runs from the target (x1,y1) to the label).
+  const leaders = [...svg.querySelectorAll(".callouts line")], notes = [...svg.querySelectorAll(".callouts text")];
+  leaders.forEach((ln, i) => {
+    const m = ln.getScreenCTM(), p = new DOMPoint(+ln.getAttribute("x1"), +ln.getAttribute("y1")).matrixTransform(m);
+    if (p.x < panel.left || p.x > panel.right || p.y < panel.top || p.y > panel.bottom) { ln.style.display = "none"; if (notes[i]) notes[i].style.display = "none"; }
+  });
   for (const t of texts) {
     const r = shown(t);
     if (!r || !visible(r)) continue;
@@ -179,6 +191,40 @@ const FIT_LABELS = `<script>
       if (top && top.matches("path.c")) { t.style.display = "none"; break; }
     }
   }
+  // A leader whose label was hidden (by the checks above or the fitting) is hidden with it, so no line points at nothing.
+  leaders.forEach((ln, i) => { if (notes[i] && notes[i].style.display === "none") ln.style.display = "none"; });
+  // A capital dot must have its name beside it (its own label, or a pointer label that is still showing). Otherwise add the name where
+  // it fits (not over another label, dot or the frame edge), or hide the dot.
+  const charBoxes = (t) => { const m = t.getScreenCTM(), out = []; for (let i = 0; i < t.getNumberOfChars(); i++) { const e = t.getExtentOfChar(i); if (!e.width) continue; const q = [[e.x, e.y], [e.x + e.width, e.y], [e.x, e.y + e.height], [e.x + e.width, e.y + e.height]].map((a) => new DOMPoint(a[0], a[1]).matrixTransform(m)); out.push({ left: Math.min(...q.map((a) => a.x)), right: Math.max(...q.map((a) => a.x)), top: Math.min(...q.map((a) => a.y)), bottom: Math.max(...q.map((a) => a.y)) }); } return out; };
+  const hits = (a, b) => a.left < b.right + 3 && a.right > b.left - 3 && a.top < b.bottom + 3 && a.bottom > b.top - 3;
+  for (const d of dots) {
+    if (d.style.display === "none") continue;
+    const dr = d.getBoundingClientRect();
+    if (!visible(dr)) continue;
+    const next = d.nextElementSibling, own = next && next.matches("text.capname") && shown(next);
+    const cx = +d.getAttribute("cx"), cy = +d.getAttribute("cy");
+    const pointed = leaders.some((ln, i) => ln.style.display !== "none" && notes[i] && shown(notes[i]) && Math.hypot(+ln.getAttribute("x1") - cx, +ln.getAttribute("y1") - cy) < 1);
+    if (own || pointed) continue;
+    let name = null;
+    for (const [ox, oy] of [[0, 0], [4, 0], [-4, 0], [0, 4], [0, -4], [3, 3], [-3, 3], [3, -3], [-3, -3]]) {
+      const l = landAt(new DOMPoint(cx + ox, cy + oy));
+      if (l && CAPITALS[l.dataset.code]) { name = CAPITALS[l.dataset.code]; break; }
+    }
+    let placed = false;
+    if (name) {
+      const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      t.setAttribute("class", "capname"); t.setAttribute("font-size", "9"); t.dataset.added = name; t.textContent = name;
+      d.parentNode.insertBefore(t, d.nextSibling);
+      const others = texts.concat(notes).filter((o) => shown(o)).flatMap(charBoxes).concat(dots.filter((o) => o !== d && o.style.display !== "none").map((o) => o.getBoundingClientRect()));
+      for (const [x, y, a] of [[cx + 5.5, cy + 2.8, "start"], [cx - 5.5, cy + 2.8, "end"], [cx, cy - 6, "middle"], [cx, cy + 12, "middle"]]) {
+        t.setAttribute("x", x); t.setAttribute("y", y); t.setAttribute("text-anchor", a);
+        const mine = charBoxes(t);
+        if (mine.every((b) => b.left >= L && b.right <= R && b.top >= T && b.bottom <= B && !others.some((o) => hits(b, o)))) { placed = true; break; }
+      }
+      if (!placed) t.remove();
+    }
+    if (!placed) d.style.display = "none";
+  }
 })();
 </script>`;
 
@@ -204,7 +250,7 @@ export function mapSlide(title, kicker, svg, ocean, view, counter) {
   const cropped = svg.replace(/viewBox="0 0 [\d.]+ [\d.]+"/, `viewBox="${[r.x, r.y, r.w, r.h].map((n) => Math.round(n * 10) / 10).join(" ")}"`);
   const css = `${MAP_BASE}\n.panel{left:${Math.round((W - pw) / 2)}px;width:${pw}px;right:auto;top:${top}px;height:${ph}px;background:${ocean}}`;
   const body = `<div style="position:absolute;left:64px;right:64px;top:140px"><div class="kicker">${esc(kicker)}</div><h1 style="font-size:${twoLines ? 64 : 84}px;margin-top:10px;line-height:1.05">${esc(title)}</h1></div><div class="panel maps-page">${cropped}</div>`;
-  return frame(body, { css, mapsCss: true, page: counter }) + FIT_LABELS;
+  return frame(body, { css, mapsCss: true, page: counter }) + FIT_LABELS();
 }
 
 // ---- Chrome ----

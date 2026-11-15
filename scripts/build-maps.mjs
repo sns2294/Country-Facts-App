@@ -1703,6 +1703,7 @@ ${INDEXABLE ? "" : `  <meta name="robots" content="noindex" />\n`}  <meta proper
   ${socialTags({ baseUrl: BASE_URL, siteName: "Country Facts", title: `Map of ${R.name}: Countries, Capitals & Seas | Country Facts`, description: `A colorful political map of ${R.name} with every country, capital city and sea labeled.`, image: `og/map-${REGION_ID}.png`, alt: `A political map of ${R.name} with each country colored differently from its neighbors, under the Country Facts name.` })}
   <link rel="icon" type="image/png" sizes="32x32" href="../../favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="../../favicon-192.png" />
+  <link rel="apple-touch-icon" href="../../apple-touch-icon.png" />
   <script>${THEME_SNIPPET}</script>
   <link rel="stylesheet" href="../../style.css" />
   <link rel="stylesheet" href="../../country-page.css" />

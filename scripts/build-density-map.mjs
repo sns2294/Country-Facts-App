@@ -475,6 +475,7 @@ ${INDEXABLE ? "" : `  <meta name="robots" content="noindex" />\n`}  <meta proper
   ${socialTags({ baseUrl: BASE_URL, siteName: "Country Facts", title: TITLE, description: DESCRIPTION, image: `og/map-${ID}.png`, alt: "A world map of population density, from sparse to crowded in eight color steps, under the Country Facts name." })}
   <link rel="icon" type="image/png" sizes="32x32" href="../../favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="../../favicon-192.png" />
+  <link rel="apple-touch-icon" href="../../apple-touch-icon.png" />
   <script>${THEME_SNIPPET}</script>
   <link rel="stylesheet" href="../../style.css" />
   <link rel="stylesheet" href="../../country-page.css" />

@@ -1,4 +1,4 @@
 {
   "baseUrl": "https://countryfacts.app",
-  "indexable": false
+  "indexable": true
 }

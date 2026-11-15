@@ -23,5 +23,8 @@ export const socialTags = ({ baseUrl, siteName, title, description, image, alt }
     `<meta name="twitter:description" content="${esc(description)}" />`,
     `<meta name="twitter:image" content="${url}" />`,
     `<meta name="twitter:image:alt" content="${esc(alt)}" />`,
+    // The short name iOS offers when the page is added to the home screen (the <title> is far too long), and the manifest that names the app elsewhere.
+    `<meta name="apple-mobile-web-app-title" content="${siteName}" />`,
+    `<link rel="manifest" href="${baseUrl}/manifest.webmanifest" />`,
   ].join("\n  ");
 };

@@ -193,6 +193,24 @@ const FIT_LABELS = () => `<script>
   }
   // A leader whose label was hidden (by the checks above or the fitting) is hidden with it, so no line points at nothing.
   leaders.forEach((ln, i) => { if (notes[i] && notes[i].style.display === "none") ln.style.display = "none"; });
+  // A capital's pointer label (name in open space, a thin leader to its dot; the maps' leaders beyond those of the micro-states) shows only
+  // when it can be read as pointing at its own dot: the dot is inside the frame, the leader is drawn at least 1.2px wide and 12px long (at a
+  // zoomed-out crop it is a hairline that vanishes, and the name then reads as belonging to whatever lies beside it), and the name itself is
+  // inside the frame. Otherwise the name, its leader and its dot all go; the name is not re-added beside the dot, where it would be ambiguous.
+  const pointerLog = [];
+  for (const ln of leaders.slice(notes.length)) {
+    const m = ln.getScreenCTM(), a = new DOMPoint(+ln.getAttribute("x1"), +ln.getAttribute("y1")).matrixTransform(m), b = new DOMPoint(+ln.getAttribute("x2"), +ln.getAttribute("y2")).matrixTransform(m);
+    const t = [...svg.querySelectorAll(".capitals text.capname")].find((c) => { const r = c.getBoundingClientRect(); return b.x >= r.left - 4 && b.x <= r.right + 4 && b.y >= r.top - 4 && b.y <= r.bottom + 4; });
+    if (!t) continue;
+    const r = t.getBoundingClientRect(), width = m.a * 0.9, len = Math.hypot(b.x - a.x, b.y - a.y);
+    const dotIn = a.x >= L && a.x <= R && a.y >= T && a.y <= B, labelIn = !!shown(t) && r.left >= L && r.right <= R && r.top >= T && r.bottom <= B;
+    const ok = ln.style.display !== "none" && dotIn && labelIn && width >= 1.2 && len >= 12;
+    pointerLog.push({ name: t.textContent, shown: ok, dotIn, labelIn, leaderPx: +len.toFixed(1), strokePx: +width.toFixed(2) });
+    if (ok) continue;
+    ln.style.display = "none"; t.style.display = "none";
+    for (const d of dots) if (Math.hypot(+d.getAttribute("cx") - +ln.getAttribute("x1"), +d.getAttribute("cy") - +ln.getAttribute("y1")) < 1) d.style.display = "none";
+  }
+  document.documentElement.dataset.pointerLabels = JSON.stringify(pointerLog);
   // A capital dot must have its name beside it (its own label, or a pointer label that is still showing). Otherwise add the name where
   // it fits (not over another label, dot or the frame edge), or hide the dot.
   const charBoxes = (t) => { const m = t.getScreenCTM(), out = []; for (let i = 0; i < t.getNumberOfChars(); i++) { const e = t.getExtentOfChar(i); if (!e.width) continue; const q = [[e.x, e.y], [e.x + e.width, e.y], [e.x, e.y + e.height], [e.x + e.width, e.y + e.height]].map((a) => new DOMPoint(a[0], a[1]).matrixTransform(m)); out.push({ left: Math.min(...q.map((a) => a.x)), right: Math.max(...q.map((a) => a.x)), top: Math.min(...q.map((a) => a.y)), bottom: Math.max(...q.map((a) => a.y)) }); } return out; };

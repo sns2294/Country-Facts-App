@@ -68,8 +68,6 @@ html.map-viewer-open, html.map-viewer-open body { overflow: hidden; overscroll-b
 .map-viewer-stage:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 .map-viewer-stage { position: relative; flex: 1; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
 .map-viewer-stage .map-svg { position: absolute; left: 0; top: 0; transform-origin: 0 0; max-width: none; will-change: transform; }
-/* Mid-gesture re-draws skip the stroke work (scripts/map-page.mjs); the settle re-draw brings the borders back. */
-.map-viewer-stage.moving .map-svg .c, .map-viewer-stage.moving .map-svg .lake, .map-viewer-stage.moving .map-svg .disp { stroke: none; }
 
 .maps-page.country-page { max-width: 1240px; }
 .maps-page .map-card { max-width: none; }

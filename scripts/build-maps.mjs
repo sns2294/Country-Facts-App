@@ -1149,6 +1149,7 @@ if (disputedGroups.some((d) => d.shapes.length)) BLOCK = disputedGroups.filter((
 
 // Crowded capitals (the Levant) are named first, so the big country labels fit around them rather than over them.
 const namedEarly = new Set();
+const crowded = []; // capitals whose name found no clear side: they get a pointer label (after the names are placed)
 for (const a3 of R.capFirst || []) {
   const d = capDots.find((c) => c.a3 === a3);
   if (d && !CAP_SKIP_NAME.has(a3)) { nameCapital(d); namedEarly.add(a3); }
@@ -1433,9 +1434,49 @@ function nameCapital({ a3, cap, x, y }) {
   const wanted = R.capSide?.[a3] && pool.find((f) => f === sides[R.capSide[a3]]); // a side pinned in the region's config wins
   const chosen = wanted || pool.find(inOwn) || pool[0];
   if (chosen) { obstacles.push(chosen.box); capOut.push({ a3, name: cap.name, x, y, nx: chosen.nx, ny: chosen.ny, anchor: chosen.anchor, box: chosen.box }); }
-  else { capOut.push({ name: null, x, y }); console.log(`note: capital name ${cap.name} dropped (no side is clearly nearer its own dot than another capital's)`); }
+  else { const e = { a3, name: null, x, y }; capOut.push(e); crowded.push({ e, cap, x, y, a3 }); }
 }
 for (const d of capDots) if (!namedEarly.has(d.a3)) nameCapital(d);
+// A capital whose name fits on no side without reading as another city's gets a pointer label instead (as the micro-states do): the name in
+// open space, a thin leader to its own dot. The label must clear every other label and dot, the leader must not run through a label, cross
+// another leader or pass near another capital's dot, and where two dots touch (Kinshasa/Brazzaville) it must leave from the side facing away from the twin.
+const leaderSegs = [...calloutOut.map((c) => [c.x, c.y, c.nx, c.ny]), ...labelOut.filter((l) => l.leader).map((l) => l.leader)];
+const segCross = (a, b) => { const o = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])); const A = [a[0], a[1]], B = [a[2], a[3]], C = [b[0], b[1]], D = [b[2], b[3]]; return o(A, B, C) !== o(A, B, D) && o(C, D, A) !== o(C, D, B); };
+const ptSeg = (px, py, s) => { const dx = s[2] - s[0], dy = s[3] - s[1], u = Math.max(0, Math.min(1, ((px - s[0]) * dx + (py - s[1]) * dy) / (dx * dx + dy * dy || 1))); return Math.hypot(px - (s[0] + u * dx), py - (s[1] + u * dy)); };
+const inTilted = (o, px, py) => { const c = Math.cos(-o.rot.angle), sn = Math.sin(-o.rot.angle), dx = px - o.rot.cx, dy = py - o.rot.cy; return Math.abs(dx * c - dy * sn) <= o.rot.w / 2 && Math.abs(dx * sn + dy * c) <= o.rot.h / 2; };
+// a tilted country label is measured by its real outline here, not the big box round it
+const padBlocks = (o, b) => boxOverlap(o, b) && (!o.rot || [0, 1, 2, 3, 4, 5, 6, 7, 8].some((i) => [0, 1, 2].some((j) => inTilted(o, b[0] + ((b[2] - b[0]) * i) / 8, b[1] + ((b[3] - b[1]) * j) / 2))));
+for (const { e, cap, x, y, a3 } of crowded) {
+  const w = textWidth(cap.name, CAP_SIZE) * 0.97 + 2, h = CAP_SIZE * 0.9;
+  const others = capDots.filter((d) => d.a3 !== a3), twins = others.filter((d) => touching(d, { x, y })), far = others.filter((d) => !touching(d, { x, y }));
+  let best = null;
+  for (const [farBox, farLine] of [[18, 8], [14, 6], [10, 6], [7, 4]]) { // clearance from other capitals' dots: first the comfortable, then the least that is still clear
+    for (let cy = y - 110; cy <= y + 110; cy += 2) for (let cx = x - 110; cx <= x + 110; cx += 2) {
+      const box = [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
+      if (box[0] < 6 || box[2] > WIDTH - 6 || box[1] < 6 || box[3] > HEIGHT - 6) continue;
+      const lx = Math.min(Math.max(x, box[0]), box[2]), ly = Math.min(Math.max(y, box[1]), box[3]), len = Math.hypot(lx - x, ly - y);
+      if (len < 9 || len > 100 || obstacles.some((o) => padBlocks(o, [box[0] - 1, box[1] - 1, box[2] + 1, box[3] + 1]))) continue;
+      const seg = [x, y, lx, ly];
+      if (far.some((d) => boxToDot(box, d) < farBox || ptSeg(d.x, d.y, seg) < farLine)) continue;
+      if (twins.some((d) => ((lx - x) * (d.x - x) + (ly - y) * (d.y - y)) / len / Math.hypot(d.x - x, d.y - y) > -0.5)) continue;
+      if (leaderSegs.some((s) => segCross(seg, s) || ptSeg(lx, ly, s) < 2)) continue;
+      let crosses = false;
+      for (let u = 5; u < len && !crosses; u += 2) { const px = x + ((lx - x) * u) / len, py = y + ((ly - y) * u) / len; crosses = obstacles.some((o, i) => i >= capDots.length && o[2] - o[0] > 12 && o[3] - o[1] > 5 && px >= o[0] - 1 && px <= o[2] + 1 && py >= o[1] - 1 && py <= o[3] + 1 && (!o.rot || inTilted(o, px, py))); }
+      if (crosses) continue;
+      const crossed = new Set();
+      for (let u = 1; u < 30; u++) { const c = countryAtMask(x + ((lx - x) * u) / 30, y + ((ly - y) * u) / 30); if (c && c !== a3) crossed.add(c); }
+      const onOther = countryAtMask(cx, cy), score = len + 18 * crossed.size + (onOther && onOther !== a3 ? 14 : 0);
+      if (!best || score < best.score) best = { score, box, lx, ly, len, crossed: crossed.size };
+    }
+    if (best) break;
+  }
+  if (!best) { console.log(`WARNING: no room for a pointer label for the capital ${cap.name}`); continue; }
+  obstacles.push(best.box);
+  for (let u = 0; u <= best.len; u += 3) obstacles.push([x + ((best.lx - x) * u) / best.len - 1.5, y + ((best.ly - y) * u) / best.len - 1.5, x + ((best.lx - x) * u) / best.len + 1.5, y + ((best.ly - y) * u) / best.len + 1.5]);
+  leaderSegs.push([x, y, best.lx, best.ly]);
+  Object.assign(e, { name: cap.name, nx: (best.box[0] + best.box[2]) / 2, ny: best.box[1] + h * 0.85, anchor: "middle", box: null, leader: [x, y, best.lx, best.ly] });
+  console.log(`capital pointer label ${cap.name}: line ${Math.round(best.len)} long, crosses ${best.crossed} countr${best.crossed === 1 ? "y" : "ies"}`);
+}
 // Audit: a capital's name must sit nearer its own dot than any other capital's dot (else it reads as that other city's name).
 for (const c of capOut.filter((c) => c.box)) {
   const own = boxToDot(c.box, { x: c.x, y: c.y });
@@ -1597,8 +1638,8 @@ const territoryDots = (R.dots || []).filter((a) => (shapes.has(a) || (R.dotOnly 
 const capMarkup = (territoryDots ? territoryDots + "\n      " : "") + capOut
   .map((c) => `<circle class="cap" cx="${f1(c.x)}" cy="${f1(c.y)}" r="2.6" />` + (c.name ? `<text class="capname" x="${f1(c.nx)}" y="${f1(c.ny)}" text-anchor="${c.anchor}" font-size="${CAP_SIZE}">${esc(c.name)}</text>` : ""))
   .join("\n      ");
-const calloutLines = calloutOut
-  .map((c) => `<line class="leader" x1="${f1(c.x)}" y1="${f1(c.y)}" x2="${f1(c.nx)}" y2="${f1(c.ny)}" />`)
+const calloutLines = [...calloutOut.map((c) => [c.x, c.y, c.nx, c.ny]), ...capOut.filter((c) => c.leader).map((c) => c.leader)]
+  .map((l) => `<line class="leader" x1="${f1(l[0])}" y1="${f1(l[1])}" x2="${f1(l[2])}" y2="${f1(l[3])}" />`)
   .join("\n      ");
 const calloutTexts = calloutOut
   .map((c) => {

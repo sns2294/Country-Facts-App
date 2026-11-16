@@ -16,7 +16,8 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { socialTags } from "./social-tags.mjs";
 import { clipHalf, key, stitch } from "./geo-util.mjs";
-import { THEME_SNIPPET, TOGGLE_SNIPPET, VIEWER_SNIPPET } from "./map-page.mjs";
+import { THEME_SNIPPET, TOGGLE_SNIPPET, VIEWER_SNIPPET, viewerSnippet } from "./map-page.mjs";
+import { simplifyShapes } from "./simplify-shapes.mjs";
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -337,6 +338,7 @@ const REGIONS = {
     lede: "Dots mark capital cities; Greenland, Bermuda and Saint Pierre and Miquelon are shown in their parent country's color, and an inset enlarges Hawaii.",
     noteExtra: "Drawn in the Lambert azimuthal equal-area projection. Greenland is part of the Kingdom of Denmark, Bermuda is a British Overseas Territory and Saint Pierre and Miquelon is a French overseas collectivity; each is in its parent's color from the Europe map. Puerto Rico and the U.S. Virgin Islands are shown in the United States' color. The western Aleutian Islands lie beyond the left edge.",
     projectionName: "Lambert azimuthal equal-area",
+    coarse: 1.4, coarseBelow: 0.43, // the phone viewer draws a copy of the land simplified by 1.4 units while the screen shows under 0.43 px per unit (so under 0.6 px of difference), the full shapes beyond
   },
   // Not a page: the Hawaii inset of the North America map (same code, its own projection, the main map's colors).
   "north-america-hawaii": {
@@ -1606,14 +1608,19 @@ const f1 = num;
 const pathOf = (polys) =>
   polys.map((p) => p.rings.map((r) => "M" + r.map(([x, y]) => `${f1(x)} ${f1(y)}`).join("L") + "Z").join("")).join("");
 
+// R.coarse (a distance in SVG units, e.g. 1.4): the land is also drawn as a coarser copy, kept in each path's data-d2, which the phone viewer uses
+// while zoomed out far enough that the difference is under 0.6 px (scripts/map-page.mjs). Lakes, labels, capitals and the inset are not touched.
+const COARSE = R.coarse && !R.fragment ? simplifyShapes(shapes, R.coarse) : null;
+if (COARSE) console.log(`coarse land: ${COARSE.before} points -> ${COARSE.after} (tolerance ${R.coarse} units)`);
+const d2 = (a) => (COARSE ? ` data-d2="${pathOf(COARSE.shapes.get(a))}"` : "");
 const landMarkup = (() => {
   const euro = COLOURED.filter((a) => shapes.has(a))
     .sort((a, b) => nameOf(a).localeCompare(nameOf(b)))
-    .map((a) => `<path class="c c${colours.get(a)}" data-code="${a}" d="${pathOf(shapes.get(a))}"><title>${esc(nameOf(a))}</title></path>`)
+    .map((a) => `<path class="c c${colours.get(a)}" data-code="${a}" d="${pathOf(shapes.get(a))}"${d2(a)}><title>${esc(nameOf(a))}</title></path>`)
     .join("\n      ");
   const grey = [...shapes.keys()]
     .filter((a) => !COLOURED.includes(a))
-    .map((a) => `<path class="c ctx" d="${pathOf(shapes.get(a))}" />`)
+    .map((a) => `<path class="c ctx" d="${pathOf(shapes.get(a))}"${d2(a)} />`)
     .join("\n      ");
   return { euro, grey };
 })();
@@ -1805,7 +1812,7 @@ ${INDEXABLE ? "" : `  <meta name="robots" content="noindex" />\n`}  <meta proper
     </p>
     <p class="footer-feedback"><a href="mailto:hello@countryfacts.app">Send feedback</a></p>
   </footer>
-  <script>${VIEWER_SNIPPET}</script>
+  <script>${R.coarse ? viewerSnippet({ coarseBelow: R.coarseBelow }) : VIEWER_SNIPPET}</script>
   <script>${TOGGLE_SNIPPET}</script>
 </body>
 </html>

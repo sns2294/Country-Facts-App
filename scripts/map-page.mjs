@@ -10,11 +10,11 @@ export const TOGGLE_SNIPPET = `(function(){var b=document.getElementById("dark-m
 // window.mapViewer (open, focus on a point, current scale, and onshow/onchange/onhide hooks) to the page's own script. Without it
 // the output is the plain viewer the regional maps use.
 export const viewerSnippet = (opt = {}) => {
-const A = Boolean(opt.maxPxPerUnit);
+const A = Boolean(opt.maxPxPerUnit), C = opt.coarseBelow;
 return `(function(){
 var open=document.getElementById("map-open"),viewer=document.getElementById("map-viewer"),stage=document.getElementById("map-stage");
 if(!open||!viewer||!stage)return;
-var svg=null,s=1,tx=0,ty=0,base=1,w0=0,h0=0,MAX=10,minS=1,${A?"vbW=1,":""}pts={},last=null,pushed=false,pinch=null,sz=[0,0],org=[0,0],raf=0,vb0=[0,0,1,1],k0=1,st=0,mx=0,my=0,EW=0,EH=0,bs=1,btx=0,bty=0;
+var svg=null,s=1,tx=0,ty=0,base=1,w0=0,h0=0,MAX=10,minS=1,${A?"vbW=1,":""}pts={},last=null,pushed=false,pinch=null,sz=[0,0],org=[0,0],raf=0,vb0=[0,0,1,1],k0=1,st=0,mx=0,my=0,EW=0,EH=0,bs=1,btx=0,bty=0${C?',cp=null,cmode=0':''};
 // The stage's size and position are measured once (on open, on resize, and when a ResizeObserver reports a change), never during a gesture:
 // a layout read between touch events would force a layout every time.
 function measure(){var r=stage.getBoundingClientRect();sz=[r.width,r.height];org=[r.left,r.top]}
@@ -28,7 +28,9 @@ function clamp(){var sz=size(),W=w0*s,H=h0*s;
 // when the gesture has been still for SETTLE ms, or the transformed element would stop covering the stage, the view is baked again. Bake and
 // transform reset happen in one frame, so the old picture stays until the new one is painted. A pan that stays inside the margin needs no re-draw.
 var MARGIN=0.3,SETTLE=140;
-function bake(){if(!svg)return;clearTimeout(st);mx=Math.round(sz[0]*MARGIN);my=Math.round(sz[1]*MARGIN);EW=sz[0]+2*mx;EH=sz[1]+2*my;var k=k0*s;
+function bake(){if(!svg)return;clearTimeout(st);mx=Math.round(sz[0]*MARGIN);my=Math.round(sz[1]*MARGIN);EW=sz[0]+2*mx;EH=sz[1]+2*my;var k=k0*s;${C?`
+ // Level of detail: the land has a coarser copy (data-d2) that is drawn while the screen shows at most ${C} px per map unit; above that the full shapes. Swapped here, in the bake, in the same frame as the new viewBox, never during a gesture.
+ if(cp){var m=k>${C}?0:1;if(m!==cmode){cmode=m;for(var q=0;q<cp.length;q++)cp[q][0].setAttribute("d",cp[q][m?2:1])}}`:''}
  svg.setAttribute("viewBox",(vb0[0]+(-mx-tx)/k)+" "+(vb0[1]+(-my-ty)/k)+" "+EW/k+" "+EH/k);
  svg.style.width=EW+"px";svg.style.height=EH+"px";svg.style.left=-mx+"px";svg.style.top=-my+"px";svg.style.transform="";
  bs=s;btx=tx;bty=ty${A?';if(api.onchange)api.onchange()':''}}
@@ -48,9 +50,9 @@ function fit(){measure();var ratio=vb0[3]/vb0[2];w0=sz[0];h0=w0*ratio;k0=w0/vb0[
 function show(){svg=open.querySelector("svg").cloneNode(true);svg.removeAttribute("class");svg.setAttribute("class","map-svg map-svg-big");
  svg.style.minWidth="0";
  // The page map's soft shadow under the land is an SVG filter, which the browser has to run again on every re-draw of a big, zoomed picture; the full-screen copy goes without it.
- Array.prototype.forEach.call(svg.querySelectorAll('[filter="url(#shadow)"]'),function(g){g.removeAttribute("filter")});var v=svg.viewBox.baseVal;vb0=[v.x,v.y,v.width,v.height];bs=1;btx=bty=0;stage.innerHTML="";stage.appendChild(svg);viewer.hidden=false;document.documentElement.classList.add("map-viewer-open");
+ Array.prototype.forEach.call(svg.querySelectorAll('[filter="url(#shadow)"]'),function(g){g.removeAttribute("filter")});var v=svg.viewBox.baseVal;vb0=[v.x,v.y,v.width,v.height];bs=1;btx=bty=0;${C?'cp=Array.prototype.map.call(svg.querySelectorAll("path[data-d2]"),function(e){return[e,e.getAttribute("d"),e.getAttribute("data-d2")]});cmode=0;':''}stage.innerHTML="";stage.appendChild(svg);viewer.hidden=false;document.documentElement.classList.add("map-viewer-open");
  ${A?'if(api.onshow)api.onshow(svg);':''}fit();document.getElementById("map-close").focus();try{history.pushState({mapViewer:1},"");pushed=true}catch(e){}}
-function hide(fromPop){if(viewer.hidden)return;if(raf){cancelAnimationFrame(raf);raf=0}clearTimeout(st);${A?'if(api.onhide)api.onhide();':''}viewer.hidden=true;document.documentElement.classList.remove("map-viewer-open");stage.innerHTML="";svg=null;
+function hide(fromPop){if(viewer.hidden)return;if(raf){cancelAnimationFrame(raf);raf=0}clearTimeout(st);${C?'cp=null;':''}${A?'if(api.onhide)api.onhide();':''}viewer.hidden=true;document.documentElement.classList.remove("map-viewer-open");stage.innerHTML="";svg=null;
  if(pushed&&!fromPop){pushed=false;try{history.back()}catch(e){}}pushed=false;open.focus()}
 ${A?`var api=window.mapViewer={stage:stage,svg:function(){return svg},isOpen:function(){return !viewer.hidden},open:function(){if(viewer.hidden)show()},
  px:function(){return s*w0/vbW},

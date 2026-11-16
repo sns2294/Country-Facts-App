@@ -1085,6 +1085,8 @@ function fitLabel(polys, name, { maxSize, minSize, blocked, angles = [0], lines 
 
 const obstacles = []; // [x0,y0,x1,y1] already used by capital names, dots, callouts
 const boxOverlap = (a, b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
+const touching = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) < 3;
+const boxToDot = (b, d) => Math.hypot(Math.max(b[0] - d.x, 0, d.x - b[2]), Math.max(b[1] - d.y, 0, d.y - b[3]));
 
 // Tiny states: label sits outside with a pointer line. dx/dy are offsets of the label anchor from the
 // capital marker, in SVG units; `anchor` is the text-anchor.
@@ -1422,12 +1424,23 @@ function nameCapital({ a3, cap, x, y }) {
   const ok = (side) => side.box[0] >= 4 && side.box[2] <= WIDTH - 4 && side.box[1] >= 4 && side.box[3] <= HEIGHT - 4 && !obstacles.some((o, i) => i >= capDots.length && blockedBy(o, side.box));
   const inOwn = (side) => [[side.box[0], side.box[1]], [side.box[2], side.box[1]], [side.box[0], side.box[3]], [side.box[2], side.box[3]]].every(([cx, cy]) => insidePoly(own, cx, cy));
   const free = [...new Set([R.capSide?.[a3], "r", "l", "b", "t", "tr", "tl", "br", "bl"].filter(Boolean))].map((k) => sides[k]).filter(ok);
-  const wanted = R.capSide?.[a3] && free.find((f) => f === sides[R.capSide[a3]]); // a side pinned in the region's config wins
-  const chosen = wanted || free.find(inOwn) || free[0];
-  if (chosen) { obstacles.push(chosen.box); capOut.push({ name: cap.name, x, y, nx: chosen.nx, ny: chosen.ny, anchor: chosen.anchor }); }
-  else capOut.push({ name: null, x, y });
+  // A name must read as its own dot's: how much nearer its own dot is than the nearest other capital's. Sides where it is clearly
+  // nearer (margin > 2.5) come first, then any where it is nearer at all (> 1, what the audit below accepts). With neither, the name is
+  // dropped (as when crowded) rather than left looking like another city's. Dots that touch (Kinshasa and Brazzaville) are one blob,
+  // so the pair is skipped in this test and is named on opposite sides instead.
+  const margin = (side) => Math.min(...capDots.filter((d) => d.a3 !== a3 && !touching(d, { x, y })).map((d) => boxToDot(side.box, d))) - boxToDot(side.box, { x, y });
+  const pool = [free.filter((f) => margin(f) > 2.5), free.filter((f) => margin(f) > 1)].find((tier) => tier.length) || [];
+  const wanted = R.capSide?.[a3] && pool.find((f) => f === sides[R.capSide[a3]]); // a side pinned in the region's config wins
+  const chosen = wanted || pool.find(inOwn) || pool[0];
+  if (chosen) { obstacles.push(chosen.box); capOut.push({ a3, name: cap.name, x, y, nx: chosen.nx, ny: chosen.ny, anchor: chosen.anchor, box: chosen.box }); }
+  else { capOut.push({ name: null, x, y }); console.log(`note: capital name ${cap.name} dropped (no side is clearly nearer its own dot than another capital's)`); }
 }
 for (const d of capDots) if (!namedEarly.has(d.a3)) nameCapital(d);
+// Audit: a capital's name must sit nearer its own dot than any other capital's dot (else it reads as that other city's name).
+for (const c of capOut.filter((c) => c.box)) {
+  const own = boxToDot(c.box, { x: c.x, y: c.y });
+  for (const d of capDots) if (d.a3 !== c.a3 && !touching(d, c) && boxToDot(c.box, d) <= own + 1) console.log(`WARNING: capital name "${c.name}" is as near ${d.cap.name}'s dot (${boxToDot(c.box, d).toFixed(1)}) as its own (${own.toFixed(1)})`);
+}
 function area_ok(a3) { return areaOf(shapes.get(a3)) > 6000; } // big enough that a name just outside its border is not confusing
 
 

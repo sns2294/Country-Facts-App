@@ -243,6 +243,19 @@ const FIT_LABELS = () => `<script>
     }
     if (!placed) d.style.display = "none";
   }
+  // A capital dot cut by the frame edge (half a dot at the border) goes, with its name and any pointer label or line that belongs to it.
+  const cutLog = [];
+  for (const d of dots) {
+    if (d.style.display === "none") continue;
+    const r = d.getBoundingClientRect();
+    if (!visible(r) || (r.left >= panel.left + 1 && r.right <= panel.right - 1 && r.top >= panel.top + 1 && r.bottom <= panel.bottom - 1)) continue;
+    const cx = +d.getAttribute("cx"), cy = +d.getAttribute("cy"), next = d.nextElementSibling;
+    d.style.display = "none";
+    if (next && next.matches("text.capname")) next.style.display = "none";
+    leaders.forEach((ln, i) => { if (Math.hypot(+ln.getAttribute("x1") - cx, +ln.getAttribute("y1") - cy) < 1) { ln.style.display = "none"; if (notes[i]) notes[i].style.display = "none"; } });
+    cutLog.push({ at: [Math.round(r.left), Math.round(r.top)], name: next && next.matches("text.capname") ? next.textContent : null });
+  }
+  document.documentElement.dataset.cutDots = JSON.stringify(cutLog);
 })();
 </script>`;
 

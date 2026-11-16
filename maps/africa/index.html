@@ -387,18 +387,22 @@ function clamp(){var sz=size(),W=w0*s,H=h0*s;
 // when the gesture has been still for SETTLE ms, or the transformed element would stop covering the stage, the view is baked again. Bake and
 // transform reset happen in one frame, so the old picture stays until the new one is painted. A pan that stays inside the margin needs no re-draw.
 var MARGIN=0.3,SETTLE=140;
-function bake(){if(!svg)return;clearTimeout(st);mx=Math.round(sz[0]*MARGIN);my=Math.round(sz[1]*MARGIN);EW=sz[0]+2*mx;EH=sz[1]+2*my;var k=k0*s;
+function bake(g){if(!svg)return;clearTimeout(st);stage.classList.toggle("moving",g===true);mx=Math.round(sz[0]*MARGIN);my=Math.round(sz[1]*MARGIN);EW=sz[0]+2*mx;EH=sz[1]+2*my;var k=k0*s;
  svg.setAttribute("viewBox",(vb0[0]+(-mx-tx)/k)+" "+(vb0[1]+(-my-ty)/k)+" "+EW/k+" "+EH/k);
  svg.style.width=EW+"px";svg.style.height=EH+"px";svg.style.left=-mx+"px";svg.style.top=-my+"px";svg.style.transform="";
  bs=s;btx=tx;bty=ty}
 function settle(){st=0;if(!svg)return;if(raf||Object.keys(pts).length){schedule();return}
- var r=s/bs;if(Math.abs(r-1)>0.001||Math.abs(tx-btx)>mx*0.5||Math.abs(ty-bty)>my*0.5)bake()}
+ var r=s/bs;if(stage.classList.contains("moving")||Math.abs(r-1)>0.001||Math.abs(tx-btx)>mx*0.5||Math.abs(ty-bty)>my*0.5)bake()}
 function schedule(){clearTimeout(st);st=setTimeout(settle,SETTLE)}
+// A re-draw that has to happen while a finger is still moving (the transformed element no longer covers the stage) is drawn without the
+// borders of the land, lakes and disputed areas (class "moving", maps.css): the strokes are most of the cost on a big map such as North America.
+// The re-draw 140 ms after the gesture stops puts them back. Re-draws on a button press or after a pause always have them.
 // window.mapViewer.onchange (the density map's border width, hatching, name toggle and focus ring, all set from the zoom) runs after a bake, not
 // on every frame of a gesture: it changes style on the whole SVG, which is the expensive thing to do while a finger is moving.
 // Touch events can arrive faster than frames (120 per second on some phones); the view state is updated on each, the page once per frame.
 function flush(force){raf=0;if(!svg)return;var r=s/bs,T=tx+mx-r*(mx+btx),U=ty+my-r*(my+bty);
- if(force===true||T-mx>0.5||r*EW+T-mx<sz[0]-0.5||U-my>0.5||r*EH+U-my<sz[1]-0.5)bake();
+ if(force===true)bake();
+ else if(T-mx>0.5||r*EW+T-mx<sz[0]-0.5||U-my>0.5||r*EH+U-my<sz[1]-0.5){bake(true);schedule()}
  else{svg.style.transform="translate("+T+"px,"+U+"px) scale("+r+")";schedule()}}
 function apply(now){clamp();if(now){if(raf){cancelAnimationFrame(raf);raf=0}flush(true)}else if(!raf)raf=requestAnimationFrame(flush)}
 function zoomAt(f,cx,cy,now){var n=Math.min(MAX,Math.max(minS,s*f));f=n/s;tx=cx-(cx-tx)*f;ty=cy-(cy-ty)*f;s=n;apply(now)}
@@ -409,7 +413,7 @@ function show(){svg=open.querySelector("svg").cloneNode(true);svg.removeAttribut
  // The page map's soft shadow under the land is an SVG filter, which the browser has to run again on every re-draw of a big, zoomed picture; the full-screen copy goes without it.
  Array.prototype.forEach.call(svg.querySelectorAll('[filter="url(#shadow)"]'),function(g){g.removeAttribute("filter")});var v=svg.viewBox.baseVal;vb0=[v.x,v.y,v.width,v.height];bs=1;btx=bty=0;stage.innerHTML="";stage.appendChild(svg);viewer.hidden=false;document.documentElement.classList.add("map-viewer-open");
  fit();document.getElementById("map-close").focus();try{history.pushState({mapViewer:1},"");pushed=true}catch(e){}}
-function hide(fromPop){if(viewer.hidden)return;if(raf){cancelAnimationFrame(raf);raf=0}clearTimeout(st);viewer.hidden=true;document.documentElement.classList.remove("map-viewer-open");stage.innerHTML="";svg=null;
+function hide(fromPop){if(viewer.hidden)return;if(raf){cancelAnimationFrame(raf);raf=0}clearTimeout(st);stage.classList.remove("moving");viewer.hidden=true;document.documentElement.classList.remove("map-viewer-open");stage.innerHTML="";svg=null;
  if(pushed&&!fromPop){pushed=false;try{history.back()}catch(e){}}pushed=false;open.focus()}
 open.addEventListener("click",show);
 window.addEventListener("popstate",function(){if(!viewer.hidden)hide(true)});

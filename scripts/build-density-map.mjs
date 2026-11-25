@@ -22,7 +22,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { socialTags } from "./social-tags.mjs";
 import { clipHalf, stitch } from "./geo-util.mjs";
-import { THEME_SNIPPET, TOGGLE_SNIPPET, viewerSnippet } from "./map-page.mjs";
+import { ANALYTICS_SNIPPET, THEME_SNIPPET, TOGGLE_SNIPPET, viewerSnippet } from "./map-page.mjs";
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -536,6 +536,7 @@ ${INDEXABLE ? "" : `  <meta name="robots" content="noindex" />\n`}  <meta proper
   <script>${viewerSnippet({ maxPxPerUnit: 450 })}</script>
   <script>${READOUT_SNIPPET}</script>
   <script>${TOGGLE_SNIPPET}</script>
+${ANALYTICS_SNIPPET}
 </body>
 </html>
 `;

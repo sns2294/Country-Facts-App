@@ -2,6 +2,10 @@
 // toggle scripts, the full-screen viewer (tap to open, pinch/scroll to zoom).
 export const DARK_MODE_KEY = "countryFacts.darkMode".replace("countryFacts.", "countryFactsApp.");
 
+// Cloudflare Web Analytics beacon, written just before </body> on every public page (map pages here, country pages, hub and 404 via
+// scripts/build-pages.mjs; index.html carries the same text by hand). Not used by scripts/instagram/.
+export const ANALYTICS_SNIPPET = `<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "343745cb2e694b1b8d64676fa629fe97"}'></script><!-- End Cloudflare Web Analytics -->`;
+
 export const THEME_SNIPPET = `try{var s=localStorage.getItem(${JSON.stringify(DARK_MODE_KEY)});var d=s===null?matchMedia("(prefers-color-scheme: dark)").matches:s==="true";document.documentElement.classList.toggle("dark",d)}catch(e){}`;
 export const TOGGLE_SNIPPET = `(function(){var b=document.getElementById("dark-mode-toggle"),i=document.getElementById("dark-mode-icon"),r=document.documentElement;function sync(){var d=r.classList.contains("dark");b.setAttribute("aria-pressed",String(d));i.textContent=d?"\\u2600\\uFE0F":"\\uD83C\\uDF19"}sync();b.addEventListener("click",function(){var d=!r.classList.contains("dark");r.classList.toggle("dark",d);try{localStorage.setItem(${JSON.stringify(DARK_MODE_KEY)},String(d))}catch(e){}sync()})})();`;
 

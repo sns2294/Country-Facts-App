@@ -19,6 +19,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { MAP_REGIONS, ALL_MAPS } from "./map-regions.mjs";
 import { OG_W, OG_H, socialTags as socialTagsFor } from "./social-tags.mjs";
+import { ANALYTICS_SNIPPET } from "./map-page.mjs";
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -1024,6 +1025,7 @@ ${canonical ? `  <meta property="og:url" content="${esc(canonical)}" />\n` : ""}
 ${body}
   ${footer(up)}
   <script>${TOGGLE_SNIPPET}</script>
+${ANALYTICS_SNIPPET}
 </body>
 </html>
 `;

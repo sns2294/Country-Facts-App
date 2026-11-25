@@ -13,7 +13,7 @@
 // details, then the call to action, then at most 5 hashtags (#Geography #CountryFacts and up to 3 specific ones).
 import fs from "node:fs";
 import path from "node:path";
-import { ROOT, T, ALL_MAPS, sovereign, nameOf, findCountry, pick, regionName, factRows, funFact, hookLine, flagEmoji, regionalMapFor, mapSvg, locatorSvg, quizPool, buildQuiz, hashtags } from "./data.mjs";
+import { ROOT, T, ALL_MAPS, sovereign, countryOfDayPool, nameOf, findCountry, pick, regionName, factRows, funFact, hookLine, flagEmoji, regionalMapFor, mapSvg, locatorSvg, quizPool, buildQuiz, hashtags } from "./data.mjs";
 import { VIEWS } from "./sections.mjs";
 import { countryMapSlide, factsSlide, quizQuestionSlide, quizAnswerSlide, mapSlide, renderSlides } from "./slides.mjs";
 
@@ -49,7 +49,7 @@ function write(dir, slides, caption) {
 }
 
 function countryPost(code, base = OUT) {
-  const c = code ? findCountry(code) : pick(sovereign);
+  const c = code ? findCountry(code) : pick(countryOfDayPool);
   const mapId = regionalMapFor(c);
   const first = countryMapSlide(c, mapId ? mapSvg(mapId) : null, mapId ? null : locatorSvg(c));
   const fact = funFact(c); // chosen once: the hook line and the slide's "Did you know?" are this very sentence

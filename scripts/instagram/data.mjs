@@ -40,6 +40,7 @@ const FRIENDLY_REGIONS = {
   "Western Asia": "the Middle East",
   "Northern America": "North America",
   Americas: "the Americas",
+  Caribbean: "the Caribbean",
 };
 // In a sentence ("in the Middle East"), or bare for a label or hashtag ("Middle East").
 export const regionName = (r, { bare = false } = {}) => {
@@ -54,6 +55,16 @@ const rankBy = (c, f, pool = sovereign) => 1 + pool.filter((x) => f(x) > f(c)).l
 const areaOf = (x) => x.area, popOf = (x) => x.population, densityOf = (x) => x.population / x.area;
 const gdpPerPerson = (x) => (x.gdp?.value && x.population ? x.gdp.value / x.population : 0);
 const joinNames = (names) => (names.length <= 2 ? names.join(" and ") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+// Data known to be out of date, to fix in the data file later. Facts built from these fields are never picked for these countries
+// (and no replacement data is written here). Burkina Faso: since its 2023 constitutional change French is a "working language" and the
+// national languages are official, but data/countries.json still lists the old official languages.
+export const KNOWN_STALE = {
+  BFA: ["languages"],
+  // Bulgaria adopted the euro on 1 January 2026; data/countries.json still lists the lev, so the currency data needs a refresh.
+  BGR: ["currencies"],
+};
+const stale = (c, field) => KNOWN_STALE[c.alpha3Code]?.includes(field);
 const num = (n) => Math.round(n).toLocaleString("en-US");
 export const isMicrostate = (c) => c.area < 1000;
 
@@ -110,7 +121,8 @@ export function funFacts(c) {
     const more = sovereign.filter((x) => neighbourCodes(x).length > nb).length;
     add(70 + Math.min(nb, 14), `${name} borders ${nb} other countries${more ? `, and only ${more} ${more === 1 ? "country has" : "countries have"} more` : ", more than any other country"}.`);
   }
-  if (landlocked.has(c.alpha3Code) && !host) add(64, `${name} is landlocked, with no coast on the sea.`);
+  // "Landlocked" already means no coast, so the wording never adds "no coast on the sea".
+  if (landlocked.has(c.alpha3Code) && !host) add(66, nb >= 1 ? `${name} is landlocked, sharing borders with ${plural(nb, "other country", "other countries")}.` : `${name} is landlocked.`);
 
   for (const [scope, key] of [["subregion", c.subregion], ["region", c.region]]) {
     const group = key ? sovereign.filter((x) => x[scope] === key) : [];
@@ -132,9 +144,7 @@ export function funFacts(c) {
       if (areaRank >= 2 && areaRank <= 3) add(53, `The ${ordinal(areaRank)} largest of the ${group.length} countries in ${regionName(c.subregion)}, by area.`);
     }
   }
-  const faith = c.religions?.[0];
-  if (faith && faith.pct >= 75 && faith.name !== "Non-religious") add(52, `About ${Math.round(faith.pct)}% of people in ${T.nameWithThe(c)} follow ${faith.name}.`);
-  else if (faith && faith.pct >= 55 && faith.name !== "Non-religious") add(48, `${faith.name} is the largest religion in ${T.nameWithThe(c)}, followed by about ${Math.round(faith.pct)}% of people.`);
+  // No religion or ethnic-group percentages: dull and touchy, so they are never used as "did you know" facts.
   // Further down the world rankings, still worth saying.
   for (const [f, top, bottom] of [[popOf, "most populous country in the world", "least populous country in the world"], [areaOf, "largest country in the world by area", "smallest country in the world by area"]]) {
     const r = rankBy(c, f), low = N + 1 - r;
@@ -146,7 +156,8 @@ export function funFacts(c) {
   if (densityOf(c) <= 0.4 * worldDensity) add(50, `${name} is far emptier than the world average: about ${num(densityOf(c))} people per km², against ${num(worldDensity)} worldwide.`);
   const worldEconomy = c.gdp?.value ? rankBy(c, (x) => x.gdp?.value || 0) : null;
   if (worldEconomy && worldEconomy > 5 && worldEconomy <= 25) add(55, `The ${ordinal(worldEconomy)} largest economy in the world (GDP, ${c.gdp.year}).`);
-  if (c.languages?.length === 2) add(50, `${name} has 2 official languages: ${joinNames(c.languages.map((l) => l.name.replace(/\s*\([^)]*\)\s*/g, " ").trim()))}.`);
+  // No "official languages" facts: the language data lists commonly used languages, not legally official ones, and several are wrong.
+  // (KNOWN_STALE stays for future facts built from fields known to be out of date.)
   const neighbours = neighbourCodes(c).length;
   if (neighbours >= 5 && neighbours < 8) add(52, `${name} borders ${neighbours} other countries.`);
   const rich = c.gdp?.value ? rankBy(c, gdpPerPerson) : null;
@@ -154,18 +165,21 @@ export function funFacts(c) {
   const economy = c.gdp?.value ? rankBy(c, (x) => x.gdp?.value || 0) : null;
   if (economy && economy <= 5) add(68, `${economy === 1 ? "The largest" : `The ${ordinal(economy)} largest`} economy in the world (GDP, ${c.gdp.year}).`);
 
-  if (c.languages?.length >= 3) add(60 + c.languages.length, `${name} has ${c.languages.length} official languages: ${joinNames(c.languages.map((l) => l.name.replace(/\s*\([^)]*\)\s*/g, " ").trim()))}.`);
-  const code = c.currencies?.length === 1 ? c.currencies[0].code : null;
+  const code = !stale(c, "currencies") && c.currencies?.length === 1 ? c.currencies[0].code : null;
   const sharing = code ? sovereign.filter((x) => x.currencies?.some((k) => k.code === code)).length : 0;
-  if (sharing >= 5) add(58, `${name} shares its currency, the ${c.currencies[0].name}, with ${sharing - 1} other countries.`);
-  const gov = c.governmentType, sameGov = gov ? sovereign.filter((x) => x.governmentType === gov).length : 99;
-  if (gov && sameGov <= 4) add(56, `Only ${sameGov} countries in our data are listed as ${gov === "absolute monarchy" ? "absolute monarchies" : `"${gov}"`}, and ${name} is one.`);
+  // The euro area grows as countries join, so the euro is stated without a count; other shared currencies keep theirs.
+  if (code === "EUR") add(45, `${name} uses the euro.`);
+  else if (sharing >= 5) add(58, `${name} shares its currency, the ${c.currencies[0].name}, with ${plural(sharing - 1, "other country", "other countries")}.`);
+  // No government-type facts: the data's labels are uneven ("Republic of Cyprus - presidential republic") and some are touchy.
   if (nb === 0 && !host) add(50, `${name} has no land borders.`);
 
   if (!out.length || Math.max(...out.map((o) => o.score)) < 55) add(40, `About ${num(densityOf(c))} ${densityOf(c) < 2 ? "person lives" : "people live"} on each square kilometre of ${name}.`);
   return out.sort((x, y) => y.score - x.score);
 }
 // The most striking fact, picked at random among near-equals so repeat posts differ. The capital is never used: there is always something else.
+// Countries whose best fact is only the population-density filler (score 40) are left out of the "country of the day" rotation; they
+// still appear in quizzes and maps, and `make.mjs country <code>` still makes a post for any of them.
+export const countryOfDayPool = sovereign.filter((c) => funFacts(c)[0].score > 40);
 export function funFact(c) {
   const facts = funFacts(c);
   return pick(facts.filter((f) => f.score >= facts[0].score - 6)).text;

@@ -531,7 +531,7 @@ ${INDEXABLE ? "" : `  <meta name="robots" content="noindex" />\n`}  <meta proper
       <a href="https://data.worldbank.org/indicator/EN.POP.DNST" target="_blank" rel="noopener">World Bank</a>,
       <a href="https://www.naturalearthdata.com" target="_blank" rel="noopener">Natural Earth</a>.
     </p>
-    <p class="footer-feedback"><a href="mailto:hello@countryfacts.app">Send feedback</a></p>
+    <p class="footer-feedback"><a href="mailto:hello@countryfacts.app">Send feedback</a> <span aria-hidden="true">·</span> <a href="https://ko-fi.com/countryfacts" target="_blank" rel="noopener">☕ Support Country Facts</a></p>
   </footer>
   <script>${viewerSnippet({ maxPxPerUnit: 450 })}</script>
   <script>${READOUT_SNIPPET}</script>

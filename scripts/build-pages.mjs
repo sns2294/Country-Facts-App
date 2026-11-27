@@ -976,7 +976,7 @@ const footer = (up) => `<footer class="site-footer">
       <a href="https://www.naturalearthdata.com" target="_blank" rel="noopener">Natural Earth</a>,
       <a href="https://flagicons.lipis.dev" target="_blank" rel="noopener">flag-icons</a>.
     </p>
-    <p class="footer-feedback"><a href="${up}maps/">Maps</a> <span aria-hidden="true">·</span> <a href="mailto:hello@countryfacts.app">Send feedback</a></p>
+    <p class="footer-feedback"><a href="${up}maps/">Maps</a> <span aria-hidden="true">·</span> <a href="mailto:hello@countryfacts.app">Send feedback</a> <span aria-hidden="true">·</span> <a href="https://ko-fi.com/countryfacts" target="_blank" rel="noopener">☕ Support Country Facts</a></p>
   </footer>`;
 
 // The top navigation: the same three tabs as the app's (index.html), as plain links, for the static pages. `current` marks the page's own tab.
